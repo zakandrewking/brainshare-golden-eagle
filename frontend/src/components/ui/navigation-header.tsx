@@ -9,6 +9,7 @@ import DarkModeToggle from "@/components/DarkModeToggle";
 // import { useUser } from "@/utils/supabase/client";
 import { cn } from "@/utils/tailwind";
 
+import { fontTitle } from "../fonts";
 import { InternalLink } from "./link";
 // import { NavigationButtonWithDrawer } from "./navigation-drawer";
 import { FillSpace, Stack } from "./stack";
@@ -40,8 +41,8 @@ export default function NavigationHeader() {
         <InternalLink href="/" className="no-underline">
           <h1
             className={cn(
-              "text-3xl	mt-1 flex-shrink overflow-hidden"
-              // fontTitle.className
+              "text-3xl	mt-1 flex-shrink overflow-hidden",
+              fontTitle.className
             )}
           >
             Brainshare
