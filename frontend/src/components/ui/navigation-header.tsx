@@ -11,7 +11,7 @@ import { cn } from "@/utils/tailwind";
 
 import { fontTitle } from "../fonts";
 import { InternalLink } from "./link";
-// import { NavigationButtonWithDrawer } from "./navigation-drawer";
+import { NavigationButtonWithDrawer } from "./navigation-drawer";
 import { FillSpace, Stack } from "./stack";
 
 export default function NavigationHeader() {
@@ -37,7 +37,7 @@ export default function NavigationHeader() {
         component="header"
         className="sticky p-3 top-0 z-50 w-full h-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
       >
-        {/* <NavigationButtonWithDrawer /> */}
+        <NavigationButtonWithDrawer />
         <InternalLink href="/" className="no-underline">
           <h1
             className={cn(
