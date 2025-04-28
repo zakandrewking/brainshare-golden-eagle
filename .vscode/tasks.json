@@ -2,6 +2,29 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "start supabase",
+      "type": "shell",
+      "command": "npx --yes supabase start"
+    },
+    {
+      "label": "stop supabase",
+      "type": "shell",
+      "command": "npx --yes supabase stop"
+    },
+    {
+      "label": "reset local db",
+      "type": "shell",
+      "command": "npx --yes supabase db reset"
+    },
+    {
+      "label": "apply local db changes",
+      "type": "shell",
+      "command": "npx drizzle-kit push",
+      "options": {
+        "cwd": "${workspaceFolder}/db"
+      }
+    },
+    {
       "type": "npm",
       "script": "dev",
       "label": "npm: dev",

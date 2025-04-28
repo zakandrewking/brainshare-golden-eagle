@@ -8,6 +8,9 @@
     },
     {
       "path": "supabase"
+    },
+    {
+        "path": "db"
     }
   ],
   "settings": {
