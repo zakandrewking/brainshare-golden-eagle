@@ -1,34 +1,41 @@
-import './globals.css';
+import "./globals.css";
 
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { ReactNode } from "react";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import HolyLoader from "holy-loader";
+import { type Metadata } from "next";
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { fontSans } from "@/components/fonts";
+import { Providers } from "@/components/providers";
+import { Toaster } from "@/components/ui/sonner";
+import { cn } from "@/utils/tailwind";
 
 export const metadata: Metadata = {
   title: "Brainshare",
-  description: "",
+  description: "Why screenshare when you can brainshare?",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      {/* https://github.com/tomcru/holy-loader/issues/2 */}
+      {/* color from globals.css:root:input */}
+      <HolyLoader height={2} color="#738c7b" />
+      <head />
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={cn(
+          "min-h-screen bg-background font-sans antialiased",
+          fontSans.variable
+        )}
       >
-        {children}
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );
