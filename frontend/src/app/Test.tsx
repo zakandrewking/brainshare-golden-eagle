@@ -19,5 +19,5 @@ export default function Test() {
     }
   }, [data]); // Dependency array ensures this runs when 'data' changes
 
-  return <div>{data}</div>;
+  return <div>This should say test almost immediately: {data}</div>;
 }
