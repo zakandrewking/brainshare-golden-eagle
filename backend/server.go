@@ -201,7 +201,9 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fmt.Fprintf(w, "File '%s' for docId '%s' processed and chunks uploaded successfully.", handler.Filename, docId.String())
+	successMessage := fmt.Sprintf("File '%s' for docId '%s' processed and chunks uploaded successfully.", handler.Filename, docId.String())
+	log.Printf(successMessage)
+	fmt.Fprint(w, successMessage)
 }
 
 // healthCheckHandler responds to health check requests

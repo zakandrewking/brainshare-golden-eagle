@@ -1,0 +1,12 @@
+- NEVER add comments to code unless they are specifically providing non-obvious
+  information (e.g. design decisions)
+- always use frontend components from /components/ui when possible
+- always use lucide-react for icons if possible
+- use server actions instead of api routes in next.js
+- for toast messages, call sonner directly
+- instead of adding a sql new migration, always just edit the existing sql file
+  in `/supabase/schemas/`.  i have a separate script for applying modified
+  migrations to production. After making the modification to `schemas`, pause
+  and ask for confirmation before continuing with the implementation.
+- when relevant, postgresql tables should have created_at columns and updated_at
+  columns that are generated using public.set_updated_at from 0000_utils.sql

@@ -9,3 +9,11 @@ stored in `~/.aws/credentials`.
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 ```
+
+## test upload
+
+```bash
+http --form POST http://localhost:8086/upload \
+  file@./sample.csv \
+  docId='123e4567-e89b-12d3-a456-426614174000'
+```
