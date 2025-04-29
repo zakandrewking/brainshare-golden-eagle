@@ -114,20 +114,11 @@ export async function getLiveblocksRooms(): Promise<GetRoomsResult> {
 
 // Function to create a room
 export async function createLiveblocksRoom(
-  newRoomName: string
+  roomId: string
 ): Promise<CreateRoomResult> {
   if (!process.env.LIVEBLOCKS_SECRET_KEY) {
     console.error("LIVEBLOCKS_SECRET_KEY is not set.");
     return { success: false, error: "Server configuration error." };
-  }
-
-  // Basic ID generation (replace with more robust method if needed, e.g., UUID)
-  const roomId = newRoomName
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-  if (!roomId) {
-    return { success: false, error: "Invalid room name provided." };
   }
 
   let newRoom: RoomData;
@@ -135,7 +126,7 @@ export async function createLiveblocksRoom(
     // 1. Create the room metadata
     newRoom = await liveblocks.createRoom(roomId, {
       metadata: {
-        name: newRoomName,
+        name: roomId,
       },
       defaultAccesses: ["room:write"],
     });
