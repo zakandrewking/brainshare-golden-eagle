@@ -162,21 +162,21 @@
   }
 }
 
-.prose table {
+.tiptap table {
   @apply my-4 w-full border-collapse border border-border;
 }
 
-.prose th,
-.prose td {
+.tiptap th,
+.tiptap td {
   @apply border border-border px-4 py-2 text-left;
 }
 
-.prose th {
+.tiptap th {
   @apply bg-muted font-semibold;
 }
 
 /* Optional: Adjust prose defaults if needed */
-.prose > * + * {
+.tiptap > * + * {
   @apply mt-4; /* Ensure consistent spacing */
 }
 

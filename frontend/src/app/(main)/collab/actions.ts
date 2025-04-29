@@ -160,7 +160,7 @@ export async function createLiveblocksRoom(
   // 2. Create default Yjs content and send initial update
   try {
     const yDoc = new Y.Doc();
-    const yXmlFragment = yDoc.getXmlFragment("default"); // Tiptap typically uses "default"
+    const yXmlFragment = yDoc.getXmlFragment("default");
     const paragraph = new Y.XmlElement("paragraph");
     paragraph.insert(0, [new Y.XmlText("Hello World 🌎️")]);
     yXmlFragment.insert(0, [paragraph]);

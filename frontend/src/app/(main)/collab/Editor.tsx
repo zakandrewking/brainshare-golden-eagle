@@ -21,7 +21,9 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { useLiveblocksExtension } from "@liveblocks/react-tiptap";
+import { useRoom } from "@liveblocks/react";
+import { getYjsProviderForRoom } from "@liveblocks/yjs";
+import { Collaboration } from "@tiptap/extension-collaboration";
 import Table from "@tiptap/extension-table";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
@@ -353,17 +355,23 @@ const EditorToolbar = ({ editor }: { editor: TiptapEditor | null }) => {
 };
 
 export default function Editor() {
-  const liveblocks = useLiveblocksExtension();
+  const room = useRoom();
+  const yProvider = getYjsProviderForRoom(room);
+  const yDoc = yProvider.getYDoc();
 
   const editor = useEditor({
     extensions: [
-      liveblocks,
       StarterKit.configure({
         history: false,
       }),
-      Table.configure({
-        resizable: true,
-      }),
+      Collaboration.configure({ document: yDoc }),
+      // CollaborationCursor.configure({ // TODO bring this & comments back
+      //   user: {
+      //     name: "Anon",
+      //     color: "#000000",
+      //   },
+      // }),
+      Table.configure({ resizable: true }),
       TableRow,
       TableHeader,
       TableCell,
@@ -372,11 +380,11 @@ export default function Editor() {
   });
 
   return (
-    <div className="relative">
+    <div className="relative flex flex-col flex-grow">
       <EditorToolbar editor={editor} />
       <EditorContent
         editor={editor}
-        className="editor prose dark:prose-invert max-w-none"
+        className="editor flex-grow overflow-y-auto"
       />
       <Threads editor={editor} />
     </div>
