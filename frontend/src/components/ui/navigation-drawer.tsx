@@ -122,13 +122,6 @@ function NavigationButtonWithDrawer() {
               >
                 Home
               </NavButton>
-              <NavButton
-                href="/collab"
-                match={new RegExp("/collab$")}
-                setOpen={setWillOpen}
-              >
-                Collab
-              </NavButton>
             </Stack>
           </div>
           <DrawerFooter>

@@ -80,40 +80,34 @@ export default function Table() {
   );
 
   return (
-    <div className="p-4">
-      <h1 className="text-lg font-semibold mb-4">Collaborative Table</h1>
-      <table className="table-auto w-full border-collapse border border-slate-400">
-        <thead>
-          <tr>
+    <table className="table-auto w-full border-collapse border border-slate-400">
+      <thead>
+        <tr>
+          {headers.map((header) => (
+            <th key={header} className="border border-slate-300 p-2 text-left">
+              {header}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {tableData.map((row, rowIndex) => (
+          <tr key={rowIndex}>
             {headers.map((header) => (
-              <th
-                key={header}
-                className="border border-slate-300 p-2 text-left"
-              >
-                {header}
-              </th>
+              <td key={`${rowIndex}-${header}`} className="border p-0">
+                <input
+                  type="text"
+                  value={String(row[header] ?? "")}
+                  onChange={(e) =>
+                    handleCellChange(rowIndex, header, e.target.value)
+                  }
+                  className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </td>
             ))}
           </tr>
-        </thead>
-        <tbody>
-          {tableData.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {headers.map((header) => (
-                <td key={`${rowIndex}-${header}`} className="border p-0">
-                  <input
-                    type="text"
-                    value={String(row[header] ?? "")}
-                    onChange={(e) =>
-                      handleCellChange(rowIndex, header, e.target.value)
-                    }
-                    className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </table>
   );
 }
