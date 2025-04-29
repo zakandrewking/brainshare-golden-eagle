@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -51,9 +50,10 @@ func main() {
 	s3Client = s3.NewFromConfig(cfg)
 
 	http.HandleFunc("/upload", uploadHandler)
+	http.HandleFunc("/health", healthCheckHandler)
 
-	fmt.Println("Server starting on port 8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	fmt.Println("Server starting on port 8086...")
+	if err := http.ListenAndServe(":8086", nil); err != nil {
 		log.Fatalf("Could not start server: %s\n", err.Error())
 	}
 }
@@ -202,6 +202,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "File '%s' for docId '%s' processed and chunks uploaded successfully.", handler.Filename, docId.String())
+}
+
+// healthCheckHandler responds to health check requests
+func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "{\"status\": \"ok\"}")
+	w.Header().Set("Content-Type", "application/json") // Set content type
 }
 
 // Helper function (optional, could be inline)

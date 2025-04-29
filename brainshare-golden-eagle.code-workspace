@@ -11,6 +11,12 @@
     },
     {
       "path": "db"
+    },
+    {
+      "path": "backend"
+    },
+    {
+      "path": "pulumi"
     }
   ],
   "settings": {
