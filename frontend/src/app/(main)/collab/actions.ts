@@ -4,16 +4,6 @@ import * as Y from "yjs"; // Import yjs
 
 import { Liveblocks, RoomData } from "@liveblocks/node";
 
-// Export RoomData type
-export type { RoomData };
-
-/*
-// Remove the custom interface, use RoomData directly
-export interface LiveblocksRoomData {
-// ... removed interface ...
-}
-*/
-
 // Define the possible return types for the action using RoomData
 interface ActionResultSuccess {
   success: true;
@@ -160,7 +150,8 @@ export async function createLiveblocksRoom(
       // Create the first row as a Y.Map
       const firstRow = new Y.Map<unknown>();
       // Set the value of the first cell (column 'col0')
-      firstRow.set("col0", "Hello World 🌎️");
+      firstRow.set("col0", "Hello️ ");
+      firstRow.set("col1", "World 🌎");
       // Add the first row to the table array
       yTable.push([firstRow]);
     } else {

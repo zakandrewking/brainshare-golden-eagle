@@ -1,4 +1,5 @@
 import React, {
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -19,9 +20,11 @@ export default function Table() {
   const yDoc = yProvider.getYDoc();
   const [tableData, setTableData] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
+  const yTableRef = React.useRef<Y.Array<Y.Map<unknown>> | null>(null);
 
   useEffect(() => {
     const yTable = yDoc.getArray<Y.Map<unknown>>("tableData");
+    yTableRef.current = yTable;
 
     // Function to update React state from Yjs state
     const updateTableState = () => {
@@ -53,6 +56,29 @@ export default function Table() {
     };
   }, [room, yDoc]);
 
+  // Function to handle cell changes
+  const handleCellChange = useCallback(
+    (rowIndex: number, header: string, newValue: string) => {
+      const yTable = yTableRef.current;
+      if (!yTable) return;
+
+      // Yjs transactions ensure atomicity
+      yDoc.transact(() => {
+        const yRow = yTable.get(rowIndex);
+        if (yRow) {
+          // Treat empty string as deletion for simplicity, or handle based on needs
+          if (newValue === "") {
+            yRow.delete(header);
+          } else {
+            yRow.set(header, newValue);
+          }
+        }
+      });
+      // Note: The updateTableState function will be triggered by the observer
+    },
+    [yDoc] // Depend on yDoc for transaction capability
+  );
+
   return (
     <div className="p-4">
       <h1 className="text-lg font-semibold mb-4">Collaborative Table</h1>
@@ -73,8 +99,15 @@ export default function Table() {
           {tableData.map((row, rowIndex) => (
             <tr key={rowIndex}>
               {headers.map((header) => (
-                <td key={`${rowIndex}-${header}`} className="border p-2">
-                  {String(row[header] ?? "")}
+                <td key={`${rowIndex}-${header}`} className="border p-0">
+                  <input
+                    type="text"
+                    value={String(row[header] ?? "")}
+                    onChange={(e) =>
+                      handleCellChange(rowIndex, header, e.target.value)
+                    }
+                    className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
                 </td>
               ))}
             </tr>
