@@ -2,24 +2,35 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "start supabase",
+      "label": "Sync schema edits",
+      "dependsOn": ["[drizzle] push", "[supabase] gen types"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "[supabase] start",
       "type": "shell",
       "command": "npx --yes supabase start"
     },
     {
-      "label": "stop supabase",
+      "label": "[supabase] stop",
       "type": "shell",
       "command": "npx --yes supabase stop"
     },
     {
-      "label": "reset local db",
+      "label": "[supabase] db reset",
       "type": "shell",
       "command": "npx --yes supabase db reset"
     },
     {
-      "label": "apply local db changes",
+      "label": "[supabase] gen types",
       "type": "shell",
-      "command": "npx drizzle-kit push",
+      "command": "npx --yes supabase gen types typescript --local --schema public > frontend/src/database.types.ts"
+    },
+    {
+      "label": "[drizzle] push",
+      "type": "shell",
+      "command": "npx drizzle-kit push --force",
       "options": {
         "cwd": "${workspaceFolder}/db"
       }
@@ -27,7 +38,7 @@
     {
       "type": "npm",
       "script": "dev",
-      "label": "npm: dev",
+      "label": "[npm] dev",
       "isBackground": true,
       "options": {
         "cwd": "${workspaceFolder}/frontend"

@@ -8,7 +8,7 @@
       "url": "http://localhost:3000",
       // brew install homebrew/cask-versions/google-chrome-canary
       "runtimeExecutable": "canary",
-      "preLaunchTask": "npm: dev",
+      "preLaunchTask": "[npm] dev",
       "sourceMaps": true,
       "webRoot": "${workspaceFolder}/frontend"
     }

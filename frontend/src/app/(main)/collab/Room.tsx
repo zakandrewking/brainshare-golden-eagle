@@ -15,14 +15,9 @@ interface RoomProps {
   roomId: string; // The ID of the room to connect to
 }
 
+const publicApiKey = process.env.NEXT_PUBLIC_LIVEBLOCKS_API_KEY!;
+
 export default function Room({ children, roomId }: RoomProps) {
-  // Check if the public API key is available
-  const publicApiKey = process.env.NEXT_PUBLIC_LIVEBLOCKS_API_KEY;
-
-  if (!publicApiKey) {
-    throw new Error("NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY is not set");
-  }
-
   return (
     <LiveblocksProvider publicApiKey={publicApiKey}>
       <RoomProvider
