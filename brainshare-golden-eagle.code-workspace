@@ -10,17 +10,17 @@
       "path": "supabase"
     },
     {
-        "path": "db"
+      "path": "db"
     }
   ],
   "settings": {
     "workbench.colorCustomizations": {
-      "statusBar.background": "#f8aefc",
+      "statusBar.background": "#1f4792",
       "statusBar.noFolderBackground": "#282828",
       "statusBar.debuggingBackground": "#f8aefc",
-      "statusBar.foreground": "#000000",
+      "statusBar.foreground": "#ffffff",
       "statusBar.noFolderForeground": "#ffffff",
-      "statusBar.debuggingForeground": "#000000",
+      "statusBar.debuggingForeground": "#ffffff",
       "workspaceInStatusBar.text": "#ffffff",
       "editorOverviewRuler.border": "#0000",
       "editorOverviewRuler.findMatchForeground": "#0000",
@@ -36,22 +36,22 @@
       "editorOverviewRuler.infoForeground": "#0000",
       "editorOverviewRuler.bracketMatchForeground": "#0000",
       "[Gruvbox Light Medium]": {
-        "statusBar.background": "#fbf1c6",
+        "statusBar.background": "#1f4792",
         "statusBar.noFolderBackground": "#fbf1c6",
         "statusBar.debuggingBackground": "#fbf1c6",
-        "statusBar.foreground": "#000000",
-        "statusBar.noFolderForeground": "#000000",
-        "statusBar.debuggingForeground": "#000000",
-        "workspaceInStatusBar.text": "#000000"
+        "statusBar.foreground": "#ffffff",
+        "statusBar.noFolderForeground": "#ffffff",
+        "statusBar.debuggingForeground": "#ffffff",
+        "workspaceInStatusBar.text": "#ffffff"
       },
-      "titleBar.activeBackground": "#f8aefc",
-      "titleBar.activeForeground": "#000000",
-      "titleBar.inactiveBackground": "#f8aefc",
-      "titleBar.inactiveForeground": "#000000",
-      "titleBar.border": "#f8aefc",
-      "activityBar.background": "#f8aefc",
-      "activityBar.foreground": "#000000",
-      "tab.activeBorder": "#f8aefc",
+      "titleBar.activeBackground": "#1f4792",
+      "titleBar.activeForeground": "#ffffff",
+      "titleBar.inactiveBackground": "#1f4792",
+      "titleBar.inactiveForeground": "#ffffff",
+      "titleBar.border": "#1f4792",
+      "activityBar.background": "#1f4792",
+      "activityBar.foreground": "#ffffff",
+      "tab.activeBorder": "#1f4792",
       "iLoveWorkSpaceColors": true,
       "iLoveWorkSpaceRandom": false
     }
