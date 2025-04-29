@@ -6,7 +6,11 @@ import React, {
   useTransition,
 } from "react";
 
-import { AlertTriangle, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  GitFork,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import useSWR from "swr";
 
@@ -31,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Database } from "@/database.types";
 import { createClient } from "@/utils/supabase/client";
 import { cn } from "@/utils/tailwind";
 
@@ -41,24 +46,33 @@ import {
   nukeAllLiveblocksRooms,
 } from "./actions";
 
+type Document = Database["public"]["Tables"]["document"]["Row"];
+
 interface RoomsProps {
-  onSelectRoom: (roomId: string | null) => void;
+  onSelectRoom: (document: Document | null) => void;
   selectedRoomId: string | null;
+}
+
+interface ForkingDetails {
+  room: Document | null;
+  suggestedName: string | null;
+  isOpen: boolean;
 }
 
 export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
   // Keep useTransition for managing pending state of *actions* (create, fork, delete, nuke)
   const [isPending, startTransition] = useTransition();
 
+  // new room state
   const [newRoomName, setNewRoomName] = useState("");
+  const [type, setType] = useState<"text" | "table">("text");
 
-  // State for Fork Dialog
-  const [isForkDialogOpen, setIsForkDialogOpen] = useState(false);
-  const [forkingRoomId, setForkingRoomId] = useState<string | null>(null);
-  const [forkingRoomOriginalName, setForkingRoomOriginalName] =
-    useState<string>("");
-  const [newForkName, setNewForkName] = useState("");
-  const [type, setType] = useState("text");
+  // fork dialog state
+  const [forkingDetails, setForkingDetails] = useState<ForkingDetails>({
+    room: null,
+    suggestedName: null,
+    isOpen: false,
+  });
 
   // Ref for the fork dialog input
   const forkNameInputRef = useRef<HTMLInputElement>(null);
@@ -84,7 +98,7 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
     return data;
   });
 
-  const handleCreateRoom = (type: string) => {
+  const handleCreateRoom = (type: "text" | "table") => {
     if (!newRoomName.trim()) return;
 
     startTransition(async () => {
@@ -104,7 +118,7 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
         return;
       }
 
-      const result = await createLiveblocksRoom(newRoomName.trim());
+      const result = await createLiveblocksRoom(newRoomName.trim(), type);
 
       if (result.success) {
         // Update SWR cache optimistically or revalidate
@@ -112,7 +126,7 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
         mutateRooms((currentRooms) => [...(currentRooms || []), room], {
           revalidate: false,
         }); // Avoid immediate revalidation if optimistic update is sufficient
-        onSelectRoom(result.data.id);
+        onSelectRoom(room);
         setNewRoomName("");
         toast.success(
           `Room '${result.data.metadata?.name || result.data.id}' created.`
@@ -127,36 +141,37 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
   };
 
   // Opens the dialog and sets initial state
-  const openForkDialog = (roomId: string, originalName: string | undefined) => {
-    const suggestedName = `Fork of ${originalName || roomId}`;
-    setForkingRoomId(roomId);
-    setForkingRoomOriginalName(originalName || roomId);
-    setNewForkName(suggestedName); // Pre-fill input
-    setIsForkDialogOpen(true);
+  const handleOpenForkDialog = (room: Document) => {
+    setForkingDetails({
+      room,
+      suggestedName: `Fork of ${room.title.trim()}`,
+      isOpen: true,
+    });
   };
 
   // Handles the actual forking when confirmed in the dialog
   const handleConfirmFork = () => {
-    if (!forkingRoomId || !newForkName.trim()) return;
-
     startTransition(async () => {
+      if (!forkingDetails.room || !forkingDetails.suggestedName)
+        throw new Error("Forking details are missing");
+
       const { data: room, error } = await supabase
         .from("document")
         .insert({
-          title: newForkName.trim(),
-          liveblocks_id: newForkName.trim(),
-          type: "text",
+          title: forkingDetails.suggestedName,
+          liveblocks_id: forkingDetails.suggestedName,
+          type: forkingDetails.room.type,
         })
         .select("*")
         .single();
       if (error || !room) {
         console.error("Failed to create document:", error);
-        toast.error(error?.message || "Failed to create document");
+        toast.error("Failed to create document");
         return;
       }
       const result = await forkLiveblocksRoom(
-        forkingRoomId,
-        newForkName.trim()
+        forkingDetails.room.liveblocks_id,
+        forkingDetails.suggestedName
       );
 
       if (result.success) {
@@ -164,8 +179,12 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
         mutateRooms((currentRooms) => [...(currentRooms || []), room], {
           revalidate: false,
         });
-        onSelectRoom(result.data.id);
-        setIsForkDialogOpen(false);
+        onSelectRoom(room);
+        setForkingDetails({
+          room: null,
+          suggestedName: null,
+          isOpen: false,
+        });
         toast.success(
           `Room '${
             result.data.metadata?.name || result.data.id
@@ -301,7 +320,10 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
                 disabled={isPending}
                 autoComplete="off"
               />
-              <Select value={type} onValueChange={(value) => setType(value)}>
+              <Select
+                value={type}
+                onValueChange={(value) => setType(value as "text" | "table")}
+              >
                 <SelectTrigger className="w-24">
                   <SelectValue placeholder="Select a type" />
                 </SelectTrigger>
@@ -316,7 +338,7 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
                 size="sm"
               >
                 {/* Show spinner only during the create action, not initial load */}
-                {isPending && !forkingRoomId && !deletingRoomId ? (
+                {isPending && !forkingDetails.room && !deletingRoomId ? (
                   <LoadingSpinner className="mr-2 h-4 w-4" />
                 ) : null}
                 Create
@@ -383,7 +405,7 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onSelectRoom(room.liveblocks_id)}
+                    onClick={() => onSelectRoom(room)}
                     className={cn(
                       "flex-grow justify-start px-2 text-left",
                       selectedRoomId === room.liveblocks_id &&
@@ -396,48 +418,35 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
 
                   {/* --- Fork Button Trigger --- */}
                   <Dialog
-                    open={
-                      isForkDialogOpen && forkingRoomId === room.liveblocks_id
+                    open={forkingDetails.isOpen}
+                    onOpenChange={(open) =>
+                      setForkingDetails((prev) => ({ ...prev, isOpen: open }))
                     }
-                    onOpenChange={setIsForkDialogOpen}
                   >
                     <DialogTrigger asChild>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          openForkDialog(room.liveblocks_id, room.title)
-                        }
-                        disabled={isPending} // Disable during any action
+                        onClick={() => handleOpenForkDialog(room)}
+                        disabled={isPending}
                         title={`Fork room '${room.title}'`}
-                        className="shrink-0"
                       >
-                        {/* Git Fork Icon SVG */}
-                        <svg
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          height="1em"
-                          width="1em"
-                          className="mr-1 h-4 w-4"
-                        >
-                          <path d="M5 3.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm0 2.122a2.25 2.25 0 1 0-1.5 0v.878A2.25 2.25 0 0 0 5.75 8.5h1.5v2.128a2.251 2.251 0 1 0 1.5 0V8.5h1.5a2.25 2.25 0 0 0 2.25-2.25v-.878a2.25 2.25 0 1 0-1.5 0v.878a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 5 6.25v-.878Zm3.75 7.378a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3-8.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" />
-                        </svg>
+                        <GitFork className="mr-1 h-4 w-4" />
                         Fork
                       </Button>
                     </DialogTrigger>
-                    {/* --- Fork Dialog Content --- */}
                     <DialogContent className="sm:max-w-[425px]">
                       <form
                         onSubmit={(e) => {
-                          e.preventDefault(); // Prevent page reload
-                          handleConfirmFork(); // Call the existing confirm handler
+                          e.preventDefault();
+                          handleConfirmFork();
                         }}
                       >
                         <DialogHeader>
                           <DialogTitle>Fork Room</DialogTitle>
                           <DialogDescription>
                             Create a new room based on &apos;
-                            {forkingRoomOriginalName}&apos;. Enter a name for
+                            {forkingDetails.room?.title}&apos;. Enter a name for
                             the new room.
                           </DialogDescription>
                         </DialogHeader>
@@ -452,8 +461,13 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
                             <Input
                               ref={forkNameInputRef}
                               id="new-fork-name"
-                              value={newForkName}
-                              onChange={(e) => setNewForkName(e.target.value)}
+                              value={forkingDetails.suggestedName || ""}
+                              onChange={(e) =>
+                                setForkingDetails((prev) => ({
+                                  ...prev,
+                                  suggestedName: e.target.value,
+                                }))
+                              }
                               className="col-span-3"
                               disabled={isPending}
                             />
@@ -468,14 +482,13 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
                           <Button
                             type="submit" // Set type to submit
                             onClick={handleConfirmFork} // Keep onClick for direct clicks
-                            disabled={!newForkName.trim() || isPending} // Disable during any action
+                            disabled={
+                              !forkingDetails.suggestedName?.trim() || isPending
+                            }
                           >
-                            {/* Show spinner only when this specific fork is pending */}
-                            {isPending &&
-                            isForkDialogOpen &&
-                            forkingRoomId === room.liveblocks_id ? (
+                            {isPending && (
                               <LoadingSpinner className="mr-2 h-4 w-4" />
-                            ) : null}
+                            )}
                             Fork Room
                           </Button>
                         </DialogFooter>

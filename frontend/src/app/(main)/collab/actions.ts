@@ -114,7 +114,8 @@ export async function getLiveblocksRooms(): Promise<GetRoomsResult> {
 
 // Function to create a room
 export async function createLiveblocksRoom(
-  roomId: string
+  roomId: string,
+  docType: "text" | "table"
 ): Promise<CreateRoomResult> {
   if (!process.env.LIVEBLOCKS_SECRET_KEY) {
     console.error("LIVEBLOCKS_SECRET_KEY is not set.");
@@ -151,10 +152,24 @@ export async function createLiveblocksRoom(
   // 2. Create default Yjs content and send initial update
   try {
     const yDoc = new Y.Doc();
-    const yXmlFragment = yDoc.getXmlFragment("default");
-    const paragraph = new Y.XmlElement("paragraph");
-    paragraph.insert(0, [new Y.XmlText("Hello World 🌎️")]);
-    yXmlFragment.insert(0, [paragraph]);
+
+    // Conditional seeding based on docType
+    if (docType === "table") {
+      // Create a Y.Array named 'tableData' to represent the table rows
+      const yTable = yDoc.getArray<Y.Map<unknown>>("tableData");
+      // Create the first row as a Y.Map
+      const firstRow = new Y.Map<unknown>();
+      // Set the value of the first cell (column 'col0')
+      firstRow.set("col0", "Hello World 🌎️");
+      // Add the first row to the table array
+      yTable.push([firstRow]);
+    } else {
+      // Default to text seeding (original logic)
+      const yXmlFragment = yDoc.getXmlFragment("default");
+      const paragraph = new Y.XmlElement("paragraph");
+      paragraph.insert(0, [new Y.XmlText("Hello World 🌎️")]); // Keep emoji here too?
+      yXmlFragment.insert(0, [paragraph]);
+    }
 
     // Encode the state as an update message
     const yUpdate = Y.encodeStateAsUpdate(yDoc);
@@ -190,24 +205,11 @@ export async function createLiveblocksRoom(
 // NEW: Function to fork a room
 export async function forkLiveblocksRoom(
   originalRoomId: string,
-  newRoomName: string
+  newRoomId: string
 ): Promise<ForkRoomResult> {
   if (!process.env.LIVEBLOCKS_SECRET_KEY) {
     console.error("LIVEBLOCKS_SECRET_KEY is not set.");
     return { success: false, error: "Server configuration error." };
-  }
-
-  // Generate new room ID
-  const newRoomId = newRoomName
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-  // Keep check for invalid ID after sanitization, but remove check against original ID
-  if (!newRoomId) {
-    return {
-      success: false,
-      error: "Invalid room name provided (becomes empty after sanitization).",
-    };
   }
 
   let originalYjsDataBuffer: ArrayBuffer;
@@ -233,7 +235,7 @@ export async function forkLiveblocksRoom(
   try {
     newRoom = await liveblocks.createRoom(newRoomId, {
       metadata: {
-        name: newRoomName,
+        name: newRoomId,
       },
       defaultAccesses: ["room:write"],
     });
