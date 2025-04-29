@@ -11,6 +11,8 @@ import { useSelf } from "@liveblocks/react";
 import { useRoom } from "@liveblocks/react/suspense";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
 
+import TableToolbar from "./TableToolbar"; // Import the toolbar
+
 // Type for awareness state (adjust based on what you store, e.g., user info)
 interface AwarenessState {
   user?: { name: string; color: string }; // Example user info
@@ -42,6 +44,7 @@ export default function Table() {
   );
   const yTableRef = React.useRef<Y.Array<Y.Map<unknown>> | null>(null);
   const awarenessRef = useRef(awareness);
+  const yDocRef = useRef<Y.Doc | null>(yDoc); // Create ref for yDoc
 
   useEffect(() => {
     const yTable = yDoc.getArray<Y.Map<unknown>>("tableData");
@@ -171,76 +174,89 @@ export default function Table() {
   };
 
   return (
-    <table className="table-auto w-full border-collapse border border-slate-400 relative">
-      <thead>
-        <tr>
-          {headers.map((header) => (
-            <th key={header} className="border border-slate-300 p-2 text-left">
-              {header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {tableData.map((row, rowIndex) => (
-          <tr key={rowIndex}>
-            {headers.map((header, colIndex) => {
-              const cellKey = `${rowIndex}-${colIndex}`;
-              const cursors = getCursorsForCell(rowIndex, colIndex);
-              const isSelectedBySelf =
-                selectedCell?.rowIndex === rowIndex &&
-                selectedCell?.colIndex === colIndex;
+    <div className="p-4">
+      {/* Render the Toolbar */}
+      <TableToolbar
+        yTableRef={yTableRef}
+        yDocRef={yDocRef}
+        selectedCell={selectedCell}
+        headers={headers}
+      />
 
-              // Determine border color based on selection/cursors
-              let borderColor = "transparent"; // Default or border-slate-300?
-              if (isSelectedBySelf) {
-                borderColor = String(self?.info?.color ?? "blue"); // Use self color
-              } else if (cursors.length > 0) {
-                borderColor = String(cursors[0].user?.color ?? "gray"); // Use first cursor's color
-              }
-
-              return (
-                <td
-                  key={cellKey}
-                  className="border p-0 relative" // Added relative positioning
-                  style={{
-                    boxShadow: `inset 0 0 0 2px ${borderColor}`, // Visual indicator
-                  }}
-                >
-                  {/* Render cursor labels */}
-                  {cursors.map((cursor, index) => (
-                    <div
-                      key={index}
-                      className="absolute text-xs px-1 rounded text-white"
-                      style={{
-                        backgroundColor: String(
-                          cursor.user?.color ?? "#000000"
-                        ),
-                        top: `${index * 14}px`, // Stack labels
-                        right: "0px",
-                        zIndex: 10, // Ensure labels are above input
-                        pointerEvents: "none", // Don't interfere with input focus
-                      }}
-                    >
-                      {cursor.user?.name ?? "Anonymous"}
-                    </div>
-                  ))}
-                  <input
-                    type="text"
-                    value={String(row[header] ?? "")}
-                    onChange={(e) =>
-                      handleCellChange(rowIndex, header, e.target.value)
-                    }
-                    onFocus={() => handleCellFocus(rowIndex, colIndex)}
-                    onBlur={handleCellBlur}
-                    className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  />
-                </td>
-              );
-            })}
+      <table className="table-auto w-full border-collapse border border-slate-400 relative">
+        <thead>
+          <tr>
+            {headers.map((header) => (
+              <th
+                key={header}
+                className="border border-slate-300 p-2 text-left"
+              >
+                {header}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {tableData.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {headers.map((header, colIndex) => {
+                const cellKey = `${rowIndex}-${colIndex}`;
+                const cursors = getCursorsForCell(rowIndex, colIndex);
+                const isSelectedBySelf =
+                  selectedCell?.rowIndex === rowIndex &&
+                  selectedCell?.colIndex === colIndex;
+
+                // Determine border color based on selection/cursors
+                let borderColor = "transparent"; // Default or border-slate-300?
+                if (isSelectedBySelf) {
+                  borderColor = String(self?.info?.color ?? "blue"); // Use self color
+                } else if (cursors.length > 0) {
+                  borderColor = String(cursors[0].user?.color ?? "gray"); // Use first cursor's color
+                }
+
+                return (
+                  <td
+                    key={cellKey}
+                    className="border p-0 relative" // Added relative positioning
+                    style={{
+                      boxShadow: `inset 0 0 0 2px ${borderColor}`, // Visual indicator
+                    }}
+                  >
+                    {/* Render cursor labels */}
+                    {cursors.map((cursor, index) => (
+                      <div
+                        key={index}
+                        className="absolute text-xs px-1 rounded text-white"
+                        style={{
+                          backgroundColor: String(
+                            cursor.user?.color ?? "#000000"
+                          ),
+                          top: `${index * 14}px`, // Stack labels
+                          right: "0px",
+                          zIndex: 10, // Ensure labels are above input
+                          pointerEvents: "none", // Don't interfere with input focus
+                        }}
+                      >
+                        {cursor.user?.name ?? "Anonymous"}
+                      </div>
+                    ))}
+                    <input
+                      type="text"
+                      value={String(row[header] ?? "")}
+                      onChange={(e) =>
+                        handleCellChange(rowIndex, header, e.target.value)
+                      }
+                      onFocus={() => handleCellFocus(rowIndex, colIndex)}
+                      onBlur={handleCellBlur}
+                      className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
