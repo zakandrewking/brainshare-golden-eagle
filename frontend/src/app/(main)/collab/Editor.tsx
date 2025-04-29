@@ -24,6 +24,7 @@ import {
 import { useRoom } from "@liveblocks/react";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
 import { Collaboration } from "@tiptap/extension-collaboration";
+import { CollaborationCursor } from "@tiptap/extension-collaboration-cursor";
 import Table from "@tiptap/extension-table";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
@@ -365,16 +366,20 @@ export default function Editor() {
         history: false,
       }),
       Collaboration.configure({ document: yDoc }),
-      // CollaborationCursor.configure({ // TODO bring this & comments back
-      //   user: {
-      //     name: "Anon",
-      //     color: "#000000",
-      //   },
-      // }),
+      CollaborationCursor.configure({
+        // provider.awareness is used to propogate cursor changes. see also
+        // https://docs.yjs.dev/api/about-awareness
+        provider: yProvider,
+        user: {
+          name: "Anon",
+          color: "#942192",
+        },
+      }),
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,
       TableCell,
+      // TODO bring comments back
     ],
     immediatelyRender: false,
   });
