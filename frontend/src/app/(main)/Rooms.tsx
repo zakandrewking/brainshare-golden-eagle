@@ -299,17 +299,14 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
   return (
     <>
       <div className="flex flex-col space-y-4">
-        {/* --- Controls Area --- */}
         <div className="space-y-4 border-b pb-4">
-          {/* Create New Room Section */}
           <div className="space-y-2">
-            <h3 className="text-md font-semibold">Create New Room</h3>
-            {/* Wrap input and button in a form */}
+            <h3 className="text-md font-semibold">Create New Document</h3>
             <form
               className="flex space-x-2"
               onSubmit={(e) => {
                 e.preventDefault(); // Prevent default page reload
-                handleCreateRoom(type); // Call existing handler
+                handleCreateRoom(type);
               }}
             >
               <Input
@@ -333,7 +330,7 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
                 </SelectContent>
               </Select>
               <Button
-                type="submit" // Explicitly set type submit
+                type="submit"
                 disabled={!newRoomName.trim() || isPending}
                 size="sm"
               >
@@ -355,7 +352,7 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
                 disabled={isPending || rooms?.length === 0} // Disable if no rooms or action pending
                 className="w-auto"
               >
-                <AlertTriangle className="mr-2 h-4 w-4" /> Nuke All Rooms
+                <AlertTriangle className="mr-2 h-4 w-4" /> Nuke All Documents
               </Button>
             </DialogTrigger>
             <DialogContent>
