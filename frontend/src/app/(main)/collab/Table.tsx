@@ -62,7 +62,7 @@ export default function Table() {
             {headers.map((header) => (
               <th
                 key={header}
-                className="border border-slate-300 p-2 bg-slate-100 text-left"
+                className="border border-slate-300 p-2 text-left"
               >
                 {header}
               </th>
@@ -73,11 +73,7 @@ export default function Table() {
           {tableData.map((row, rowIndex) => (
             <tr key={rowIndex}>
               {headers.map((header) => (
-                <td
-                  key={`${rowIndex}-${header}`}
-                  className="border border-slate-300 p-2"
-                >
-                  {/* Render cell data, handle potential undefined if a row doesn't have a specific header */}
+                <td key={`${rowIndex}-${header}`} className="border p-2">
                   {String(row[header] ?? "")}
                 </td>
               ))}
@@ -85,7 +81,6 @@ export default function Table() {
           ))}
         </tbody>
       </table>
-      {/* TODO: Add functionality to add/edit rows/columns */}
     </div>
   );
 }
