@@ -328,8 +328,8 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
                   <SelectValue placeholder="Select a type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="text">Text</SelectItem>
                   <SelectItem value="table">Table</SelectItem>
+                  <SelectItem value="text">Text</SelectItem>
                 </SelectContent>
               </Select>
               <Button
