@@ -182,7 +182,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			dataRowEnd := rowEnd
 			if len(header) > 0 {
 				dataRowStart = max(0, rowStart) // Data rows start from 0 index after header
-				dataRowEnd = max(0, rowEnd - 1)
+				dataRowEnd = max(0, rowEnd-1)
 			}
 			s3Key := fmt.Sprintf("%s/rows_%d-%d_cols_%d-%d.csv", docId.String(), dataRowStart, dataRowEnd, colStart, colEnd)
 
@@ -202,7 +202,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	successMessage := fmt.Sprintf("File '%s' for docId '%s' processed and chunks uploaded successfully.", handler.Filename, docId.String())
-	log.Printf(successMessage)
+	log.Printf("%s", successMessage)
 	fmt.Fprint(w, successMessage)
 }
 

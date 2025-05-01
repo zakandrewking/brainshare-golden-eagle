@@ -11,7 +11,9 @@ import { useSelf } from "@liveblocks/react";
 import { useRoom } from "@liveblocks/react/suspense";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
 
-import TableToolbar from "./TableToolbar"; // Import the toolbar
+import FileUploader from "@/components/file-uploader";
+
+import TableToolbar from "./TableToolbar";
 
 // Type for awareness state (adjust based on what you store, e.g., user info)
 interface AwarenessState {
@@ -174,7 +176,11 @@ export default function Table() {
   };
 
   return (
-    <div className="p-4">
+    <div className="p-4 flex flex-col gap-4">
+      <div className="max-w-64">
+        <FileUploader isOverLimit={false} />
+      </div>
+
       {/* Render the Toolbar */}
       <TableToolbar
         yTableRef={yTableRef}

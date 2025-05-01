@@ -11,6 +11,15 @@
       "preLaunchTask": "[npm] dev",
       "sourceMaps": true,
       "webRoot": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "Backend",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/backend/server.go",
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env"
     }
   ]
 }

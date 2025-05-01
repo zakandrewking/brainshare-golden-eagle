@@ -65,7 +65,7 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
 
   // new room state
   const [newRoomName, setNewRoomName] = useState("");
-  const [type, setType] = useState<"text" | "table">("text");
+  const [type, setType] = useState<"text" | "table">("table");
 
   // fork dialog state
   const [forkingDetails, setForkingDetails] = useState<ForkingDetails>({
@@ -102,7 +102,6 @@ export default function Rooms({ onSelectRoom, selectedRoomId }: RoomsProps) {
     if (!newRoomName.trim()) return;
 
     startTransition(async () => {
-      // create a new document in supabase
       const { data: room, error } = await supabase
         .from("document")
         .insert({

@@ -11,22 +11,46 @@ export type Database = {
     Tables: {
       document: {
         Row: {
-          id: number
+          id: string
           liveblocks_id: string
           title: string
           type: string
         }
         Insert: {
-          id?: number
+          id?: string
           liveblocks_id: string
           title: string
           type: string
         }
         Update: {
-          id?: number
+          id?: string
           liveblocks_id?: string
           title?: string
           type?: string
+        }
+        Relationships: []
+      }
+      file: {
+        Row: {
+          bucket_id: string
+          id: string
+          name: string
+          object_path: string
+          size: number
+        }
+        Insert: {
+          bucket_id: string
+          id?: string
+          name: string
+          object_path: string
+          size: number
+        }
+        Update: {
+          bucket_id?: string
+          id?: string
+          name?: string
+          object_path?: string
+          size?: number
         }
         Relationships: []
       }

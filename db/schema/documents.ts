@@ -1,15 +1,15 @@
-import { sql } from 'drizzle-orm';
+import { sql } from "drizzle-orm";
 import {
   check,
-  integer,
   pgTable,
   text,
-} from 'drizzle-orm/pg-core';
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const documents = pgTable(
   "document",
   {
-    id: integer().primaryKey().generatedByDefaultAsIdentity(),
+    id: uuid("id").primaryKey().defaultRandom(),
     title: text("title").notNull(),
     liveblocks_id: text("liveblocks_id").notNull(),
     type: text("type").notNull(),

@@ -1,5 +1,7 @@
 import * as aws from '@pulumi/aws';
 
-const bucketName = "brainshare-primary";
+// chunks bucket
+const c = new aws.s3.Bucket("brainshare-primary", {});
 
-const bucket = new aws.s3.Bucket(bucketName, {});
+// files bucket
+const f = new aws.s3.Bucket("brainshare-files", {});
