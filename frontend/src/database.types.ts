@@ -30,6 +30,39 @@ export type Database = {
         }
         Relationships: []
       }
+      edge: {
+        Row: {
+          id: string
+          source: string
+          target: string
+        }
+        Insert: {
+          id?: string
+          source: string
+          target: string
+        }
+        Update: {
+          id?: string
+          source?: string
+          target?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edge_source_node_id_fk"
+            columns: ["source"]
+            isOneToOne: false
+            referencedRelation: "node"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edge_target_node_id_fk"
+            columns: ["target"]
+            isOneToOne: false
+            referencedRelation: "node"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       file: {
         Row: {
           bucket_id: string
@@ -51,6 +84,30 @@ export type Database = {
           name?: string
           object_path?: string
           size?: number
+        }
+        Relationships: []
+      }
+      node: {
+        Row: {
+          description: string | null
+          id: string
+          position_x: number
+          position_y: number
+          title: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          position_x: number
+          position_y: number
+          title: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          position_x?: number
+          position_y?: number
+          title?: string
         }
         Relationships: []
       }
