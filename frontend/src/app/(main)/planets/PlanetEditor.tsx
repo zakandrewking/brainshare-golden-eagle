@@ -56,6 +56,7 @@ export default function PlanetEditor() {
     null
   );
   const [editingHeaderValue, setEditingHeaderValue] = useState<string>("");
+  const [isTableLoaded, setIsTableLoaded] = useState<boolean>(false);
   const yTableRef = React.useRef<Y.Array<Y.Map<unknown>> | null>(null);
   const yHeadersRef = React.useRef<Y.Array<string> | null>(null);
   const awarenessRef = useRef(awareness);
@@ -71,33 +72,31 @@ export default function PlanetEditor() {
     const updateTableState = () => {
       const currentData = yTable.toArray().map(yMapToObject);
       setTableData(currentData);
+      // Loading state check moved to separate useEffect
     };
 
     // Function to update React state for headers
     const updateHeadersState = () => {
       const currentHeaders = yHeaders.toArray();
-      // Initialize headers if empty and table has data
       if (currentHeaders.length === 0 && yTable.length > 0) {
         const firstRowMap = yTable.get(0);
         if (firstRowMap) {
           const initialHeaders = Array.from(firstRowMap.keys()).sort();
-          // Use transact to ensure atomicity if multiple users initialize
           yDoc.transact(() => {
-            // Double check length inside transaction
             if (yHeaders.length === 0) {
               yHeaders.push(initialHeaders);
-              setHeaders(initialHeaders); // Update state immediately
+              setHeaders(initialHeaders);
             } else {
-              // Headers were set by another user concurrently
               setHeaders(yHeaders.toArray());
             }
           });
         } else {
-          setHeaders([]); // No first row exists
+          setHeaders([]);
         }
       } else {
         setHeaders(currentHeaders);
       }
+      // Loading state check moved to separate useEffect
     };
 
     // Initial state load
@@ -117,6 +116,23 @@ export default function PlanetEditor() {
       yHeaders.unobserve(headersObserver);
     };
   }, [room, yDoc]);
+
+  // New useEffect to check loading state based on data/header state population
+  useEffect(() => {
+    if (!isTableLoaded && yTableRef.current && yHeadersRef.current) {
+      const yTableIsEmpty = yTableRef.current.length === 0;
+      const tableDataPopulated = tableData.length > 0;
+      const headersPopulated = headers.length > 0;
+
+      // Condition: Table is loaded if EITHER Yjs table is empty
+      // OR the Yjs table has rows AND both tableData and headers React states are populated
+      if (yTableIsEmpty || (tableDataPopulated && headersPopulated)) {
+        setIsTableLoaded(true);
+        console.log("Table marked as loaded based on state population.");
+      }
+    }
+    // This effect depends on the React state derived from Yjs updates
+  }, [tableData, headers, isTableLoaded]);
 
   // Effect to set user info in awareness state when it changes
   useEffect(() => {
@@ -314,13 +330,14 @@ export default function PlanetEditor() {
   return (
     <TooltipProvider delayDuration={0}>
       <div className="p-4 flex flex-col gap-4">
-        {/* Render the Toolbar */}
+        {/* Render the Toolbar, passing loading state */}
         <TableToolbar
           yTableRef={yTableRef}
           yDocRef={yDocRef}
           yHeadersRef={yHeadersRef}
           selectedCell={selectedCell}
           headers={headers}
+          isTableLoaded={isTableLoaded}
         />
 
         <table className="table-auto w-full border-collapse border border-slate-400 relative">

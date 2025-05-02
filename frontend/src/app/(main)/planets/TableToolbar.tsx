@@ -35,6 +35,7 @@ interface TableToolbarProps {
   yHeadersRef: React.RefObject<Y.Array<string> | null>; // Add yHeadersRef prop
   selectedCell: { rowIndex: number; colIndex: number } | null;
   headers: string[]; // Keep headers derived from yHeaders for display/validation
+  isTableLoaded: boolean; // Add the loading state prop
 }
 
 const TableToolbar: React.FC<TableToolbarProps> = ({
@@ -43,6 +44,7 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
   yHeadersRef, // Destructure the new prop
   selectedCell,
   headers,
+  isTableLoaded, // Destructure the prop
 }) => {
   const [isAddColumnDialogOpen, setIsAddColumnDialogOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
@@ -189,9 +191,14 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
     });
   };
 
-  const canDeleteRow = !!selectedCell;
+  // Update conditions based on isTableLoaded
+  const canDeleteRow = !!selectedCell && isTableLoaded;
   const canDeleteColumn =
-    !!selectedCell && headers.length > 0 && !!headers[selectedCell.colIndex];
+    !!selectedCell &&
+    headers.length > 0 &&
+    !!headers[selectedCell.colIndex] &&
+    isTableLoaded;
+  const canAddOrDelete = isTableLoaded; // General condition for adding/deleting
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -206,6 +213,7 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
                 e.preventDefault();
                 handleAddRow();
               }}
+              disabled={!canAddOrDelete} // Use combined condition
             >
               <PlusSquare className="h-4 w-4 mr-1" />
               <Rows3 className="h-4 w-4" />
@@ -222,7 +230,7 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
                 e.preventDefault();
                 handleDeleteRow();
               }}
-              disabled={!canDeleteRow}
+              disabled={!canDeleteRow} // Updated condition
               className="text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-4 w-4 mr-1" />
@@ -237,12 +245,21 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
         {/* Column Operations */}
         <Dialog
           open={isAddColumnDialogOpen}
-          onOpenChange={setIsAddColumnDialogOpen}
+          onOpenChange={(isOpen) => {
+            if (!isOpen && !isTableLoaded) return; // Prevent opening if not loaded
+            setIsAddColumnDialogOpen(isOpen);
+            if (!isOpen) setNewColumnName(""); // Reset name on close
+          }}
         >
           <Tooltip>
             <TooltipTrigger asChild>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={handleAddColumn}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAddColumn}
+                  disabled={!canAddOrDelete} // Updated condition
+                >
                   <PlusSquare className="h-4 w-4 mr-1" />
                   <Columns3 className="h-4 w-4" />
                 </Button>
@@ -298,10 +315,10 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
               variant="ghost"
               size="sm"
               onMouseDown={(e) => {
-                e.preventDefault(); // Prevent focus shifts
-                handleDeleteColumn(); // Use the refactored handler
+                e.preventDefault();
+                handleDeleteColumn();
               }}
-              disabled={!canDeleteColumn}
+              disabled={!canDeleteColumn} // Updated condition
               className="text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-4 w-4 mr-1" />
