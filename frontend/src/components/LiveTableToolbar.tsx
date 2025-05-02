@@ -1,27 +1,18 @@
-import React, { useState } from "react";
+import React from "react";
 
 import {
+  ArrowDownToLine,
+  ArrowLeftFromLine,
+  ArrowRightFromLine,
+  ArrowUpFromLine,
   Columns3,
   Download,
-  PlusSquare,
   Rows3,
   Trash2,
 } from "lucide-react";
 import * as Y from "yjs";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -32,37 +23,42 @@ import {
 
 interface LiveTableToolbarProps {
   yTableRef: React.RefObject<Y.Array<Y.Map<unknown>> | null>;
-  yDocRef: React.RefObject<Y.Doc | null>; // Pass yDoc for transactions
-  yHeadersRef: React.RefObject<Y.Array<string> | null>; // Add yHeadersRef prop
+  yDocRef: React.RefObject<Y.Doc | null>;
+  yHeadersRef: React.RefObject<Y.Array<string> | null>;
   selectedCell: { rowIndex: number; colIndex: number } | null;
-  headers: string[]; // Keep headers derived from yHeaders for display/validation
-  isTableLoaded: boolean; // Add the loading state prop
+  headers: string[];
+  isTableLoaded: boolean;
 }
+
+// Helper function to create a new row map initialized with headers
+const createNewRowMap = (yHeaders: Y.Array<string> | null): Y.Map<unknown> => {
+  const newRow = new Y.Map<unknown>();
+  if (yHeaders) {
+    yHeaders.toArray().forEach((header) => newRow.set(header, ""));
+  }
+  return newRow;
+};
 
 const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
   yTableRef,
   yDocRef,
-  yHeadersRef, // Destructure the new prop
+  yHeadersRef,
   selectedCell,
   headers,
-  isTableLoaded, // Destructure the prop
+  isTableLoaded,
 }) => {
-  const [isAddColumnDialogOpen, setIsAddColumnDialogOpen] = useState(false);
-  const [newColumnName, setNewColumnName] = useState("");
-
-  const handleAddRow = () => {
-    console.log("Add Row clicked");
+  const handleAddRowRelative = (direction: "above" | "below") => {
     const yDoc = yDocRef.current;
     const yTable = yTableRef.current;
-    // Get yHeaders to initialize new row correctly
-    const yHeaders = yHeadersRef.current;
-    if (!yDoc || !yTable || !yHeaders) return;
+    const yHeaders = yHeadersRef.current; // Need headers for initialization
+    if (!yDoc || !yTable || !selectedCell) return; // Require selection
+
+    const insertIndex =
+      direction === "above" ? selectedCell.rowIndex : selectedCell.rowIndex + 1;
 
     yDoc.transact(() => {
-      const newRow = new Y.Map<unknown>();
-      // Initialize new row with current headers from yHeaders
-      yHeaders.toArray().forEach((header) => newRow.set(header, ""));
-      yTable.push([newRow]);
+      const newRow = createNewRowMap(yHeaders);
+      yTable.insert(insertIndex, [newRow]);
     });
   };
 
@@ -95,29 +91,56 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
     });
   };
 
-  const handleConfirmAddColumn = () => {
+  const handleAddColumnRelative = (direction: "left" | "right") => {
     const yDoc = yDocRef.current;
     const yTable = yTableRef.current;
     const yHeaders = yHeadersRef.current; // Get yHeaders ref
-    const headerToAdd = newColumnName.trim();
 
-    if (!yDoc || !yTable || !yHeaders || !headerToAdd) return;
-
-    // Check if header already exists in yHeaders (case-insensitive check)
-    if (
-      yHeaders
-        .toArray()
-        .some((h) => h.toLowerCase() === headerToAdd.toLowerCase())
-    ) {
-      alert(`Column header "${headerToAdd}" already exists.`);
-      return; // Prevent adding
+    if (!yDoc || !yTable || !yHeaders || !selectedCell) {
+      console.log(
+        "handleAddColumnRelative aborted: missing doc, table, headers, or selection"
+      );
+      return;
     }
 
-    yDoc.transact(() => {
-      // 1. Add header to yHeaders array
-      yHeaders.push([headerToAdd]);
+    // Generate a unique default header name
+    const baseName = "New Column";
+    let counter = 1;
+    let headerToAdd = `${baseName} ${counter}`;
+    const existingHeadersLower = yHeaders.toArray().map((h) => h.toLowerCase());
 
-      // 2. Add the new key to each existing row in yTable
+    while (existingHeadersLower.includes(headerToAdd.toLowerCase())) {
+      counter++;
+      headerToAdd = `${baseName} ${counter}`;
+    }
+
+    console.log(
+      `[handleAddColumnRelative] Adding column "${headerToAdd}" to the ${direction}`
+    );
+
+    yDoc.transact(() => {
+      // 1. Determine insertion index based on direction and selection
+      let insertIndex = yHeaders.length; // Default to end if no selection/direction
+      // Selection is guaranteed by the check above
+      insertIndex =
+        direction === "left"
+          ? selectedCell.colIndex
+          : selectedCell.colIndex + 1;
+
+      console.log(
+        `[handleAddColumnRelative] Determined insert index: ${insertIndex}`
+      );
+
+      // 2. Add header to yHeaders array at the correct index
+      yHeaders.insert(insertIndex, [headerToAdd]);
+
+      console.log(
+        `[handleAddColumnRelative] yHeaders after insert: ${JSON.stringify(
+          yHeaders.toArray()
+        )}`
+      );
+
+      // 3. Add the new key to each existing row in yTable
       yTable.forEach((row: Y.Map<unknown>) => {
         if (!row.has(headerToAdd)) {
           row.set(headerToAdd, "");
@@ -130,14 +153,6 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
         yTable.push([newRow]);
       }
     });
-
-    // Close dialog and reset state
-    setNewColumnName("");
-    setIsAddColumnDialogOpen(false);
-  };
-
-  const handleAddColumn = () => {
-    setIsAddColumnDialogOpen(true);
   };
 
   const handleDeleteColumn = () => {
@@ -248,13 +263,12 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
   // --- End CSV Download Handler ---
 
   // Update conditions based on isTableLoaded
-  const canDeleteRow = !!selectedCell && isTableLoaded;
+  const canOperateOnSelection = !!selectedCell && isTableLoaded;
   const canDeleteColumn =
-    !!selectedCell &&
+    canOperateOnSelection &&
     headers.length > 0 &&
     !!headers[selectedCell.colIndex] &&
     isTableLoaded;
-  const canAddOrDelete = isTableLoaded;
   const canDownload = isTableLoaded && headers.length > 0; // Can download if loaded and has headers
 
   return (
@@ -268,15 +282,30 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
               size="sm"
               onMouseDown={(e) => {
                 e.preventDefault();
-                handleAddRow();
+                handleAddRowRelative("above");
               }}
-              disabled={!canAddOrDelete} // Use combined condition
+              disabled={!canOperateOnSelection} // Disable if no cell selected
             >
-              <PlusSquare className="h-4 w-4 mr-1" />
-              <Rows3 className="h-4 w-4" />
+              <ArrowUpFromLine className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Add Row</TooltipContent>
+          <TooltipContent>Add Row Above</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleAddRowRelative("below");
+              }}
+              disabled={!canOperateOnSelection} // Disable if no cell selected
+            >
+              <ArrowDownToLine className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Add Row Below</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -287,7 +316,7 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
                 e.preventDefault();
                 handleDeleteRow();
               }}
-              disabled={!canDeleteRow} // Updated condition
+              disabled={!canOperateOnSelection} // Updated condition
               className="text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-4 w-4 mr-1" />
@@ -300,72 +329,38 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
         <Separator orientation="vertical" className="h-6 mx-1" />
 
         {/* Column Operations */}
-        <Dialog
-          open={isAddColumnDialogOpen}
-          onOpenChange={(isOpen) => {
-            if (!isOpen && !isTableLoaded) return; // Prevent opening if not loaded
-            setIsAddColumnDialogOpen(isOpen);
-            if (!isOpen) setNewColumnName(""); // Reset name on close
-          }}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleAddColumn}
-                  disabled={!canAddOrDelete} // Updated condition
-                >
-                  <PlusSquare className="h-4 w-4 mr-1" />
-                  <Columns3 className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-            </TooltipTrigger>
-            <TooltipContent>Add Column</TooltipContent>
-          </Tooltip>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Add New Column</DialogTitle>
-              <DialogDescription>
-                Enter a unique name for the new column.
-              </DialogDescription>
-            </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault(); // Prevent default form submission
-                handleConfirmAddColumn(); // Use the refactored handler
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleAddColumnRelative("left");
               }}
+              disabled={!canOperateOnSelection} // Disable if no selection
             >
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="new-column-name" className="text-right">
-                    Name
-                  </Label>
-                  <Input
-                    id="new-column-name"
-                    value={newColumnName}
-                    onChange={(e) => setNewColumnName(e.target.value)}
-                    className="col-span-3"
-                    autoFocus
-                    required
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">
-                    Cancel
-                  </Button>
-                </DialogClose>
-                {/* Disable button if name is empty or just whitespace */}
-                <Button type="submit" disabled={!newColumnName.trim()}>
-                  Add Column
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+              <ArrowLeftFromLine className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Add Column Left</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleAddColumnRelative("right");
+              }}
+              disabled={!canOperateOnSelection} // Disable if no selection
+            >
+              <ArrowRightFromLine className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Add Column Right</TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
