@@ -1,3 +1,5 @@
+"use client";
+
 import React, {
   useCallback,
   useEffect,
@@ -10,8 +12,6 @@ import * as Y from "yjs";
 import { useSelf } from "@liveblocks/react";
 import { useRoom } from "@liveblocks/react/suspense";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
-
-import FileUploader from "@/components/file-uploader";
 
 import TableToolbar from "./TableToolbar";
 
@@ -29,7 +29,7 @@ function yMapToObject(yMap: Y.Map<unknown>): Record<string, unknown> {
   return Object.fromEntries(yMap.entries());
 }
 
-export default function Table() {
+export default function PlanetEditor() {
   const room = useRoom();
   const self = useSelf();
   const yProvider = getYjsProviderForRoom(room);
@@ -177,10 +177,6 @@ export default function Table() {
 
   return (
     <div className="p-4 flex flex-col gap-4">
-      <div className="max-w-64">
-        <FileUploader isOverLimit={false} />
-      </div>
-
       {/* Render the Toolbar */}
       <TableToolbar
         yTableRef={yTableRef}

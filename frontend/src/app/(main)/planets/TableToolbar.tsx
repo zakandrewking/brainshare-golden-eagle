@@ -30,8 +30,8 @@ import {
 } from "@/components/ui/tooltip";
 
 interface TableToolbarProps {
-  yTableRef: React.MutableRefObject<Y.Array<Y.Map<unknown>> | null>;
-  yDocRef: React.MutableRefObject<Y.Doc | null>; // Pass yDoc for transactions
+  yTableRef: React.RefObject<Y.Array<Y.Map<unknown>> | null>;
+  yDocRef: React.RefObject<Y.Doc | null>; // Pass yDoc for transactions
   selectedCell: { rowIndex: number; colIndex: number } | null;
   headers: string[];
 }
