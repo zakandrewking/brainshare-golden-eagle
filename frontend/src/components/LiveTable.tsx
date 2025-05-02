@@ -3,11 +3,6 @@
 import React from "react";
 
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 interface CursorInfo {
   user?: { name: string; color: string };
@@ -97,19 +92,12 @@ const LiveTable: React.FC<PlanetTableProps> = ({
                   className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-500 m-0 block bg-transparent"
                 />
               ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div
-                      className="p-2 cursor-text truncate"
-                      onDoubleClick={() => onHeaderDoubleClick(index)} // Use callback prop
-                    >
-                      {header}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Double-click to edit header</p>
-                  </TooltipContent>
-                </Tooltip>
+                <div
+                  className="p-2 cursor-text truncate"
+                  onClick={() => onHeaderDoubleClick(index)} // Trigger edit on single click
+                >
+                  {header}
+                </div>
               )}
             </th>
           ))}
