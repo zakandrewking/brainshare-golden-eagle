@@ -32,13 +32,15 @@ import {
 interface TableToolbarProps {
   yTableRef: React.RefObject<Y.Array<Y.Map<unknown>> | null>;
   yDocRef: React.RefObject<Y.Doc | null>; // Pass yDoc for transactions
+  yHeadersRef: React.RefObject<Y.Array<string> | null>; // Add yHeadersRef prop
   selectedCell: { rowIndex: number; colIndex: number } | null;
-  headers: string[];
+  headers: string[]; // Keep headers derived from yHeaders for display/validation
 }
 
 const TableToolbar: React.FC<TableToolbarProps> = ({
   yTableRef,
   yDocRef,
+  yHeadersRef, // Destructure the new prop
   selectedCell,
   headers,
 }) => {
@@ -46,16 +48,17 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
   const [newColumnName, setNewColumnName] = useState("");
 
   const handleAddRow = () => {
-    // TODO: Implement Yjs logic to add a row
     console.log("Add Row clicked");
     const yDoc = yDocRef.current;
     const yTable = yTableRef.current;
-    if (!yDoc || !yTable) return;
+    // Get yHeaders to initialize new row correctly
+    const yHeaders = yHeadersRef.current;
+    if (!yDoc || !yTable || !yHeaders) return;
 
     yDoc.transact(() => {
       const newRow = new Y.Map<unknown>();
-      // Initialize new row with existing headers set to empty string
-      headers.forEach((header) => newRow.set(header, ""));
+      // Initialize new row with current headers from yHeaders
+      yHeaders.toArray().forEach((header) => newRow.set(header, ""));
       yTable.push([newRow]);
     });
   };
@@ -92,26 +95,32 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
   const handleConfirmAddColumn = () => {
     const yDoc = yDocRef.current;
     const yTable = yTableRef.current;
+    const yHeaders = yHeadersRef.current; // Get yHeaders ref
     const headerToAdd = newColumnName.trim();
 
-    if (!yDoc || !yTable || !headerToAdd) return;
+    if (!yDoc || !yTable || !yHeaders || !headerToAdd) return;
 
-    // Check if header already exists (case-insensitive check?)
-    if (headers.some((h) => h.toLowerCase() === headerToAdd.toLowerCase())) {
+    // Check if header already exists in yHeaders (case-insensitive check)
+    if (
+      yHeaders
+        .toArray()
+        .some((h) => h.toLowerCase() === headerToAdd.toLowerCase())
+    ) {
       alert(`Column header "${headerToAdd}" already exists.`);
-      // Keep dialog open maybe? Or close and clear?
       return; // Prevent adding
     }
 
     yDoc.transact(() => {
-      // Add the new header with an empty string to each existing row
+      // 1. Add header to yHeaders array
+      yHeaders.push([headerToAdd]);
+
+      // 2. Add the new key to each existing row in yTable
       yTable.forEach((row: Y.Map<unknown>) => {
         if (!row.has(headerToAdd)) {
-          // Avoid overwriting if somehow exists
           row.set(headerToAdd, "");
         }
       });
-      // If the table is empty, add a first row with the new header
+      // If the table was empty, handleAddRow might be better, but this ensures consistency
       if (yTable.length === 0) {
         const newRow = new Y.Map<unknown>();
         newRow.set(headerToAdd, "");
@@ -129,42 +138,51 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
   };
 
   const handleDeleteColumn = () => {
-    console.log("handleDeleteColumn called", { selectedCell, headers });
     const yDoc = yDocRef.current;
     const yTable = yTableRef.current;
-    if (!yDoc || !yTable || !selectedCell || !headers[selectedCell.colIndex]) {
-      console.log(
-        "Delete column aborted: missing doc, table, selection, or header index invalid",
-        {
-          hasDoc: !!yDoc,
-          hasTable: !!yTable,
-          hasSelectedCell: !!selectedCell,
-          colIndex: selectedCell?.colIndex,
-          headerExists: !!headers[selectedCell?.colIndex ?? -1],
-        }
+    const yHeaders = yHeadersRef.current; // Get yHeaders ref
+
+    if (
+      !yDoc ||
+      !yTable ||
+      !yHeaders ||
+      !selectedCell ||
+      !headers[selectedCell.colIndex]
+    ) {
+      console.log("Delete column aborted: missing dependencies or selection.");
+      return;
+    }
+
+    const colIndexToDelete = selectedCell.colIndex;
+    const headerToDelete = yHeaders.get(colIndexToDelete); // Get header from yHeaders
+
+    if (headerToDelete === undefined) {
+      // Extra safety check
+      console.error(
+        "Could not find header to delete at index",
+        colIndexToDelete
       );
       return;
     }
 
-    const headerToDelete = headers[selectedCell.colIndex];
-    const colIndexToDelete = selectedCell.colIndex; // For logging
     console.log(
       `Attempting to delete column: "${headerToDelete}" at index ${colIndexToDelete}`
     );
 
     yDoc.transact(() => {
       try {
-        console.log(
-          "yTable before column delete:",
-          yTable.toArray().map((r) => r.toJSON())
-        );
+        // 1. Delete header from yHeaders array
+        yHeaders.delete(colIndexToDelete, 1);
+
+        // 2. Delete the corresponding key from each row in yTable
         yTable.forEach((row: Y.Map<unknown>) => {
           row.delete(headerToDelete);
         });
-        console.log(
-          "yTable after column delete:",
-          yTable.toArray().map((r) => r.toJSON())
-        );
+
+        console.log("yStructures after column delete:", {
+          headers: yHeaders.toArray(),
+          table: yTable.toArray().map((r) => r.toJSON()),
+        });
       } catch (error) {
         console.error("Error during column deletion transaction:", error);
       }
@@ -242,7 +260,7 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
             <form
               onSubmit={(e) => {
                 e.preventDefault(); // Prevent default form submission
-                handleConfirmAddColumn();
+                handleConfirmAddColumn(); // Use the refactored handler
               }}
             >
               <div className="grid gap-4 py-4">
@@ -256,6 +274,7 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
                     onChange={(e) => setNewColumnName(e.target.value)}
                     className="col-span-3"
                     autoFocus
+                    required
                   />
                 </div>
               </div>
@@ -265,6 +284,7 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
                     Cancel
                   </Button>
                 </DialogClose>
+                {/* Disable button if name is empty or just whitespace */}
                 <Button type="submit" disabled={!newColumnName.trim()}>
                   Add Column
                 </Button>
@@ -278,8 +298,8 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
               variant="ghost"
               size="sm"
               onMouseDown={(e) => {
-                e.preventDefault();
-                handleDeleteColumn();
+                e.preventDefault(); // Prevent focus shifts
+                handleDeleteColumn(); // Use the refactored handler
               }}
               disabled={!canDeleteColumn}
               className="text-destructive hover:bg-destructive/10"
