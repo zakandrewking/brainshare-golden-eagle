@@ -14,7 +14,7 @@ function Stack({
   style,
   children,
 }: {
-  component?: keyof React.JSX.IntrinsicElements | React.ComponentType<any>;
+  component?: keyof React.JSX.IntrinsicElements | React.ComponentType<unknown>;
   className?: string;
   direction?: "row" | "col";
   gap?: number;

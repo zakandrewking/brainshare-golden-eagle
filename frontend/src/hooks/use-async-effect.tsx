@@ -1,17 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  DependencyList,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 /**
  * Hook to run an async effect on mount and another on unmount.
  */
-export const useAsyncEffect = (
-  mountCallback: () => Promise<any>,
-  unmountCallback: () => Promise<any>,
-  deps: any[] = []
-): UseAsyncEffectResult => {
+export const useAsyncEffect = <T,>(
+  mountCallback: () => Promise<T>,
+  unmountCallback: () => Promise<void>,
+  deps: DependencyList = []
+): UseAsyncEffectResult<T> => {
   const isMounted = useRef(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<unknown>(undefined);
-  const [result, setResult] = useState<any>();
+  const [result, setResult] = useState<T>();
 
   useEffect(() => {
     isMounted.current = true;
@@ -71,8 +77,8 @@ export const useAsyncEffect = (
   );
 };
 
-export interface UseAsyncEffectResult {
-  result: any;
-  error: any;
+export interface UseAsyncEffectResult<T> {
+  result: T | undefined;
+  error: unknown;
   isLoading: boolean;
 }
