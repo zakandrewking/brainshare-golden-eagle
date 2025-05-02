@@ -30,7 +30,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-interface TableToolbarProps {
+interface LiveTableToolbarProps {
   yTableRef: React.RefObject<Y.Array<Y.Map<unknown>> | null>;
   yDocRef: React.RefObject<Y.Doc | null>; // Pass yDoc for transactions
   yHeadersRef: React.RefObject<Y.Array<string> | null>; // Add yHeadersRef prop
@@ -39,7 +39,7 @@ interface TableToolbarProps {
   isTableLoaded: boolean; // Add the loading state prop
 }
 
-const TableToolbar: React.FC<TableToolbarProps> = ({
+const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
   yTableRef,
   yDocRef,
   yHeadersRef, // Destructure the new prop
@@ -410,4 +410,4 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
   );
 };
 
-export default TableToolbar;
+export default LiveTableToolbar;

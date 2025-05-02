@@ -3,6 +3,7 @@
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -13,15 +14,9 @@ import { useSelf } from "@liveblocks/react";
 import { useRoom } from "@liveblocks/react/suspense";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
 
-import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-
-import TableToolbar from "./TableToolbar";
+import LiveTable from "@/components/LiveTable";
+import TableToolbar from "@/components/LiveTableToolbar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Type for awareness state (adjust based on what you store, e.g., user info)
 interface AwarenessState {
@@ -31,6 +26,13 @@ interface AwarenessState {
 
 // Type for the map returned by awareness.getStates()
 type AwarenessStates = Map<number, AwarenessState>;
+
+// Type for cursor data passed to LiveTable
+interface CursorDataForCell {
+  rowIndex: number;
+  colIndex: number;
+  cursors: AwarenessState[]; // Pass the full AwarenessState for now
+}
 
 // Convert Y.Map to a plain JS object for rendering
 function yMapToObject(yMap: Y.Map<unknown>): Record<string, unknown> {
@@ -205,39 +207,26 @@ export default function PlanetEditor() {
     // No need to interact with header state on cell blur
   }, []);
 
-  // Helper to get cursors for a specific cell
-  const getCursorsForCell = (
-    rowIndex: number,
-    colIndex: number
-  ): AwarenessState[] => {
-    const cursors: AwarenessState[] = [];
-    awarenessStates.forEach((state, clientId) => {
-      // Exclude self
-      if (
-        clientId !== self?.connectionId &&
-        state.selectedCell?.rowIndex === rowIndex &&
-        state.selectedCell?.colIndex === colIndex
-      ) {
-        cursors.push(state);
-      }
-    });
-    return cursors;
-  };
-
   // --- Header Editing Handlers ---
-  const handleHeaderDoubleClick = (index: number) => {
-    setEditingHeaderIndex(index);
-    setEditingHeaderValue(headers[index] ?? "");
-    // De-select any selected data cell when editing header
-    setSelectedCell(null);
-    awarenessRef.current.setLocalStateField("selectedCell", null);
-  };
+  const handleHeaderDoubleClick = useCallback(
+    (index: number) => {
+      setEditingHeaderIndex(index);
+      setEditingHeaderValue(headers[index] ?? "");
+      // De-select any selected data cell when editing header
+      setSelectedCell(null);
+      awarenessRef.current.setLocalStateField("selectedCell", null);
+    },
+    [headers]
+  );
 
-  const handleHeaderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditingHeaderValue(e.target.value);
-  };
+  const handleHeaderInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setEditingHeaderValue(e.target.value);
+    },
+    []
+  );
 
-  const saveHeaderChange = () => {
+  const saveHeaderChange = useCallback(() => {
     if (editingHeaderIndex === null) return;
 
     const yDoc = yDocRef.current;
@@ -311,26 +300,54 @@ export default function PlanetEditor() {
     });
 
     setEditingHeaderIndex(null); // Finish editing
-  };
+  }, [editingHeaderIndex, editingHeaderValue, headers]);
 
-  const handleHeaderBlur = () => {
+  const handleHeaderBlur = useCallback(() => {
     saveHeaderChange();
-  };
+  }, [saveHeaderChange]);
 
-  const handleHeaderKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      saveHeaderChange();
-    } else if (e.key === "Escape") {
-      setEditingHeaderIndex(null); // Cancel edit
-      setEditingHeaderValue(""); // Reset value
-    }
-  };
+  const handleHeaderKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        saveHeaderChange();
+      } else if (e.key === "Escape") {
+        setEditingHeaderIndex(null); // Cancel edit
+        setEditingHeaderValue(""); // Reset value
+      }
+    },
+    [saveHeaderChange]
+  );
   // --- End Header Editing Handlers ---
+
+  // --- Compute Cursors Data ---
+  const cursorsData = useMemo(() => {
+    const data: CursorDataForCell[] = [];
+    const numRows = tableData.length;
+    const numCols = headers.length;
+
+    for (let r = 0; r < numRows; r++) {
+      for (let c = 0; c < numCols; c++) {
+        const cellCursors: AwarenessState[] = [];
+        awarenessStates.forEach((state, clientId) => {
+          if (
+            clientId !== self?.connectionId &&
+            state.selectedCell?.rowIndex === r &&
+            state.selectedCell?.colIndex === c
+          ) {
+            cellCursors.push(state);
+          }
+        });
+        if (cellCursors.length > 0) {
+          data.push({ rowIndex: r, colIndex: c, cursors: cellCursors });
+        }
+      }
+    }
+    return data;
+  }, [awarenessStates, tableData.length, headers.length, self?.connectionId]);
 
   return (
     <TooltipProvider delayDuration={0}>
       <div className="p-4 flex flex-col gap-4">
-        {/* Render the Toolbar, passing loading state */}
         <TableToolbar
           yTableRef={yTableRef}
           yDocRef={yDocRef}
@@ -339,105 +356,22 @@ export default function PlanetEditor() {
           headers={headers}
           isTableLoaded={isTableLoaded}
         />
-
-        <table className="table-auto w-full border-collapse border border-slate-400 relative">
-          <thead>
-            <tr>
-              {headers.map((header, index) => (
-                <th
-                  key={`${header}-${index}`}
-                  className="border border-slate-300 p-0 text-left relative group"
-                >
-                  {editingHeaderIndex === index ? (
-                    <Input
-                      type="text"
-                      value={editingHeaderValue}
-                      onChange={handleHeaderInputChange}
-                      onBlur={handleHeaderBlur}
-                      onKeyDown={handleHeaderKeyDown}
-                      autoFocus
-                      className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-500 m-0 block bg-transparent"
-                    />
-                  ) : (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div
-                          className="p-2 cursor-text truncate"
-                          onDoubleClick={() => handleHeaderDoubleClick(index)}
-                        >
-                          {header}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Double-click to edit header</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {tableData.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {headers.map((header, colIndex) => {
-                  const cellKey = `${rowIndex}-${colIndex}`;
-                  const cursors = getCursorsForCell(rowIndex, colIndex);
-                  const isSelectedBySelf =
-                    selectedCell?.rowIndex === rowIndex &&
-                    selectedCell?.colIndex === colIndex;
-
-                  // Determine border color based on selection/cursors
-                  let borderColor = "transparent"; // Default or border-slate-300?
-                  if (isSelectedBySelf) {
-                    borderColor = String(self?.info?.color ?? "blue"); // Use self color
-                  } else if (cursors.length > 0) {
-                    borderColor = String(cursors[0].user?.color ?? "gray"); // Use first cursor's color
-                  }
-
-                  return (
-                    <td
-                      key={cellKey}
-                      className="border p-0 relative" // Added relative positioning
-                      style={{
-                        boxShadow: `inset 0 0 0 2px ${borderColor}`, // Visual indicator
-                      }}
-                    >
-                      {/* Render cursor labels */}
-                      {cursors.map((cursor, index) => (
-                        <div
-                          key={index}
-                          className="absolute text-xs px-1 rounded text-white"
-                          style={{
-                            backgroundColor: String(
-                              cursor.user?.color ?? "#000000"
-                            ),
-                            top: `${index * 14}px`, // Stack labels
-                            right: "0px",
-                            zIndex: 10, // Ensure labels are above input
-                            pointerEvents: "none", // Don't interfere with input focus
-                          }}
-                        >
-                          {cursor.user?.name ?? "Anonymous"}
-                        </div>
-                      ))}
-                      <input
-                        type="text"
-                        value={String(row[header] ?? "")}
-                        onChange={(e) =>
-                          handleCellChange(rowIndex, header, e.target.value)
-                        }
-                        onFocus={() => handleCellFocus(rowIndex, colIndex)}
-                        onBlur={handleCellBlur}
-                        className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-300"
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <LiveTable
+          headers={headers}
+          tableData={tableData}
+          selectedCell={selectedCell}
+          editingHeaderIndex={editingHeaderIndex}
+          editingHeaderValue={editingHeaderValue}
+          selfColor={String(self?.info?.color ?? undefined)}
+          cursorsData={cursorsData}
+          onCellChange={handleCellChange}
+          onCellFocus={handleCellFocus}
+          onCellBlur={handleCellBlur}
+          onHeaderDoubleClick={handleHeaderDoubleClick}
+          onHeaderChange={handleHeaderInputChange}
+          onHeaderBlur={handleHeaderBlur}
+          onHeaderKeyDown={handleHeaderKeyDown}
+        />
       </div>
     </TooltipProvider>
   );
