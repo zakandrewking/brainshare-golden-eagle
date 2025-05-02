@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import {
   Columns3,
+  Download,
   PlusSquare,
   Rows3,
   Trash2,
@@ -191,6 +192,61 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
     });
   };
 
+  // --- CSV Download Handler ---
+  const handleDownloadCsv = () => {
+    const yTable = yTableRef.current;
+    if (!yTable || headers.length === 0) {
+      console.warn("CSV Download aborted: No headers or table data.");
+      return;
+    }
+
+    // Function to escape CSV special characters (comma, quote, newline)
+    const escapeCsvCell = (cellData: unknown): string => {
+      const stringValue = String(cellData ?? ""); // Handle null/undefined
+      // If the value contains a comma, newline, or double quote, enclose it in double quotes
+      if (
+        stringValue.includes(",") ||
+        stringValue.includes("\n") ||
+        stringValue.includes('"')
+      ) {
+        // Escape existing double quotes by doubling them
+        const escapedValue = stringValue.replace(/"/g, '""');
+        return `"${escapedValue}"`;
+      }
+      return stringValue;
+    };
+
+    // Create Header Row
+    const csvHeader = headers.map(escapeCsvCell).join(",");
+
+    // Create Data Rows
+    const tableRows = yTable.toArray();
+    const csvRows = tableRows.map((rowMap: Y.Map<unknown>) => {
+      return headers
+        .map((header) => {
+          const cellValue = rowMap.get(header); // Get value using the current header
+          return escapeCsvCell(cellValue);
+        })
+        .join(",");
+    });
+
+    // Combine header and rows
+    const csvContent = [csvHeader, ...csvRows].join("\n");
+
+    // Create Blob and Trigger Download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "planets.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+  // --- End CSV Download Handler ---
+
   // Update conditions based on isTableLoaded
   const canDeleteRow = !!selectedCell && isTableLoaded;
   const canDeleteColumn =
@@ -198,7 +254,8 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
     headers.length > 0 &&
     !!headers[selectedCell.colIndex] &&
     isTableLoaded;
-  const canAddOrDelete = isTableLoaded; // General condition for adding/deleting
+  const canAddOrDelete = isTableLoaded;
+  const canDownload = isTableLoaded && headers.length > 0; // Can download if loaded and has headers
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -326,6 +383,27 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
             </Button>
           </TooltipTrigger>
           <TooltipContent>Delete Column</TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
+        {/* Download Button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onMouseDown={(e) => {
+                // Use onMouseDown to prevent focus issues
+                e.preventDefault();
+                handleDownloadCsv();
+              }}
+              disabled={!canDownload} // Use the download condition
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Download CSV</TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>
