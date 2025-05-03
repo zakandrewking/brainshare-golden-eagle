@@ -1,4 +1,9 @@
-import React from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import {
   ArrowDownToLine,
@@ -7,11 +12,25 @@ import {
   ArrowUpFromLine,
   Columns3,
   Download,
+  Loader2,
   Rows3,
+  Sparkles,
   Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import * as Y from "yjs";
 
+import { generateColumnSuggestions } from "@/app/(main)/planets/actions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -47,6 +66,14 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
   headers,
   isTableLoaded,
 }) => {
+  const [isPending, startTransition] = useTransition();
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [selectedCellForAiFill, setSelectedCellForAiFill] = useState<{
+    rowIndex: number;
+    colIndex: number;
+  } | null>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+
   const handleAddRowRelative = (direction: "above" | "below") => {
     const yDoc = yDocRef.current;
     const yTable = yTableRef.current;
@@ -207,6 +234,80 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
     });
   };
 
+  const handleAiFillColumn = () => {
+    // Use the selectedCell prop *here* when the button is clicked
+    if (!selectedCell) return;
+    setSelectedCellForAiFill(selectedCell); // Store the current selection
+    setIsConfirmDialogOpen(true); // Open confirmation dialog
+  };
+
+  const confirmAiFillColumn = () => {
+    const yDoc = yDocRef.current;
+    const yTable = yTableRef.current;
+    const yHeaders = yHeadersRef.current;
+    // Use the *stored* selected cell from state for the logic
+    const targetCell = selectedCellForAiFill;
+
+    if (
+      !yDoc ||
+      !yTable ||
+      !yHeaders ||
+      !targetCell || // Check the stored cell
+      !headers[targetCell.colIndex] // Use stored cell's colIndex
+    ) {
+      // Clear stored cell on error/cancel? Maybe not necessary yet.
+      // setSelectedCellForAiFill(null);
+      toast.error("Cannot perform AI fill: Missing table data or selection.");
+      return;
+    }
+
+    const currentTableData = yTable.toArray().map((row) => row.toJSON());
+    const targetColIndex = targetCell.colIndex; // Use stored cell's colIndex
+    const targetHeader = headers[targetColIndex];
+
+    startTransition(async () => {
+      // Clear stored cell once action starts
+      setSelectedCellForAiFill(null);
+      const result = await generateColumnSuggestions(
+        currentTableData,
+        headers,
+        targetColIndex
+      );
+
+      if (result.error) {
+        toast.error(`AI Fill Error: ${result.error}`);
+        return;
+      }
+
+      if (result.suggestions && result.suggestions.length > 0) {
+        const suggestions = result.suggestions; // Assign to new variable after check
+        yDoc.transact(() => {
+          suggestions.forEach(({ index, suggestion }) => {
+            // Use the new variable
+            // Ensure suggestion index is valid
+            if (index >= 0 && index < yTable.length) {
+              const rowMap = yTable.get(index);
+              if (rowMap) {
+                rowMap.set(targetHeader, suggestion);
+              } else {
+                console.warn(
+                  `Could not find rowMap for suggestion at index ${index}`
+                );
+              }
+            } else {
+              console.warn(`Invalid suggestion index received: ${index}`);
+            }
+          });
+        });
+        toast.success(`Column "${targetHeader}" updated with AI suggestions.`);
+      } else {
+        toast.warning(
+          `AI returned no suggestions for column "${targetHeader}".`
+        );
+      }
+    });
+  };
+
   // --- CSV Download Handler ---
   const handleDownloadCsv = () => {
     const yTable = yTableRef.current;
@@ -270,6 +371,29 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
     !!headers[selectedCell.colIndex] &&
     isTableLoaded;
   const canDownload = isTableLoaded && headers.length > 0; // Can download if loaded and has headers
+
+  // Effect to handle Enter/Escape key presses when dialog is open
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isConfirmDialogOpen) return; // Only act if dialog is open
+
+      if (event.key === "Enter" && !isPending) {
+        event.preventDefault(); // Prevent default Enter behavior (like submitting a form)
+        // Directly click the confirm button if it exists
+        confirmButtonRef.current?.click();
+      }
+      // Escape is handled by AlertDialog's default onOpenChange triggering setIsConfirmDialogOpen(false)
+    };
+
+    // Add listener when the dialog is open
+    document.addEventListener("keydown", handleKeyDown);
+
+    // Cleanup: Remove listener when the effect re-runs or component unmounts
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+    // Rerun effect if dialog state or pending state changes
+  }, [isConfirmDialogOpen, isPending]);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -400,7 +524,70 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
           </TooltipTrigger>
           <TooltipContent>Download CSV</TooltipContent>
         </Tooltip>
+
+        {/* --- NEW AI Fill Button --- */}
+        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleAiFillColumn();
+              }}
+              disabled={!selectedCell || !isTableLoaded || isPending} // Disable if no cell selected or pending
+            >
+              {/* Conditionally render Spinner or Sparkles */}
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>AI Fill Selected Column</TooltipContent>
+        </Tooltip>
+        {/* --- End NEW AI Fill Button --- */}
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={(open) => {
+          setIsConfirmDialogOpen(open);
+          if (!open) {
+            setSelectedCellForAiFill(null); // Clear stored cell on cancel/close
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm AI Column Fill</AlertDialogTitle>
+            <AlertDialogDescription>
+              {/* Add target column name to description? */}
+              This will replace all existing data in the selected column
+              (excluding the header) with AI-generated suggestions based on the
+              entire table. This action cannot be undone. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isPending}
+              onClick={() => setSelectedCellForAiFill(null)} // Clear on explicit cancel
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              ref={confirmButtonRef}
+              onClick={confirmAiFillColumn}
+              disabled={isPending || !selectedCellForAiFill}
+            >
+              {isPending ? "Generating..." : "Confirm & Generate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 };
