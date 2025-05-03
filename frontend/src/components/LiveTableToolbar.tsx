@@ -13,12 +13,15 @@ import {
   Columns3,
   Download,
   Loader2,
+  Redo,
   Rows3,
   Sparkles,
   Trash2,
+  Undo,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as Y from "yjs";
+import { UndoManager } from "yjs";
 
 import { generateColumnSuggestions } from "@/app/(main)/planets/actions";
 import {
@@ -47,6 +50,7 @@ interface LiveTableToolbarProps {
   selectedCell: { rowIndex: number; colIndex: number } | null;
   headers: string[];
   isTableLoaded: boolean;
+  undoManager: UndoManager | null;
 }
 
 // Helper function to create a new row map initialized with headers
@@ -65,6 +69,7 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
   selectedCell,
   headers,
   isTableLoaded,
+  undoManager,
 }) => {
   const [isPending, startTransition] = useTransition();
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
@@ -73,6 +78,8 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
     colIndex: number;
   } | null>(null);
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   const handleAddRowRelative = (direction: "above" | "below") => {
     const yDoc = yDocRef.current;
@@ -363,6 +370,18 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
   };
   // --- End CSV Download Handler ---
 
+  const handleUndo = () => {
+    if (undoManager && canUndo) {
+      undoManager.undo();
+    }
+  };
+
+  const handleRedo = () => {
+    if (undoManager && canRedo) {
+      undoManager.redo();
+    }
+  };
+
   // Update conditions based on isTableLoaded
   const canOperateOnSelection = !!selectedCell && isTableLoaded;
   const canDeleteColumn =
@@ -395,9 +414,68 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
     // Rerun effect if dialog state or pending state changes
   }, [isConfirmDialogOpen, isPending]);
 
+  // Effect to listen to UndoManager stack changes
+  useEffect(() => {
+    if (!undoManager) return;
+
+    const updateUndoRedoState = () => {
+      setCanUndo(undoManager.undoStack.length > 0);
+      setCanRedo(undoManager.redoStack.length > 0);
+    };
+
+    // Initial check
+    updateUndoRedoState();
+
+    // Listen for changes that affect the stacks
+    undoManager.on("stack-item-added", updateUndoRedoState);
+    undoManager.on("stack-item-popped", updateUndoRedoState); // Popped during undo/redo
+
+    // Cleanup
+    return () => {
+      undoManager.off("stack-item-added", updateUndoRedoState);
+      undoManager.off("stack-item-popped", updateUndoRedoState);
+    };
+  }, [undoManager]); // Rerun if undoManager instance changes
+
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex flex-wrap items-center gap-1 rounded-md border border-input bg-transparent p-1 mb-2">
+        {/* Undo/Redo Buttons */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleUndo();
+              }}
+              disabled={!canUndo || isPending}
+            >
+              <Undo className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleRedo();
+              }}
+              disabled={!canRedo || isPending}
+            >
+              <Redo className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Redo (Ctrl+Y / Ctrl+Shift+Z)</TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
         {/* Row Operations */}
         <Tooltip>
           <TooltipTrigger asChild>

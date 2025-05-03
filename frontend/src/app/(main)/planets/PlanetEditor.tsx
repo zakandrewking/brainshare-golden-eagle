@@ -9,6 +9,7 @@ import React, {
 } from "react";
 
 import * as Y from "yjs";
+import { UndoManager } from "yjs";
 
 import { useSelf } from "@liveblocks/react";
 import { useRoom } from "@liveblocks/react/suspense";
@@ -64,21 +65,42 @@ export default function PlanetEditor() {
   const awarenessRef = useRef(awareness);
   const yDocRef = useRef<Y.Doc | null>(yDoc); // Create ref for yDoc
 
+  // Memoize Yjs types directly for UndoManager dependency
+  const yTable = useMemo(
+    () => yDoc.getArray<Y.Map<unknown>>("tableData"),
+    [yDoc]
+  );
+  const yHeaders = useMemo(() => yDoc.getArray<string>("tableHeaders"), [yDoc]);
+
+  // Initialize UndoManager using useMemo
+  const undoManager = useMemo(() => {
+    // Ensure the Yjs types are available before creating the manager
+    if (!yTable || !yHeaders) return null;
+
+    console.log("Creating UndoManager, tracking:", yTable, yHeaders); // Debug log
+
+    // Track changes to both the table data and the headers array
+    return new UndoManager([yTable, yHeaders], {
+      captureTimeout: 500, // Group consecutive changes
+      // trackedOrigins: new Set([yDoc.clientID]) // Optional: Track only local changes
+    });
+  }, [yDoc, yTable, yHeaders]); // Depend on yDoc and the specific Yjs types
+
   useEffect(() => {
-    const yTable = yDoc.getArray<Y.Map<unknown>>("tableData");
-    const yHeaders = yDoc.getArray<string>("tableHeaders");
+    // Assign Yjs types to refs (if needed elsewhere, otherwise might remove)
     yTableRef.current = yTable;
     yHeadersRef.current = yHeaders;
 
     // Function to update React state for table data
     const updateTableState = () => {
+      // Use yTable directly
       const currentData = yTable.toArray().map(yMapToObject);
       setTableData(currentData);
-      // Loading state check moved to separate useEffect
     };
 
     // Function to update React state for headers
     const updateHeadersState = () => {
+      // Use yHeaders directly
       const currentHeaders = yHeaders.toArray();
       if (currentHeaders.length === 0 && yTable.length > 0) {
         const firstRowMap = yTable.get(0);
@@ -98,7 +120,6 @@ export default function PlanetEditor() {
       } else {
         setHeaders(currentHeaders);
       }
-      // Loading state check moved to separate useEffect
     };
 
     // Initial state load
@@ -117,12 +138,13 @@ export default function PlanetEditor() {
       yTable.unobserveDeep(tableObserver);
       yHeaders.unobserve(headersObserver);
     };
-  }, [room, yDoc]);
+    // Use yTable and yHeaders as dependencies now
+  }, [yTable, yHeaders]); // Removed room, yDoc as yTable/yHeaders depend on yDoc
 
   // New useEffect to check loading state based on data/header state population
   useEffect(() => {
     if (!isTableLoaded && yTableRef.current && yHeadersRef.current) {
-      const yTableIsEmpty = yTableRef.current.length === 0;
+      const yTableIsEmpty = yTable.length === 0;
       const tableDataPopulated = tableData.length > 0;
       const headersPopulated = headers.length > 0;
 
@@ -348,14 +370,17 @@ export default function PlanetEditor() {
   return (
     <TooltipProvider delayDuration={0}>
       <div className="p-4 flex flex-col gap-4">
-        <TableToolbar
-          yTableRef={yTableRef}
-          yDocRef={yDocRef}
-          yHeadersRef={yHeadersRef}
-          selectedCell={selectedCell}
-          headers={headers}
-          isTableLoaded={isTableLoaded}
-        />
+        <div className="mb-4">
+          <TableToolbar
+            yTableRef={yTableRef}
+            yDocRef={yDocRef}
+            yHeadersRef={yHeadersRef}
+            selectedCell={selectedCell}
+            headers={headers}
+            isTableLoaded={isTableLoaded}
+            undoManager={undoManager}
+          />
+        </div>
         <LiveTable
           headers={headers}
           tableData={tableData}
