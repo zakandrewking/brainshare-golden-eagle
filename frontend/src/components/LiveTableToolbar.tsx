@@ -23,7 +23,10 @@ import { toast } from "sonner";
 import * as Y from "yjs";
 import { UndoManager } from "yjs";
 
-import { generateColumnSuggestions } from "@/app/(main)/planets/actions";
+import {
+  generateColumnSuggestions,
+  generateNewColumn,
+} from "@/app/(main)/planets/actions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -137,55 +140,120 @@ const LiveTableToolbar: React.FC<LiveTableToolbarProps> = ({
       return;
     }
 
-    // Generate a unique default header name
     const baseName = "New Column";
     let counter = 1;
-    let headerToAdd = `${baseName} ${counter}`;
+    let defaultHeaderName = `${baseName} ${counter}`;
     const existingHeadersLower = yHeaders.toArray().map((h) => h.toLowerCase());
 
-    while (existingHeadersLower.includes(headerToAdd.toLowerCase())) {
+    while (existingHeadersLower.includes(defaultHeaderName.toLowerCase())) {
       counter++;
-      headerToAdd = `${baseName} ${counter}`;
+      defaultHeaderName = `${baseName} ${counter}`;
     }
 
+    const headerToAdd = defaultHeaderName; // Start with default
+
     console.log(
-      `[handleAddColumnRelative] Adding column "${headerToAdd}" to the ${direction}`
+      `[handleAddColumnRelative] Determined default header: "${headerToAdd}", direction: ${direction}`
     );
 
-    yDoc.transact(() => {
-      // 1. Determine insertion index based on direction and selection
-      let insertIndex = yHeaders.length; // Default to end if no selection/direction
-      // Selection is guaranteed by the check above
-      insertIndex =
-        direction === "left"
-          ? selectedCell.colIndex
-          : selectedCell.colIndex + 1;
+    // Determine insertion index based on direction and selection
+    let insertIndex = yHeaders.length; // Default to end if no selection/direction
+    insertIndex =
+      direction === "left" ? selectedCell.colIndex : selectedCell.colIndex + 1;
 
-      console.log(
-        `[handleAddColumnRelative] Determined insert index: ${insertIndex}`
-      );
+    startTransition(() => {
+      // Asynchronously attempt to generate a better header and data
+      generateNewColumn(
+        yTable.toArray().map((row) => row.toJSON()),
+        yHeaders.toArray()
+      )
+        .then((result) => {
+          let finalHeader = headerToAdd;
+          let finalData: (string | undefined)[] | null = null; // Use null to signify default empty strings
 
-      // 2. Add header to yHeaders array at the correct index
-      yHeaders.insert(insertIndex, [headerToAdd]);
+          if (result.error || !result.newHeader || !result.newColumnData) {
+            console.warn(
+              "Failed to generate AI column name or data, falling back to default:",
+              result.error
+            );
+            // Use default header and signal to use empty data
+          } else {
+            finalHeader = result.newHeader;
+            finalData = result.newColumnData;
+            console.log(
+              `[handleAddColumnRelative] AI generated header: "${finalHeader}"`
+            );
+          }
 
-      console.log(
-        `[handleAddColumnRelative] yHeaders after insert: ${JSON.stringify(
-          yHeaders.toArray()
-        )}`
-      );
+          // Perform the Yjs transaction within the transition callback *after* the async call
+          yDoc.transact(() => {
+            console.log(
+              `[handleAddColumnRelative] Transaction Start: Inserting header "${finalHeader}" at index ${insertIndex}`
+            );
 
-      // 3. Add the new key to each existing row in yTable
-      yTable.forEach((row: Y.Map<unknown>) => {
-        if (!row.has(headerToAdd)) {
-          row.set(headerToAdd, "");
-        }
-      });
-      // If the table was empty, handleAddRow might be better, but this ensures consistency
-      if (yTable.length === 0) {
-        const newRow = new Y.Map<unknown>();
-        newRow.set(headerToAdd, "");
-        yTable.push([newRow]);
-      }
+            // 1. Add header to yHeaders array at the correct index
+            yHeaders.insert(insertIndex, [finalHeader]);
+
+            console.log(
+              `[handleAddColumnRelative] yHeaders after insert: ${JSON.stringify(
+                yHeaders.toArray()
+              )}`
+            );
+
+            // 2. Add the new key and AI/default value to each existing row in yTable
+            yTable.forEach((row: Y.Map<unknown>, rowIndex) => {
+              const valueToAdd = finalData ? finalData[rowIndex] ?? "" : "";
+              if (!row.has(finalHeader)) {
+                row.set(finalHeader, valueToAdd);
+              }
+            });
+
+            // If the table was empty, handle this case
+            if (yTable.length === 0 && finalData && finalData.length > 0) {
+              console.warn(
+                "[handleAddColumnRelative] AI generated data for an empty table, adding first row."
+              );
+              // This case needs careful consideration. Should we add rows based on AI data?
+              // For now, let's just add one row if data exists, otherwise, stick to the original logic.
+              // If finalData is not null/empty, it implies AI succeeded.
+              const newRow = new Y.Map<unknown>();
+              const valueToAdd = finalData[0] ?? ""; // Use first data item
+              newRow.set(finalHeader, valueToAdd);
+              yTable.push([newRow]);
+            } else if (yTable.length === 0) {
+              // Original logic for empty table with default header
+              const newRow = new Y.Map<unknown>();
+              newRow.set(finalHeader, "");
+              yTable.push([newRow]);
+            }
+
+            console.log(
+              `[handleAddColumnRelative] Transaction End: Header "${finalHeader}" added.`
+            );
+          });
+        })
+        .catch((error) => {
+          // Handle errors during the generateNewColumn call itself
+          console.error("Error calling generateNewColumn:", error);
+          toast.error("Failed to generate AI column suggestion.");
+          // Fallback to default behavior within a transaction just in case
+          yDoc.transact(() => {
+            console.log(
+              `[handleAddColumnRelative] Fallback Transaction: Inserting default header "${headerToAdd}" at index ${insertIndex}`
+            );
+            yHeaders.insert(insertIndex, [headerToAdd]);
+            yTable.forEach((row: Y.Map<unknown>) => {
+              if (!row.has(headerToAdd)) {
+                row.set(headerToAdd, "");
+              }
+            });
+            if (yTable.length === 0) {
+              const newRow = new Y.Map<unknown>();
+              newRow.set(headerToAdd, "");
+              yTable.push([newRow]);
+            }
+          });
+        });
     });
   };
 
