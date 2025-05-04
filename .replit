@@ -1,1 +1,26 @@
 modules = ["nodejs-20"]
+
+[workflows]
+runButton = "dev"
+
+[[workflows.workflow]]
+name = "dev"
+mode = "sequential"
+author = 13633442
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd frontend && npm run dev"
+
+[[workflows.workflow]]
+name = "install"
+mode = "sequential"
+author = 13633442
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd frontend && npm ci"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
