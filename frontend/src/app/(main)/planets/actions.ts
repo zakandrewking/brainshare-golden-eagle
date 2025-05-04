@@ -23,8 +23,7 @@ const suggestionsSchema = z.object({
 });
 
 const model = new ChatOpenAI({
-  model: "gpt-4-turbo",
-  temperature: 0.7,
+  model: "gpt-4.1",
 }).withStructuredOutput(suggestionsSchema);
 
 export async function generateColumnSuggestions(
