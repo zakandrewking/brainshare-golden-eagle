@@ -4,11 +4,11 @@ import React from "react";
 
 import { Input } from "@/components/ui/input";
 
-interface CursorInfo {
+export interface CursorInfo {
   user?: { name: string; color: string };
 }
 
-interface CursorDataForCell {
+export interface CursorDataForCell {
   rowIndex: number;
   colIndex: number;
   cursors: CursorInfo[];
@@ -73,7 +73,7 @@ const LiveTable: React.FC<PlanetTableProps> = ({
   };
 
   return (
-    <table className="table-auto w-full border-collapse border border-slate-400 relative">
+    <table className="table-auto border-collapse border border-slate-400 relative">
       <thead>
         <tr>
           {headers.map((header, index) => (

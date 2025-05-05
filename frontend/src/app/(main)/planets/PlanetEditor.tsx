@@ -15,9 +15,7 @@ import { useSelf } from "@liveblocks/react";
 import { useRoom } from "@liveblocks/react/suspense";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
 
-import LiveTable from "@/components/LiveTable";
-import TableToolbar from "@/components/LiveTableToolbar";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { LiveTableContainer } from "@/components/live-table/LiveTableContainer";
 
 // Type for awareness state (adjust based on what you store, e.g., user info)
 interface AwarenessState {
@@ -72,19 +70,12 @@ export default function PlanetEditor() {
   );
   const yHeaders = useMemo(() => yDoc.getArray<string>("tableHeaders"), [yDoc]);
 
-  // Initialize UndoManager using useMemo
   const undoManager = useMemo(() => {
-    // Ensure the Yjs types are available before creating the manager
     if (!yTable || !yHeaders) return null;
-
-    console.log("Creating UndoManager, tracking:", yTable, yHeaders); // Debug log
-
-    // Track changes to both the table data and the headers array
     return new UndoManager([yTable, yHeaders], {
       captureTimeout: 500, // Group consecutive changes
-      // trackedOrigins: new Set([yDoc.clientID]) // Optional: Track only local changes
     });
-  }, [yDoc, yTable, yHeaders]); // Depend on yDoc and the specific Yjs types
+  }, [yTable, yHeaders]);
 
   useEffect(() => {
     // Assign Yjs types to refs (if needed elsewhere, otherwise might remove)
@@ -138,10 +129,8 @@ export default function PlanetEditor() {
       yTable.unobserveDeep(tableObserver);
       yHeaders.unobserve(headersObserver);
     };
-    // Use yTable and yHeaders as dependencies now
-  }, [yTable, yHeaders]); // Removed room, yDoc as yTable/yHeaders depend on yDoc
+  }, [yTable, yHeaders, yDoc]);
 
-  // New useEffect to check loading state based on data/header state population
   useEffect(() => {
     if (!isTableLoaded && yTableRef.current && yHeadersRef.current) {
       const yTableIsEmpty = yTable.length === 0;
@@ -155,8 +144,7 @@ export default function PlanetEditor() {
         console.log("Table marked as loaded based on state population.");
       }
     }
-    // This effect depends on the React state derived from Yjs updates
-  }, [tableData, headers, isTableLoaded]);
+  }, [tableData, headers, isTableLoaded, yTable.length]);
 
   // Effect to set user info in awareness state when it changes
   useEffect(() => {
@@ -293,10 +281,6 @@ export default function PlanetEditor() {
       return;
     }
 
-    // Perform Yjs transaction
-    console.log(
-      `Renaming header "${oldHeader}" to "${newHeader}" at index ${editingHeaderIndex}`
-    );
     yDoc.transact(() => {
       try {
         // 1. Update yHeaders array
@@ -368,36 +352,28 @@ export default function PlanetEditor() {
   }, [awarenessStates, tableData.length, headers.length, self?.connectionId]);
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <div className="p-4 flex flex-col gap-4">
-        <div className="mb-4">
-          <TableToolbar
-            yTableRef={yTableRef}
-            yDocRef={yDocRef}
-            yHeadersRef={yHeadersRef}
-            selectedCell={selectedCell}
-            headers={headers}
-            isTableLoaded={isTableLoaded}
-            undoManager={undoManager}
-          />
-        </div>
-        <LiveTable
-          headers={headers}
-          tableData={tableData}
-          selectedCell={selectedCell}
-          editingHeaderIndex={editingHeaderIndex}
-          editingHeaderValue={editingHeaderValue}
-          selfColor={String(self?.info?.color ?? undefined)}
-          cursorsData={cursorsData}
-          onCellChange={handleCellChange}
-          onCellFocus={handleCellFocus}
-          onCellBlur={handleCellBlur}
-          onHeaderDoubleClick={handleHeaderDoubleClick}
-          onHeaderChange={handleHeaderInputChange}
-          onHeaderBlur={handleHeaderBlur}
-          onHeaderKeyDown={handleHeaderKeyDown}
-        />
-      </div>
-    </TooltipProvider>
+    <div className="p-4 flex flex-col gap-4">
+      <LiveTableContainer
+        cursorsData={cursorsData}
+        editingHeaderIndex={editingHeaderIndex}
+        editingHeaderValue={editingHeaderValue}
+        headers={headers}
+        isTableLoaded={isTableLoaded}
+        onCellBlur={handleCellBlur}
+        onCellChange={handleCellChange}
+        onCellFocus={handleCellFocus}
+        onHeaderBlur={handleHeaderBlur}
+        onHeaderChange={handleHeaderInputChange}
+        onHeaderDoubleClick={handleHeaderDoubleClick}
+        onHeaderKeyDown={handleHeaderKeyDown}
+        selectedCell={selectedCell}
+        selfColor={String(self?.info?.color ?? undefined)}
+        tableData={tableData}
+        undoManager={undoManager}
+        yDocRef={yDocRef}
+        yHeadersRef={yHeadersRef}
+        yTableRef={yTableRef}
+      />
+    </div>
   );
 }
