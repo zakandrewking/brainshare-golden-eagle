@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 
@@ -43,7 +43,14 @@ interface PlanetTableProps {
   onHeaderBlur: () => void;
   /** Callback triggered on key down event within an editing header input. */
   onHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  /** A map of header names to their desired widths in pixels. */
+  columnWidths: Record<string, number>;
+  /** Callback triggered when a column is resized. */
+  onColumnResize: (header: string, newWidth: number) => void;
 }
+
+const DEFAULT_COL_WIDTH = 150;
+const MIN_COL_WIDTH = 50;
 
 const LiveTable: React.FC<PlanetTableProps> = ({
   headers,
@@ -60,7 +67,14 @@ const LiveTable: React.FC<PlanetTableProps> = ({
   onHeaderChange,
   onHeaderBlur,
   onHeaderKeyDown,
+  columnWidths,
+  onColumnResize,
 }) => {
+  const [resizingHeader, setResizingHeader] = useState<string | null>(null);
+  const [startX, setStartX] = useState(0);
+  const [startWidth, setStartWidth] = useState(0);
+  const tableRef = useRef<HTMLTableElement>(null); // Ref for the table element
+
   // Helper to find cursors for a specific cell from the pre-computed data
   const getCursorsForCell = (
     rowIndex: number,
@@ -72,35 +86,143 @@ const LiveTable: React.FC<PlanetTableProps> = ({
     return cellCursors ? cellCursors.cursors : [];
   };
 
+  const handleMouseDown = useCallback(
+    (
+      event:
+        | React.MouseEvent<HTMLDivElement>
+        | React.TouchEvent<HTMLDivElement>,
+      header: string
+    ) => {
+      event.preventDefault();
+      event.stopPropagation(); // Prevent text selection/other interactions
+
+      const currentWidth = columnWidths[header] ?? DEFAULT_COL_WIDTH;
+      const pageX = "touches" in event ? event.touches[0].pageX : event.pageX;
+
+      setResizingHeader(header);
+      setStartX(pageX);
+      setStartWidth(currentWidth);
+    },
+    [columnWidths]
+  );
+
+  const handleMouseMove = useCallback(
+    (event: MouseEvent | TouchEvent) => {
+      if (!resizingHeader) return;
+
+      const pageX = "touches" in event ? event.touches[0].pageX : event.pageX;
+      const deltaX = pageX - startX;
+      let newWidth = startWidth + deltaX;
+
+      newWidth = Math.max(MIN_COL_WIDTH, newWidth); // Enforce minimum width
+
+      // Update visual width directly for smoothness (optional, could use state)
+      const thElement = tableRef.current?.querySelector(
+        `th[data-header="${resizingHeader}"]`
+      );
+      if (thElement) {
+        (thElement as HTMLElement).style.width = `${newWidth}px`;
+        (thElement as HTMLElement).style.minWidth = `${newWidth}px`;
+        (thElement as HTMLElement).style.maxWidth = `${newWidth}px`;
+      }
+    },
+    [resizingHeader, startX, startWidth]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (!resizingHeader) return;
+
+    // Calculate final width based on the visually updated element
+    const thElement = tableRef.current?.querySelector(
+      `th[data-header="${resizingHeader}"]`
+    );
+    if (thElement) {
+      const finalWidth = Math.max(
+        MIN_COL_WIDTH,
+        parseInt((thElement as HTMLElement).style.width, 10)
+      );
+      onColumnResize(resizingHeader, finalWidth);
+    }
+
+    setResizingHeader(null);
+  }, [resizingHeader, onColumnResize]);
+
+  // Add/Remove global listeners for mouse move and up during resize
+  useEffect(() => {
+    if (!resizingHeader) return;
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("touchmove", handleMouseMove);
+    document.addEventListener("touchend", handleMouseUp);
+
+    // Style body to prevent text selection during drag
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("touchmove", handleMouseMove);
+      document.removeEventListener("touchend", handleMouseUp);
+
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+  }, [resizingHeader, handleMouseMove, handleMouseUp]);
+
   return (
-    <table className="table-auto border-collapse border border-slate-400 relative">
+    <table
+      ref={tableRef}
+      className="table-fixed border-collapse border border-slate-400 relative w-full"
+      style={{ tableLayout: "fixed" }} // Use fixed layout for predictable width control
+    >
       <thead>
         <tr>
-          {headers.map((header, index) => (
-            <th
-              key={`${header}-${index}`} // Use index for key stability during rename
-              className="border border-slate-300 p-0 text-left relative group"
-            >
-              {editingHeaderIndex === index ? (
-                <Input
-                  type="text"
-                  value={editingHeaderValue}
-                  onChange={onHeaderChange} // Use callback prop
-                  onBlur={onHeaderBlur} // Use callback prop
-                  onKeyDown={onHeaderKeyDown} // Use callback prop
-                  autoFocus
-                  className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-500 m-0 block bg-transparent"
-                />
-              ) : (
-                <div
-                  className="p-2 cursor-text truncate"
-                  onClick={() => onHeaderDoubleClick(index)} // Trigger edit on single click
-                >
-                  {header}
+          {headers.map((header, index) => {
+            const width = columnWidths[header] ?? DEFAULT_COL_WIDTH;
+            return (
+              <th
+                key={`${header}-${index}`}
+                data-header={header} // Add data attribute for querying
+                className="border border-slate-300 p-0 text-left relative group overflow-hidden whitespace-nowrap"
+                style={{
+                  width: `${width}px`,
+                  minWidth: `${width}px`, // Set min/max to prevent unexpected wrapping/shrinking
+                  maxWidth: `${width}px`,
+                }}
+              >
+                <div className="flex items-center justify-between h-full">
+                  {editingHeaderIndex === index ? (
+                    <Input
+                      type="text"
+                      value={editingHeaderValue}
+                      onChange={onHeaderChange}
+                      onBlur={onHeaderBlur}
+                      onKeyDown={onHeaderKeyDown}
+                      autoFocus
+                      className="flex-grow h-full p-2 border-none focus:outline-none m-0 block bg-transparent"
+                    />
+                  ) : (
+                    <div
+                      className="p-2 cursor-text truncate flex-grow"
+                      onDoubleClick={() => onHeaderDoubleClick(index)} // Change to double click
+                    >
+                      {header}
+                    </div>
+                  )}
+                  {/* Resize Handle */}
+                  <div
+                    className={`absolute top-0 right-0 bottom-0 w-2 cursor-col-resize bg-transparent group-hover:bg-blue-200 ${
+                      resizingHeader === header ? "bg-blue-400" : ""
+                    }`}
+                    onMouseDown={(e) => handleMouseDown(e, header)}
+                    onTouchStart={(e) => handleMouseDown(e, header)}
+                  />
                 </div>
-              )}
-            </th>
-          ))}
+              </th>
+            );
+          })}
         </tr>
       </thead>
       <tbody>
@@ -150,12 +272,13 @@ const LiveTable: React.FC<PlanetTableProps> = ({
                   <input
                     type="text"
                     value={String(row[header] ?? "")}
-                    onChange={
-                      (e) => onCellChange(rowIndex, header, e.target.value) // Use callback prop
+                    onChange={(e) =>
+                      onCellChange(rowIndex, header, e.target.value)
                     }
-                    onFocus={() => onCellFocus(rowIndex, colIndex)} // Use callback prop
-                    onBlur={onCellBlur} // Use callback prop
-                    className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    onFocus={() => onCellFocus(rowIndex, colIndex)}
+                    onBlur={onCellBlur}
+                    className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-300 bg-transparent"
+                    style={{ width: "100%" }} // Ensure input fills the td
                   />
                 </td>
               );

@@ -40,6 +40,10 @@ interface LiveTableContainerProps {
   yHeadersRef: React.RefObject<Y.Array<string> | null>;
   isTableLoaded: boolean;
   undoManager: UndoManager | null;
+  /** A map of header names to their desired widths in pixels. */
+  columnWidths: Record<string, number>;
+  /** Callback triggered when a column is resized. */
+  onColumnResize: (header: string, newWidth: number) => void;
 }
 
 export const LiveTableContainer = ({
@@ -62,6 +66,8 @@ export const LiveTableContainer = ({
   yDocRef,
   yHeadersRef,
   yTableRef,
+  columnWidths,
+  onColumnResize,
 }: LiveTableContainerProps) => {
   return (
     <div className="fixed flex flex-col bottom-0 left-0 right-0 h-[calc(100vh-250px)] p-1 z-10 bg-background">
@@ -91,6 +97,8 @@ export const LiveTableContainer = ({
             selectedCell={selectedCell}
             selfColor={selfColor}
             tableData={tableData}
+            columnWidths={columnWidths}
+            onColumnResize={onColumnResize}
           />
         </div>
       </TooltipProvider>

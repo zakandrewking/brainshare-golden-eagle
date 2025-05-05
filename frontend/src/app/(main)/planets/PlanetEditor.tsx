@@ -46,6 +46,7 @@ export default function PlanetEditor() {
   const awareness = yProvider.awareness;
   const [tableData, setTableData] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [selectedCell, setSelectedCell] = useState<{
     rowIndex: number;
     colIndex: number;
@@ -60,8 +61,9 @@ export default function PlanetEditor() {
   const [isTableLoaded, setIsTableLoaded] = useState<boolean>(false);
   const yTableRef = React.useRef<Y.Array<Y.Map<unknown>> | null>(null);
   const yHeadersRef = React.useRef<Y.Array<string> | null>(null);
+  const yColWidthsRef = React.useRef<Y.Map<number> | null>(null);
   const awarenessRef = useRef(awareness);
-  const yDocRef = useRef<Y.Doc | null>(yDoc); // Create ref for yDoc
+  const yDocRef = useRef<Y.Doc | null>(yDoc);
 
   // Memoize Yjs types directly for UndoManager dependency
   const yTable = useMemo(
@@ -69,29 +71,29 @@ export default function PlanetEditor() {
     [yDoc]
   );
   const yHeaders = useMemo(() => yDoc.getArray<string>("tableHeaders"), [yDoc]);
+  const yColWidths = useMemo(() => yDoc.getMap<number>("colWidths"), [yDoc]);
 
   const undoManager = useMemo(() => {
-    if (!yTable || !yHeaders) return null;
-    return new UndoManager([yTable, yHeaders], {
-      captureTimeout: 500, // Group consecutive changes
+    if (!yTable || !yHeaders || !yColWidths) return null;
+    return new UndoManager([yTable, yHeaders, yColWidths], {
+      captureTimeout: 500,
     });
-  }, [yTable, yHeaders]);
+  }, [yTable, yHeaders, yColWidths]);
 
   useEffect(() => {
-    // Assign Yjs types to refs (if needed elsewhere, otherwise might remove)
+    // Assign Yjs types to refs
     yTableRef.current = yTable;
     yHeadersRef.current = yHeaders;
+    yColWidthsRef.current = yColWidths;
 
     // Function to update React state for table data
     const updateTableState = () => {
-      // Use yTable directly
       const currentData = yTable.toArray().map(yMapToObject);
       setTableData(currentData);
     };
 
     // Function to update React state for headers
     const updateHeadersState = () => {
-      // Use yHeaders directly
       const currentHeaders = yHeaders.toArray();
       if (currentHeaders.length === 0 && yTable.length > 0) {
         const firstRowMap = yTable.get(0);
@@ -113,23 +115,33 @@ export default function PlanetEditor() {
       }
     };
 
+    // Function to update React state for column widths
+    const updateColWidthsState = () => {
+      const currentWidths = Object.fromEntries(yColWidths.entries());
+      setColumnWidths(currentWidths);
+    };
+
     // Initial state load
     updateTableState();
     updateHeadersState();
+    updateColWidthsState();
 
     // Observe changes
     const tableObserver = () => updateTableState();
     const headersObserver = () => updateHeadersState();
+    const widthsObserver = () => updateColWidthsState();
 
     yTable.observeDeep(tableObserver);
     yHeaders.observe(headersObserver);
+    yColWidths.observe(widthsObserver);
 
     // Cleanup observers on unmount
     return () => {
       yTable.unobserveDeep(tableObserver);
       yHeaders.unobserve(headersObserver);
+      yColWidths.unobserve(widthsObserver);
     };
-  }, [yTable, yHeaders, yDoc]);
+  }, [yTable, yHeaders, yColWidths, yDoc]);
 
   useEffect(() => {
     if (!isTableLoaded && yTableRef.current && yHeadersRef.current) {
@@ -137,8 +149,6 @@ export default function PlanetEditor() {
       const tableDataPopulated = tableData.length > 0;
       const headersPopulated = headers.length > 0;
 
-      // Condition: Table is loaded if EITHER Yjs table is empty
-      // OR the Yjs table has rows AND both tableData and headers React states are populated
       if (yTableIsEmpty || (tableDataPopulated && headersPopulated)) {
         setIsTableLoaded(true);
         console.log("Table marked as loaded based on state population.");
@@ -152,15 +162,14 @@ export default function PlanetEditor() {
       name: self?.info?.name ?? "Anonymous",
       color: self?.info?.color ?? "#000000",
     });
-  }, [self?.info?.name, self?.info?.color]); // Depend on specific fields
+  }, [self?.info?.name, self?.info?.color]);
 
   // Memoized function to update React state with awareness changes
   const updateAwarenessStateCallback = useCallback(() => {
-    // awarenessRef is stable, so safe to use here without dependency
     setAwarenessStates(
       new Map(awarenessRef.current.getStates() as Map<number, AwarenessState>)
     );
-  }, []); // Empty dependency array ensures stable function reference
+  }, []);
 
   // Effect to subscribe to awareness changes
   useEffect(() => {
@@ -175,10 +184,8 @@ export default function PlanetEditor() {
     // Cleanup on unmount
     return () => {
       currentAwareness.off("update", updateAwarenessStateCallback);
-      // Optional: Clear local state on unmount if desired
-      // currentAwareness.setLocalStateField('selectedCell', null);
     };
-  }, [updateAwarenessStateCallback]); // Empty dependency array: run only once on mount
+  }, [updateAwarenessStateCallback]);
 
   // Function to handle cell changes
   const handleCellChange = useCallback(
@@ -207,14 +214,13 @@ export default function PlanetEditor() {
       rowIndex,
       colIndex,
     });
-    setEditingHeaderIndex(null); // Ensure header editing is stopped
+    setEditingHeaderIndex(null);
   }, []);
 
   // Function to handle cell blur
   const handleCellBlur = useCallback(() => {
     setSelectedCell(null);
     awarenessRef.current.setLocalStateField("selectedCell", null);
-    // No need to interact with header state on cell blur
   }, []);
 
   // --- Header Editing Handlers ---
@@ -222,7 +228,6 @@ export default function PlanetEditor() {
     (index: number) => {
       setEditingHeaderIndex(index);
       setEditingHeaderValue(headers[index] ?? "");
-      // De-select any selected data cell when editing header
       setSelectedCell(null);
       awarenessRef.current.setLocalStateField("selectedCell", null);
     },
@@ -249,20 +254,16 @@ export default function PlanetEditor() {
       console.error(
         "Cannot save header change: Yjs refs missing or old header invalid."
       );
-      setEditingHeaderIndex(null); // Cancel edit
-      return;
-    }
-
-    // Basic Validations
-    if (!newHeader) {
-      alert("Header name cannot be empty.");
-      // Optionally revert input value or keep editing?
-      // For simplicity, we cancel the edit here.
       setEditingHeaderIndex(null);
       return;
     }
 
-    // Check for uniqueness (case-insensitive, excluding self)
+    if (!newHeader) {
+      alert("Header name cannot be empty.");
+      setEditingHeaderIndex(null);
+      return;
+    }
+
     if (
       headers.some(
         (h, idx) =>
@@ -271,11 +272,10 @@ export default function PlanetEditor() {
       )
     ) {
       alert(`Header "${newHeader}" already exists.`);
-      setEditingHeaderIndex(null); // Cancel edit
+      setEditingHeaderIndex(null);
       return;
     }
 
-    // If name hasn't changed, just exit edit mode
     if (oldHeader === newHeader) {
       setEditingHeaderIndex(null);
       return;
@@ -283,11 +283,9 @@ export default function PlanetEditor() {
 
     yDoc.transact(() => {
       try {
-        // 1. Update yHeaders array
         yHeaders.delete(editingHeaderIndex, 1);
         yHeaders.insert(editingHeaderIndex, [newHeader]);
 
-        // 2. Update keys in yTable rows
         yTable.forEach((row: Y.Map<unknown>) => {
           if (row.has(oldHeader)) {
             const value = row.get(oldHeader);
@@ -305,7 +303,7 @@ export default function PlanetEditor() {
       }
     });
 
-    setEditingHeaderIndex(null); // Finish editing
+    setEditingHeaderIndex(null);
   }, [editingHeaderIndex, editingHeaderValue, headers]);
 
   const handleHeaderBlur = useCallback(() => {
@@ -317,8 +315,8 @@ export default function PlanetEditor() {
       if (e.key === "Enter") {
         saveHeaderChange();
       } else if (e.key === "Escape") {
-        setEditingHeaderIndex(null); // Cancel edit
-        setEditingHeaderValue(""); // Reset value
+        setEditingHeaderIndex(null);
+        setEditingHeaderValue("");
       }
     },
     [saveHeaderChange]
@@ -351,6 +349,16 @@ export default function PlanetEditor() {
     return data;
   }, [awarenessStates, tableData.length, headers.length, self?.connectionId]);
 
+  // Function to update column width in Yjs map
+  const handleColumnResize = useCallback((header: string, newWidth: number) => {
+    const yColWidths = yColWidthsRef.current;
+    if (!yColWidths || !yDocRef.current) return;
+
+    yDocRef.current.transact(() => {
+      yColWidths.set(header, newWidth);
+    });
+  }, []);
+
   return (
     <div className="p-4 flex flex-col gap-4">
       <LiveTableContainer
@@ -373,6 +381,8 @@ export default function PlanetEditor() {
         yDocRef={yDocRef}
         yHeadersRef={yHeadersRef}
         yTableRef={yTableRef}
+        onColumnResize={handleColumnResize}
+        columnWidths={columnWidths}
       />
     </div>
   );
