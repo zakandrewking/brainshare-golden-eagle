@@ -185,14 +185,16 @@ const LiveTable: React.FC<PlanetTableProps> = ({
               <th
                 key={`${header}-${index}`}
                 data-header={header} // Add data attribute for querying
-                className="border border-slate-300 p-0 text-left relative group overflow-hidden whitespace-nowrap"
+                className="border border-slate-300 p-0 text-left relative group overflow-hidden"
                 style={{
                   width: `${width}px`,
                   minWidth: `${width}px`, // Set min/max to prevent unexpected wrapping/shrinking
                   maxWidth: `${width}px`,
+                  // Allow height to adjust based on content
+                  verticalAlign: "top", // Align content to top if wrapping occurs
                 }}
               >
-                <div className="flex items-center justify-between h-full">
+                <div className="flex items-start justify-between">
                   {editingHeaderIndex === index ? (
                     <Input
                       type="text"
@@ -205,8 +207,9 @@ const LiveTable: React.FC<PlanetTableProps> = ({
                     />
                   ) : (
                     <div
-                      className="p-2 cursor-text truncate flex-grow"
+                      className="p-2 cursor-text flex-grow"
                       onDoubleClick={() => onHeaderDoubleClick(index)} // Change to double click
+                      style={{ wordBreak: "break-word" }} // Ensure long words can break
                     >
                       {header}
                     </div>
