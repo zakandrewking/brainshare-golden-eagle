@@ -1,9 +1,10 @@
 import React from "react";
 
+import { VariantProps } from "class-variance-authority";
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
 
-import { Button } from "./button";
+import { Button, buttonVariants } from "./button";
 
 export function ExternalLink({
   href,
@@ -34,28 +35,28 @@ export function ExternalLink({
   );
 }
 
-// TODO we probably want two versions of these, one rendered as a button and one
-// rendered as a link
 export function InternalLink({
   href,
   children,
   className,
   disabled,
+  variant = "link",
 }: {
   href: string;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
+  variant: VariantProps<typeof buttonVariants>["variant"];
 }) {
   if (disabled) {
     return (
-      <Button variant="link" className={className} disabled>
+      <Button variant={variant} className={className} disabled>
         {children}
       </Button>
     );
   }
   return (
-    <Button variant="link" asChild className={className}>
+    <Button variant={variant} asChild className={className}>
       <Link href={href}>{children}</Link>
     </Button>
   );

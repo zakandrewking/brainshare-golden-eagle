@@ -131,6 +131,13 @@ function NavigationButtonWithDrawer() {
               >
                 Planets
               </NavButton>
+              <NavButton
+                href="/moons"
+                match={new RegExp("^/moons$")}
+                setOpen={setWillOpen}
+              >
+                Moons
+              </NavButton>
             </Stack>
           </div>
           <DrawerFooter>
