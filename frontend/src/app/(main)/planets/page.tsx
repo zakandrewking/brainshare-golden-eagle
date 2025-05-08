@@ -1,9 +1,9 @@
+import Room from "@/components/live-table/Room";
 import Container from "@/components/ui/container";
 import { InternalLink } from "@/components/ui/link";
 import { Stack } from "@/components/ui/stack";
 
 import PlanetEditor from "./PlanetEditor";
-import Room from "./Room";
 
 export default function Planets() {
   return (
