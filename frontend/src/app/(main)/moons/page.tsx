@@ -1,4 +1,4 @@
-import LiveTable from "@/components/live-table-2/LiveTable";
+import LiveTable from "@/components/live-table/LiveTable";
 import Container from "@/components/ui/container";
 
 export default function Moons() {
