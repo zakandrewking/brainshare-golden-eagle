@@ -8,20 +8,29 @@ import React, {
 } from "react";
 
 import * as Y from "yjs";
+import { UndoManager } from "yjs";
 
 import { useRoom, useSelf } from "@liveblocks/react/suspense";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
 
 interface LiveTableContextType {
   tableId: string;
-  tableData: Record<string, unknown>[];
-  headers: string[];
-  columnWidths: Record<string, number>;
+  tableData: Record<string, unknown>[] | undefined;
+  headers: string[] | undefined;
+  columnWidths: Record<string, number> | undefined;
+  isTableLoaded: boolean;
   handleCellChange: (
     rowIndex: number,
     header: string,
     newValue: string
   ) => void;
+  yDoc: Y.Doc;
+  yTable: Y.Array<Y.Map<unknown>>;
+  yHeaders: Y.Array<string>;
+  selectedCell: { rowIndex: number; colIndex: number } | null;
+  undoManager: UndoManager | null;
+  handleCellFocus: (rowIndex: number, colIndex: number) => void;
+  handleCellBlur: () => void;
 }
 
 interface LiveTableProviderProps {
@@ -40,10 +49,24 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   children,
   tableId,
 }) => {
-  // react state
-  const [tableData, setTableData] = useState<Record<string, unknown>[]>([]);
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  // yTable & friends are not going to reactively update, so we need to observe
+  // changes to them and create react state that will reactively update UI.
+  // Downstream components should read table, headers, and colWidths for most
+  // uses cases.
+
+  // TODO table/setTable is keyed by Column ID, a unique, non-meaningful identifier for each
+  // column.
+  // TODO headers/setHeaders is a map of Column ID to human-readable header name.
+  // TODO colWidths/setColumnWidths is keyed by Column ID
+
+  const [tableData, setTableData] = useState<
+    Record<string, unknown>[] | undefined
+  >(undefined);
+  const [headers, setHeaders] = useState<string[] | undefined>(undefined);
+  const [columnWidths, setColumnWidths] = useState<
+    Record<string, number> | undefined
+  >(undefined);
+  const [isTableLoaded, setIsTableLoaded] = useState<boolean>(false);
 
   // yjs
   const room = useRoom();
@@ -59,13 +82,51 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   const yHeaders = useMemo(() => yDoc.getArray<string>("tableHeaders"), [yDoc]);
   const yColWidths = useMemo(() => yDoc.getMap<number>("colWidths"), [yDoc]);
 
-  // Effect to set user info in awareness state when it changes
+  const [selectedCell, setSelectedCell] = useState<{
+    rowIndex: number;
+    colIndex: number;
+  } | null>(null);
+
+  const undoManager = useMemo(() => {
+    if (!yTable || !yHeaders || !yColWidths) return null;
+    return new UndoManager([yTable, yHeaders, yColWidths], {
+      captureTimeout: 500,
+    });
+  }, [yTable, yHeaders, yColWidths]);
+
+  // --- Load status ---
+
+  useEffect(() => {
+    if (!isTableLoaded && tableData && headers && columnWidths) {
+      setIsTableLoaded(true);
+    }
+  }, [tableData, headers, isTableLoaded, yTable.length, columnWidths]);
+
+  // --- Awareness & Focus ---
+
   useEffect(() => {
     yProvider.awareness.setLocalStateField("user", {
       name: self?.info?.name ?? "Anonymous",
       color: self?.info?.color ?? "#000000",
     });
   }, [self?.info?.name, self?.info?.color, yProvider.awareness]);
+
+  const handleCellFocus = useCallback(
+    (rowIndex: number, colIndex: number) => {
+      setSelectedCell({ rowIndex, colIndex });
+      yProvider.awareness.setLocalStateField("selectedCell", {
+        rowIndex,
+        colIndex,
+      });
+    },
+    [yProvider.awareness]
+  );
+
+  // Function to handle cell blur
+  const handleCellBlur = useCallback(() => {
+    setSelectedCell(null);
+    yProvider.awareness.setLocalStateField("selectedCell", null);
+  }, [yProvider.awareness]);
 
   // map yjs entities to react state
   useEffect(() => {
@@ -113,6 +174,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     const headersObserver = () => updateHeadersState();
     const widthsObserver = () => updateColWidthsState();
 
+    // yTable is not going to reactively update, so we need to observe changes
+    // to it and create react state that will reactively update UI. Downstream
+    // components should read table, headers, and colWidths for most uses cases.
     yTable.observeDeep(tableObserver);
     yHeaders.observe(headersObserver);
     yColWidths.observe(widthsObserver);
@@ -144,7 +208,21 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   return (
     <LiveTableContext.Provider
-      value={{ tableId, tableData, headers, columnWidths, handleCellChange }}
+      value={{
+        tableId,
+        tableData,
+        headers,
+        columnWidths,
+        handleCellChange,
+        yDoc,
+        yTable,
+        yHeaders,
+        selectedCell,
+        undoManager,
+        handleCellFocus,
+        handleCellBlur,
+        isTableLoaded,
+      }}
     >
       {children}
     </LiveTableContext.Provider>

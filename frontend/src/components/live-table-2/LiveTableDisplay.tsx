@@ -23,8 +23,8 @@ const LiveTable: React.FC = () => {
     <table className="table-fixed border-collapse border border-slate-400 relative w-full">
       <thead>
         <tr>
-          {headers.map((header, index) => {
-            const width = columnWidths[header] ?? DEFAULT_COL_WIDTH;
+          {headers?.map((header, index) => {
+            const width = columnWidths?.[header] ?? DEFAULT_COL_WIDTH;
             return (
               <th
                 key={`${header}-${index}`}
@@ -53,9 +53,9 @@ const LiveTable: React.FC = () => {
         </tr>
       </thead>
       <tbody>
-        {tableData.map((row, rowIndex) => (
+        {tableData?.map((row, rowIndex) => (
           <tr key={rowIndex}>
-            {headers.map((header, colIndex) => {
+            {headers?.map((header, colIndex) => {
               const cellKey = `${rowIndex}-${colIndex}`;
               return (
                 <td key={cellKey} className="border p-0 relative">

@@ -5,6 +5,7 @@ import React from "react";
 import LiveTableContainer from "./LiveTableContainer";
 import LiveTableDisplay from "./LiveTableDisplay";
 import LiveTableProvider from "./LiveTableProvider";
+import LiveTableToolbar from "./LiveTableToolbar";
 import Room from "./Room";
 
 interface LiveTableProps {
@@ -20,6 +21,7 @@ const LiveTable: React.FC<LiveTableProps> = ({ tableId }) => {
     <Room roomId={roomId}>
       <LiveTableProvider tableId={tableId}>
         <LiveTableContainer>
+          <LiveTableToolbar />
           <LiveTableDisplay />
         </LiveTableContainer>
       </LiveTableProvider>
