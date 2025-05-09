@@ -151,7 +151,6 @@ export default function PlanetEditor() {
 
       if (yTableIsEmpty || (tableDataPopulated && headersPopulated)) {
         setIsTableLoaded(true);
-        console.log("Table marked as loaded based on state population.");
       }
     }
   }, [tableData, headers, isTableLoaded, yTable.length]);

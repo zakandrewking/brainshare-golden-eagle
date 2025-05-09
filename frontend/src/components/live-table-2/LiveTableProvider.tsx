@@ -31,6 +31,13 @@ interface LiveTableContextType {
   undoManager: UndoManager | null;
   handleCellFocus: (rowIndex: number, colIndex: number) => void;
   handleCellBlur: () => void;
+  editingHeaderIndex: number | null;
+  editingHeaderValue: string;
+  handleHeaderDoubleClick: (colIndex: number) => void;
+  handleHeaderChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleHeaderBlur: () => void;
+  handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  handleColumnResize: (header: string, newWidth: number) => void;
 }
 
 interface LiveTableProviderProps {
@@ -67,6 +74,12 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     Record<string, number> | undefined
   >(undefined);
   const [isTableLoaded, setIsTableLoaded] = useState<boolean>(false);
+
+  // Header editing state
+  const [editingHeaderIndex, setEditingHeaderIndex] = useState<number | null>(
+    null
+  );
+  const [editingHeaderValue, setEditingHeaderValue] = useState<string>("");
 
   // yjs
   const room = useRoom();
@@ -127,6 +140,90 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     setSelectedCell(null);
     yProvider.awareness.setLocalStateField("selectedCell", null);
   }, [yProvider.awareness]);
+
+  // Header editing functions
+  const handleHeaderDoubleClick = useCallback(
+    (colIndex: number) => {
+      if (!headers) return;
+      setEditingHeaderIndex(colIndex);
+      setEditingHeaderValue(headers[colIndex]);
+    },
+    [headers]
+  );
+
+  const handleHeaderChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setEditingHeaderValue(event.target.value);
+    },
+    []
+  );
+
+  const handleHeaderBlur = useCallback(() => {
+    if (editingHeaderIndex === null || !headers || !yHeaders) return;
+
+    const oldHeader = headers[editingHeaderIndex];
+    const newHeader = editingHeaderValue.trim();
+
+    if (newHeader && newHeader !== oldHeader) {
+      yDoc.transact(() => {
+        // Update the header in the yHeaders array
+        yHeaders.delete(editingHeaderIndex, 1);
+        yHeaders.insert(editingHeaderIndex, [newHeader]);
+
+        // Update all rows to use the new header key
+        yTable.forEach((row: Y.Map<unknown>) => {
+          if (row.has(oldHeader)) {
+            const value = row.get(oldHeader);
+            row.delete(oldHeader);
+            row.set(newHeader, value);
+          }
+        });
+
+        // Update column width map if needed
+        if (yColWidths.has(oldHeader)) {
+          const width = yColWidths.get(oldHeader);
+          if (width !== undefined) {
+            yColWidths.delete(oldHeader);
+            yColWidths.set(newHeader, width);
+          }
+        }
+      });
+    }
+
+    setEditingHeaderIndex(null);
+  }, [
+    editingHeaderIndex,
+    editingHeaderValue,
+    headers,
+    yHeaders,
+    yDoc,
+    yTable,
+    yColWidths,
+  ]);
+
+  const handleHeaderKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleHeaderBlur();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        setEditingHeaderIndex(null);
+      }
+    },
+    [handleHeaderBlur]
+  );
+
+  const handleColumnResize = useCallback(
+    (header: string, newWidth: number) => {
+      if (!yColWidths) return;
+
+      yDoc.transact(() => {
+        yColWidths.set(header, newWidth);
+      });
+    },
+    [yDoc, yColWidths]
+  );
 
   // map yjs entities to react state
   useEffect(() => {
@@ -213,6 +310,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         tableData,
         headers,
         columnWidths,
+        isTableLoaded,
         handleCellChange,
         yDoc,
         yTable,
@@ -221,7 +319,13 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         undoManager,
         handleCellFocus,
         handleCellBlur,
-        isTableLoaded,
+        editingHeaderIndex,
+        editingHeaderValue,
+        handleHeaderDoubleClick,
+        handleHeaderChange,
+        handleHeaderBlur,
+        handleHeaderKeyDown,
+        handleColumnResize,
       }}
     >
       {children}
@@ -229,12 +333,12 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   );
 };
 
-export default LiveTableProvider;
-
 export const useLiveTable = () => {
   const context = useContext(LiveTableContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useLiveTable must be used within a LiveTableProvider");
   }
   return context;
 };
+
+export default LiveTableProvider;
