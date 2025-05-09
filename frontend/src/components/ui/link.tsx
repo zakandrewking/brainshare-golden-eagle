@@ -46,7 +46,7 @@ export function InternalLink({
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  variant: VariantProps<typeof buttonVariants>["variant"];
+  variant?: VariantProps<typeof buttonVariants>["variant"];
 }) {
   if (disabled) {
     return (
