@@ -1,9 +1,7 @@
-import Room from "@/components/live-table/Room";
+import LiveTable from "@/components/live-table-2/LiveTable";
 import Container from "@/components/ui/container";
 import { InternalLink } from "@/components/ui/link";
 import { Stack } from "@/components/ui/stack";
-
-import PlanetEditor from "./PlanetEditor";
 
 export default function Planets() {
   return (
@@ -27,9 +25,7 @@ export default function Planets() {
             Next: some moons
           </InternalLink>
         </Stack>
-        <Room roomId="planet-editor">
-          <PlanetEditor />
-        </Room>
+        <LiveTable tableId="planet-editor" />
       </Stack>
     </Container>
   );

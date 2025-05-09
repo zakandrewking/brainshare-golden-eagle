@@ -18,10 +18,6 @@ import { toast } from "sonner";
 import * as Y from "yjs";
 
 import {
-  generateColumnSuggestions,
-  generateNewColumn,
-} from "@/app/(main)/planets/actions";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -40,6 +36,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { generateColumnSuggestions, generateNewColumn } from "./actions";
 import { useLiveTable } from "./LiveTableProvider";
 
 // Helper function to create a new row map initialized with headers

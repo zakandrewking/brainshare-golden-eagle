@@ -111,6 +111,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   useEffect(() => {
     if (!isTableLoaded && tableData && headers && columnWidths) {
+      console.log(
+        `Table loaded: ${tableData.length} rows, ${headers.length} columns`
+      );
       setIsTableLoaded(true);
     }
   }, [tableData, headers, isTableLoaded, yTable.length, columnWidths]);
