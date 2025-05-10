@@ -24,22 +24,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { generateNewColumn } from "./actions";
+import { generateNewColumn, generateNewRow } from "./actions";
 import AiFillColumnButton from "./AiFillColumnButton";
+import AiFillRowButton from "./AiFillRowButton";
 import { useLiveTable } from "./LiveTableProvider";
 import {
   applyDefaultColumnToYDocOnError,
+  applyDefaultRowToYDocOnError,
   applyGeneratedColumnToYDoc,
+  applyGeneratedRowToYDoc,
 } from "./yjs-operations";
-
-// Helper function to create a new row map initialized with headers
-const createNewRowMap = (yHeaders: Y.Array<string> | null): Y.Map<unknown> => {
-  const newRow = new Y.Map<unknown>();
-  if (yHeaders) {
-    yHeaders.toArray().forEach((header) => newRow.set(header, ""));
-  }
-  return newRow;
-};
 
 const LiveTableToolbar: React.FC = () => {
   const { yDoc, yTable, yHeaders, selectedCell, undoManager, isTableLoaded } =
@@ -50,14 +44,44 @@ const LiveTableToolbar: React.FC = () => {
   const [canRedo, setCanRedo] = useState(false);
 
   const handleAddRowRelative = (direction: "above" | "below") => {
-    if (!yDoc || !yTable || !selectedCell) return; // Require selection
+    if (!yDoc || !yTable || !selectedCell || !yHeaders) return; // Require selection and headers
 
     const insertIndex =
       direction === "above" ? selectedCell.rowIndex : selectedCell.rowIndex + 1;
 
-    yDoc.transact(() => {
-      const newRow = createNewRowMap(yHeaders);
-      yTable.insert(insertIndex, [newRow]);
+    console.log(
+      `[handleAddRowRelative] Adding row ${direction}, at index: ${insertIndex}`
+    );
+
+    startTransition(() => {
+      // Asynchronously attempt to generate row data
+      generateNewRow(
+        yTable.toArray().map((row) => row.toJSON()),
+        yHeaders.toArray()
+      )
+        .then((result) => {
+          if (result.error || !result.rowData) {
+            console.warn(
+              "Failed to generate AI row data, falling back to default:",
+              result.error
+            );
+            applyDefaultRowToYDocOnError(yDoc, yTable, yHeaders, insertIndex);
+          } else {
+            console.log(`[handleAddRowRelative] AI generated row data`);
+            applyGeneratedRowToYDoc(
+              yDoc,
+              yTable,
+              yHeaders,
+              result.rowData,
+              insertIndex
+            );
+          }
+        })
+        .catch((error) => {
+          console.error("Error calling generateNewRow:", error);
+          toast.error("Failed to generate AI row suggestion.");
+          applyDefaultRowToYDocOnError(yDoc, yTable, yHeaders, insertIndex);
+        });
     });
   };
 
@@ -361,6 +385,7 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Add row above"
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleAddRowRelative("above");
@@ -377,6 +402,7 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Add row below"
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleAddRowRelative("below");
@@ -406,6 +432,15 @@ const LiveTableToolbar: React.FC = () => {
           </TooltipTrigger>
           <TooltipContent>Delete Row</TooltipContent>
         </Tooltip>
+
+        {/* AI Fill Row Button */}
+        <AiFillRowButton
+          isDisabled={!selectedCell || !isTableLoaded}
+          selectedCell={selectedCell}
+          yDoc={yDoc}
+          yTable={yTable}
+          yHeaders={yHeaders}
+        />
 
         <Separator orientation="vertical" className="h-6 mx-1" />
 
@@ -463,6 +498,15 @@ const LiveTableToolbar: React.FC = () => {
           <TooltipContent>Delete Column</TooltipContent>
         </Tooltip>
 
+        {/* AI Fill Column Button */}
+        <AiFillColumnButton
+          isDisabled={!selectedCell || !isTableLoaded}
+          selectedCell={selectedCell}
+          yDoc={yDoc}
+          yTable={yTable}
+          yHeaders={yHeaders}
+        />
+
         <Separator orientation="vertical" className="h-6 mx-1" />
 
         {/* Download Button */}
@@ -483,16 +527,6 @@ const LiveTableToolbar: React.FC = () => {
           </TooltipTrigger>
           <TooltipContent>Download CSV</TooltipContent>
         </Tooltip>
-
-        {/* AI Fill Button */}
-        <Separator orientation="vertical" className="h-6 mx-1" />
-        <AiFillColumnButton
-          isDisabled={!selectedCell || !isTableLoaded}
-          selectedCell={selectedCell}
-          yDoc={yDoc}
-          yTable={yTable}
-          yHeaders={yHeaders}
-        />
       </div>
     </TooltipProvider>
   );

@@ -164,3 +164,149 @@ export async function generateNewColumn(
     return { error: "An unknown error occurred while generating new column." };
   }
 }
+
+export async function generateRowSuggestions(
+  tableData: Record<string, unknown>[],
+  headers: string[],
+  targetRowIndex: number
+): Promise<{
+  suggestions?: { header: string; suggestion: string }[];
+  error?: string;
+}> {
+  if (targetRowIndex < 0 || targetRowIndex >= tableData.length) {
+    return { error: "Invalid target row index." };
+  }
+
+  // Define schema for row suggestions
+  const rowSuggestionSchema = z.object({
+    suggestions: z
+      .array(
+        z.object({
+          header: z.string().describe("The header/column name"),
+          suggestion: z.string().describe("The suggested value for this cell"),
+        })
+      )
+      .describe(
+        "An array of suggestions, one for each column in the target row"
+      ),
+  });
+
+  const rowModel = new ChatOpenAI({
+    model: "gpt-4.1",
+  }).withStructuredOutput(rowSuggestionSchema);
+
+  const systemPrompt = `You are an AI assistant specializing in data enrichment. You will be given a table represented as an array of JSON objects, the table headers, and a target row index. Your task is to provide concise and relevant suggestions for each cell in the target row, based on the overall table context and patterns in the data. Return the suggestions as a JSON object matching the provided schema.`;
+
+  const userPrompt = `Here is the table data:
+${JSON.stringify(tableData, null, 2)}
+
+Table Headers: ${JSON.stringify(headers)}
+Target Row Index: ${targetRowIndex}
+
+Please provide suggestions for each cell in row ${targetRowIndex}.`;
+
+  try {
+    const response = await rowModel.invoke([
+      new SystemMessage(systemPrompt),
+      new HumanMessage(userPrompt),
+    ]);
+
+    // Basic validation: ensure we got suggestions for the expected number of columns
+    if (response.suggestions.length !== headers.length) {
+      console.warn(
+        "LLM returned suggestions for a different number of columns than expected."
+      );
+    }
+
+    return { suggestions: response.suggestions };
+  } catch (error) {
+    console.error("Error calling LLM for row suggestions:", error);
+    if (error instanceof Error) {
+      return { error: `Failed to generate suggestions: ${error.message}` };
+    }
+    return { error: "An unknown error occurred while generating suggestions." };
+  }
+}
+
+// For generating a new row, we'll use a different approach
+const newRowModel = new ChatOpenAI({
+  model: "gpt-4.1",
+});
+
+export async function generateNewRow(
+  tableData: Record<string, unknown>[],
+  headers: string[]
+): Promise<{
+  rowData?: Record<string, string>;
+  error?: string;
+}> {
+  if (headers.length === 0) {
+    return { error: "No headers available for row generation." };
+  }
+
+  const systemPrompt = `You are an AI assistant specializing in data enrichment for tables. You will be given existing table data (array of JSON objects) and its headers. Your task is to generate a new row with realistic and contextually appropriate values for each column. Return the new row data as a JSON object where keys are the column headers and values are the generated cell values. Make sure all values are strings.`;
+
+  const userPrompt = `Here is the existing table data:
+${JSON.stringify(tableData, null, 2)}
+
+Table Headers: ${JSON.stringify(headers)}
+
+Please generate a new row with values for each column header. Each value should be contextually appropriate based on the existing data. Return ONLY a valid JSON object with column headers as keys and values as strings, like this:
+{
+  "Header1": "value1",
+  "Header2": "value2",
+  ...
+}`;
+
+  try {
+    const response = await newRowModel.invoke([
+      new SystemMessage(systemPrompt),
+      new HumanMessage(userPrompt),
+    ]);
+
+    // Extract the JSON from the response
+    let jsonStr = response.content.toString();
+
+    // Handle potential markdown code blocks
+    if (jsonStr.includes("```json")) {
+      jsonStr = jsonStr.split("```json")[1].split("```")[0].trim();
+    } else if (jsonStr.includes("```")) {
+      jsonStr = jsonStr.split("```")[1].split("```")[0].trim();
+    }
+
+    // Parse the JSON
+    try {
+      const generatedRowData = JSON.parse(jsonStr) as Record<string, string>;
+
+      // Validate that all headers are present in the response
+      const missingHeaders = headers.filter(
+        (header) => !(header in generatedRowData)
+      );
+      if (missingHeaders.length > 0) {
+        console.warn(
+          `LLM response missing values for headers: ${missingHeaders.join(
+            ", "
+          )}`
+        );
+
+        // Add empty values for any missing headers
+        missingHeaders.forEach((header) => {
+          generatedRowData[header] = "";
+        });
+      }
+
+      return { rowData: generatedRowData };
+    } catch (parseError) {
+      console.error("Error parsing JSON response:", parseError);
+      return { error: "Failed to parse AI response" };
+    }
+  } catch (error) {
+    console.error("Error calling LLM for new row generation:", error);
+    if (error instanceof Error) {
+      return { error: `Failed to generate new row: ${error.message}` };
+    }
+    return {
+      error: "An unknown error occurred while generating new row data.",
+    };
+  }
+}

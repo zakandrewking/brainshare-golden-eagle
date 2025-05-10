@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useTransition } from "react";
 
-import { Columns3, Loader2, Sparkles } from "lucide-react";
+import { Loader2, Rows3, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import * as Y from "yjs";
 
@@ -22,9 +22,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { generateColumnSuggestions } from "./actions";
+import { generateRowSuggestions } from "./actions";
 
-interface AiFillColumnButtonProps {
+interface AiFillRowButtonProps {
   isDisabled: boolean;
   selectedCell: { rowIndex: number; colIndex: number } | null;
   yDoc: Y.Doc | null;
@@ -33,7 +33,7 @@ interface AiFillColumnButtonProps {
   withTooltipProvider?: boolean;
 }
 
-const AiFillColumnButton: React.FC<AiFillColumnButtonProps> = ({
+const AiFillRowButton: React.FC<AiFillRowButtonProps> = ({
   isDisabled,
   selectedCell,
   yDoc,
@@ -49,13 +49,13 @@ const AiFillColumnButton: React.FC<AiFillColumnButtonProps> = ({
   } | null>(null);
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
-  const handleAiFillColumn = () => {
+  const handleAiFillRow = () => {
     if (!selectedCell) return;
     setSelectedCellForAiFill(selectedCell);
     setIsConfirmDialogOpen(true);
   };
 
-  const confirmAiFillColumn = () => {
+  const confirmAiFillRow = () => {
     const targetCell = selectedCellForAiFill;
 
     if (!targetCell || !yDoc || !yTable || !yHeaders) {
@@ -64,15 +64,14 @@ const AiFillColumnButton: React.FC<AiFillColumnButtonProps> = ({
     }
 
     const currentTableData = yTable.toArray().map((row) => row.toJSON());
-    const targetColIndex = targetCell.colIndex;
-    const targetHeader = yHeaders.get(targetColIndex);
+    const targetRowIndex = targetCell.rowIndex;
 
     startTransition(async () => {
       setSelectedCellForAiFill(null);
-      const result = await generateColumnSuggestions(
+      const result = await generateRowSuggestions(
         currentTableData,
         yHeaders.toArray(),
-        targetColIndex
+        targetRowIndex
       );
 
       if (result.error) {
@@ -83,25 +82,19 @@ const AiFillColumnButton: React.FC<AiFillColumnButtonProps> = ({
       if (result.suggestions && result.suggestions.length > 0) {
         const suggestions = result.suggestions;
         yDoc.transact(() => {
-          suggestions.forEach(({ index, suggestion }) => {
-            if (index >= 0 && index < yTable.length) {
-              const rowMap = yTable.get(index);
-              if (rowMap) {
-                rowMap.set(targetHeader, suggestion);
-              } else {
-                console.warn(
-                  `Could not find rowMap for suggestion at index ${index}`
-                );
-              }
-            } else {
-              console.warn(`Invalid suggestion index received: ${index}`);
-            }
-          });
+          const rowMap = yTable.get(targetRowIndex);
+          if (rowMap) {
+            suggestions.forEach(({ header, suggestion }) => {
+              rowMap.set(header, suggestion);
+            });
+          } else {
+            console.warn(`Could not find row at index ${targetRowIndex}`);
+          }
         });
-        toast.success(`Column "${targetHeader}" updated with AI suggestions.`);
+        toast.success(`Row ${targetRowIndex + 1} updated with AI suggestions.`);
       } else {
         toast.warning(
-          `AI returned no suggestions for column "${targetHeader}".`
+          `AI returned no suggestions for row ${targetRowIndex + 1}.`
         );
       }
     });
@@ -133,7 +126,7 @@ const AiFillColumnButton: React.FC<AiFillColumnButtonProps> = ({
           size="icon"
           onMouseDown={(e) => {
             e.preventDefault();
-            handleAiFillColumn();
+            handleAiFillRow();
           }}
           disabled={isDisabled || isPending}
         >
@@ -141,13 +134,13 @@ const AiFillColumnButton: React.FC<AiFillColumnButtonProps> = ({
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <div className="flex items-center justify-center">
-              <Columns3 className="h-4 w-4 mr-1" />
+              <Rows3 className="h-4 w-4 mr-1" />
               <Sparkles className="h-3 w-3" />
             </div>
           )}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>AI Fill Selected Column</TooltipContent>
+      <TooltipContent>AI Fill Selected Row</TooltipContent>
     </Tooltip>
   );
 
@@ -170,11 +163,11 @@ const AiFillColumnButton: React.FC<AiFillColumnButtonProps> = ({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm AI Column Fill</AlertDialogTitle>
+            <AlertDialogTitle>Confirm AI Row Fill</AlertDialogTitle>
             <AlertDialogDescription>
-              This will replace all existing data in the selected column
-              (excluding the header) with AI-generated suggestions based on the
-              entire table. This action cannot be undone. Are you sure?
+              This will replace all existing data in the selected row with
+              AI-generated suggestions based on the entire table. This action
+              cannot be undone. Are you sure?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -186,7 +179,7 @@ const AiFillColumnButton: React.FC<AiFillColumnButtonProps> = ({
             </AlertDialogCancel>
             <AlertDialogAction
               ref={confirmButtonRef}
-              onClick={confirmAiFillColumn}
+              onClick={confirmAiFillRow}
               disabled={isPending || !selectedCellForAiFill}
             >
               {isPending ? "Generating..." : "Confirm & Generate"}
@@ -198,4 +191,4 @@ const AiFillColumnButton: React.FC<AiFillColumnButtonProps> = ({
   );
 };
 
-export default AiFillColumnButton;
+export default AiFillRowButton;

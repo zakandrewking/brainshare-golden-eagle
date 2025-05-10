@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import * as Y from "yjs";
 
 /**
@@ -80,3 +81,60 @@ export const applyDefaultColumnToYDocOnError = (
     }
   });
 };
+
+export function applyGeneratedRowToYDoc(
+  yDoc: Y.Doc,
+  yTable: Y.Array<Y.Map<unknown>>,
+  yHeaders: Y.Array<string>,
+  rowData: Record<string, string>,
+  insertIndex: number
+): void {
+  try {
+    yDoc.transact(() => {
+      // Create a new row map
+      const newRow = new Y.Map<unknown>();
+
+      // For each header, set the corresponding value from rowData or empty string
+      yHeaders.toArray().forEach((header) => {
+        newRow.set(header, rowData[header] || "");
+      });
+
+      // Insert the new row at the specified index
+      yTable.insert(insertIndex, [newRow]);
+    });
+
+    // Show success toast
+    toast.success("Added new row with AI suggestions");
+  } catch (error) {
+    console.error("Error applying generated row to Y.Doc:", error);
+    toast.error("Failed to add row. Please try again.");
+
+    // Fallback to empty row
+    applyDefaultRowToYDocOnError(yDoc, yTable, yHeaders, insertIndex);
+  }
+}
+
+export function applyDefaultRowToYDocOnError(
+  yDoc: Y.Doc,
+  yTable: Y.Array<Y.Map<unknown>>,
+  yHeaders: Y.Array<string>,
+  insertIndex: number
+): void {
+  try {
+    yDoc.transact(() => {
+      // Create a new row map with empty values
+      const newRow = new Y.Map<unknown>();
+
+      // Set empty strings for all headers
+      yHeaders.toArray().forEach((header) => {
+        newRow.set(header, "");
+      });
+
+      // Insert the new row at the specified index
+      yTable.insert(insertIndex, [newRow]);
+    });
+  } catch (error) {
+    console.error("Error applying default row to Y.Doc:", error);
+    toast.error("Failed to add row. Please try again.");
+  }
+}
