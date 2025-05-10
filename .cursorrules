@@ -1,5 +1,6 @@
-- NEVER add comments to code unless they are specifically providing non-obvious
-  information (e.g. design decisions)
+- NEVER EVER add comments to code. The only exceptions are you can add a docstring
+  to a function or module, or you can add a couple sentences describing a
+  complex design decision. Otherwise, NO COMMENTS.
 - always use frontend components from /components/ui when possible
 - always use lucide-react for icons if possible
 - use server actions instead of api routes in next.js

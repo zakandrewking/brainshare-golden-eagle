@@ -38,6 +38,10 @@ import {
 
 import { generateColumnSuggestions, generateNewColumn } from "./actions";
 import { useLiveTable } from "./LiveTableProvider";
+import {
+  applyDefaultColumnToYDocOnError,
+  applyGeneratedColumnToYDoc,
+} from "./yjs-operations";
 
 // Helper function to create a new row map initialized with headers
 const createNewRowMap = (yHeaders: Y.Array<string> | null): Y.Map<unknown> => {
@@ -159,7 +163,6 @@ const LiveTableToolbar: React.FC = () => {
               "Failed to generate AI column name or data, falling back to default:",
               result.error
             );
-            // Use default header and signal to use empty data
           } else {
             finalHeader = result.newHeader;
             finalData = result.newColumnData;
@@ -168,74 +171,25 @@ const LiveTableToolbar: React.FC = () => {
             );
           }
 
-          // Perform the Yjs transaction within the transition callback *after* the async call
-          yDoc.transact(() => {
-            console.log(
-              `[handleAddColumnRelative] Transaction Start: Inserting header "${finalHeader}" at index ${insertIndex}`
-            );
-
-            // 1. Add header to yHeaders array at the correct index
-            yHeaders.insert(insertIndex, [finalHeader]);
-
-            console.log(
-              `[handleAddColumnRelative] yHeaders after insert: ${JSON.stringify(
-                yHeaders.toArray()
-              )}`
-            );
-
-            // 2. Add the new key and AI/default value to each existing row in yTable
-            yTable.forEach((row: Y.Map<unknown>, rowIndex) => {
-              const valueToAdd = finalData ? finalData[rowIndex] ?? "" : "";
-              if (!row.has(finalHeader)) {
-                row.set(finalHeader, valueToAdd);
-              }
-            });
-
-            // If the table was empty, handle this case
-            if (yTable.length === 0 && finalData && finalData.length > 0) {
-              console.warn(
-                "[handleAddColumnRelative] AI generated data for an empty table, adding first row."
-              );
-              // This case needs careful consideration. Should we add rows based on AI data?
-              // For now, let's just add one row if data exists, otherwise, stick to the original logic.
-              // If finalData is not null/empty, it implies AI succeeded.
-              const newRow = new Y.Map<unknown>();
-              const valueToAdd = finalData[0] ?? ""; // Use first data item
-              newRow.set(finalHeader, valueToAdd);
-              yTable.push([newRow]);
-            } else if (yTable.length === 0) {
-              // Original logic for empty table with default header
-              const newRow = new Y.Map<unknown>();
-              newRow.set(finalHeader, "");
-              yTable.push([newRow]);
-            }
-
-            console.log(
-              `[handleAddColumnRelative] Transaction End: Header "${finalHeader}" added.`
-            );
-          });
+          applyGeneratedColumnToYDoc(
+            yDoc,
+            yHeaders,
+            yTable,
+            finalHeader,
+            finalData,
+            insertIndex
+          );
         })
         .catch((error) => {
-          // Handle errors during the generateNewColumn call itself
           console.error("Error calling generateNewColumn:", error);
           toast.error("Failed to generate AI column suggestion.");
-          // Fallback to default behavior within a transaction just in case
-          yDoc.transact(() => {
-            console.log(
-              `[handleAddColumnRelative] Fallback Transaction: Inserting default header "${headerToAdd}" at index ${insertIndex}`
-            );
-            yHeaders.insert(insertIndex, [headerToAdd]);
-            yTable.forEach((row: Y.Map<unknown>) => {
-              if (!row.has(headerToAdd)) {
-                row.set(headerToAdd, "");
-              }
-            });
-            if (yTable.length === 0) {
-              const newRow = new Y.Map<unknown>();
-              newRow.set(headerToAdd, "");
-              yTable.push([newRow]);
-            }
-          });
+          applyDefaultColumnToYDocOnError(
+            yDoc,
+            yHeaders,
+            yTable,
+            headerToAdd,
+            insertIndex
+          );
         });
     });
   };
