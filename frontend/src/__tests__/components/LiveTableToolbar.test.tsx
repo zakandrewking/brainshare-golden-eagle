@@ -1,10 +1,10 @@
-import type { MockedFunction } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import * as ActionsModule from "@/components/live-table/actions";
+import * as AiFillColumnButtonModule from "@/components/live-table/AiFillColumnButton";
 import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import * as YjsOperationsModule from "@/components/live-table/yjs-operations";
@@ -18,21 +18,22 @@ vi.mock("@/components/live-table/actions", () => ({
   generateColumnSuggestions: vi.fn(),
 }));
 
-// Mock the helper functions from the new yjs-operations module
+const mockAiFillColumnButton = AiFillColumnButtonModule.default;
+vi.mock("@/components/live-table/AiFillColumnButton", () => ({
+  default: vi.fn((...args: unknown[]) => {
+    console.log(args);
+    return <div data-testid="mock-ai-fill-button" />;
+  }),
+}));
+
+const mockApplyGeneratedColumnToYDoc =
+  YjsOperationsModule.applyGeneratedColumnToYDoc;
+const mockApplyDefaultColumnToYDocOnError =
+  YjsOperationsModule.applyDefaultColumnToYDocOnError;
 vi.mock("@/components/live-table/yjs-operations", () => ({
   applyGeneratedColumnToYDoc: vi.fn(),
   applyDefaultColumnToYDocOnError: vi.fn(),
 }));
-
-// Cast the imported functions to their mocked type for type safety
-const mockApplyGeneratedColumnToYDoc =
-  YjsOperationsModule.applyGeneratedColumnToYDoc as MockedFunction<
-    typeof YjsOperationsModule.applyGeneratedColumnToYDoc
-  >;
-const mockApplyDefaultColumnToYDocOnError =
-  YjsOperationsModule.applyDefaultColumnToYDocOnError as MockedFunction<
-    typeof YjsOperationsModule.applyDefaultColumnToYDocOnError
-  >;
 
 describe("LiveTableToolbar - Add Column Buttons", () => {
   const mockYDoc = new Y.Doc();
@@ -163,5 +164,26 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       0
     );
     expect(mockApplyGeneratedColumnToYDoc).not.toHaveBeenCalled();
+  });
+
+  it("should render the AiFillColumnButton with correct props", () => {
+    render(<LiveTableToolbar />);
+
+    const f = vi.fn((...args: unknown[]) => {
+      return args;
+    });
+    f({ a: 1, b: 2 }, 3, undefined);
+    expect(f).toHaveBeenCalledWith({ a: 1, b: 2 }, 3, undefined);
+
+    expect(mockAiFillColumnButton).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isDisabled: false,
+        selectedCell: { rowIndex: 0, colIndex: 0 },
+        yDoc: mockYDoc,
+        yTable: mockYTable,
+        yHeaders: mockYHeaders,
+      }),
+      undefined
+    );
   });
 });
