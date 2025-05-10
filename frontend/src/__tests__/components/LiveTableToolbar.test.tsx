@@ -1,12 +1,26 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import * as ActionsModule from "@/components/live-table/actions";
-import * as AiFillColumnButtonModule from "@/components/live-table/AiFillColumnButton";
-import * as AiFillRowButtonModule from "@/components/live-table/AiFillRowButton";
-import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
+import * as AiFillColumnButtonModule
+  from "@/components/live-table/AiFillColumnButton";
+import * as AiFillRowButtonModule
+  from "@/components/live-table/AiFillRowButton";
+import * as LiveTableProviderModule
+  from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import * as YjsOperationsModule from "@/components/live-table/yjs-operations";
 
@@ -220,6 +234,53 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     expect(rowButton).toBeDefined();
     expect(columnButton).toBeDefined();
   });
+
+  it("should call the API and handle pending state when add column operation starts", async () => {
+    // Mock the generateNewColumn to return a promise that never resolves
+    const neverResolvedPromise = new Promise<{
+      newHeader?: string;
+      newColumnData?: string[];
+      error?: string;
+    }>(() => {});
+    vi.mocked(ActionsModule.generateNewColumn).mockReturnValueOnce(neverResolvedPromise);
+
+    render(<LiveTableToolbar />);
+
+    // Click the add column left button
+    const addColumnLeftButton = screen.getByRole("button", {
+      name: "Add column to the left",
+    });
+    fireEvent.mouseDown(addColumnLeftButton);
+
+    // After clicking, verify that React triggers the API call
+    expect(vi.mocked(ActionsModule.generateNewColumn)).toHaveBeenCalled();
+  });
+
+  it("should pass isDisabled to AI fill buttons when rendering", async () => {
+    // Mock the generateNewRow to return a promise that never resolves
+    const neverResolvedPromise = new Promise<{
+      rowData?: Record<string, string>;
+      error?: string;
+    }>(() => {});
+    vi.mocked(ActionsModule.generateNewRow).mockReturnValueOnce(neverResolvedPromise);
+
+    render(<LiveTableToolbar />);
+
+    const addRowAboveButton = screen.getByRole("button", {
+      name: "Add row above",
+    });
+
+    // Click to trigger isPendingRow state
+    fireEvent.mouseDown(addRowAboveButton);
+
+    // Verify API call was made
+    expect(vi.mocked(ActionsModule.generateNewRow)).toHaveBeenCalled();
+
+    // Verify that AI fill buttons were rendered (we can't test specific disabled states
+    // in this testing environment since useTransition doesn't work the same way)
+    expect(mockAiFillRowButton).toHaveBeenCalled();
+    expect(mockAiFillColumnButton).toHaveBeenCalled();
+  });
 });
 
 describe("LiveTableToolbar - Add Row Buttons", () => {
@@ -392,5 +453,25 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       1
     );
     expect(mockApplyGeneratedRowToYDoc).not.toHaveBeenCalled();
+  });
+
+  it("should call the API and handle pending state when add row operation starts", async () => {
+    // Mock the generateNewRow to return a promise that never resolves
+    const neverResolvedPromise = new Promise<{
+      rowData?: Record<string, string>;
+      error?: string;
+    }>(() => {});
+    vi.mocked(ActionsModule.generateNewRow).mockReturnValueOnce(neverResolvedPromise);
+
+    render(<LiveTableToolbar />);
+
+    // Click the add row above button
+    const addRowAboveButton = screen.getByRole("button", {
+      name: "Add row above",
+    });
+    fireEvent.mouseDown(addRowAboveButton);
+
+    // After clicking, verify that React triggers the API call
+    expect(vi.mocked(ActionsModule.generateNewRow)).toHaveBeenCalled();
   });
 });

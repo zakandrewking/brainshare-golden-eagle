@@ -1,4 +1,8 @@
-import React, { useEffect, useState, useTransition } from "react";
+import React, {
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
 
 import {
   ArrowDownToLine,
@@ -7,6 +11,7 @@ import {
   ArrowUpFromLine,
   Columns3,
   Download,
+  Loader2,
   Redo,
   Rows3,
   Trash2,
@@ -35,11 +40,21 @@ import {
   applyGeneratedRowToYDoc,
 } from "./yjs-operations";
 
+// Define the possible pending operations
+type PendingOperation =
+  | "add-row-above"
+  | "add-row-below"
+  | "add-column-left"
+  | "add-column-right"
+  | null;
+
 const LiveTableToolbar: React.FC = () => {
   const { yDoc, yTable, yHeaders, selectedCell, undoManager, isTableLoaded } =
     useLiveTable();
 
   const [isPending, startTransition] = useTransition();
+  const [pendingOperation, setPendingOperation] =
+    useState<PendingOperation>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
@@ -51,6 +66,11 @@ const LiveTableToolbar: React.FC = () => {
 
     console.log(
       `[handleAddRowRelative] Adding row ${direction}, at index: ${insertIndex}`
+    );
+
+    // Set the pending operation
+    setPendingOperation(
+      direction === "above" ? "add-row-above" : "add-row-below"
     );
 
     startTransition(() => {
@@ -76,11 +96,15 @@ const LiveTableToolbar: React.FC = () => {
               insertIndex
             );
           }
+          // Clear the pending operation when done
+          setPendingOperation(null);
         })
         .catch((error) => {
           console.error("Error calling generateNewRow:", error);
           toast.error("Failed to generate AI row suggestion.");
           applyDefaultRowToYDocOnError(yDoc, yTable, yHeaders, insertIndex);
+          // Clear the pending operation when done
+          setPendingOperation(null);
         });
     });
   };
@@ -155,6 +179,11 @@ const LiveTableToolbar: React.FC = () => {
           : selectedCell.colIndex + 1;
     }
 
+    // Set the pending operation
+    setPendingOperation(
+      direction === "left" ? "add-column-left" : "add-column-right"
+    );
+
     startTransition(() => {
       // Asynchronously attempt to generate a better header and data
       generateNewColumn(
@@ -186,6 +215,9 @@ const LiveTableToolbar: React.FC = () => {
             finalData,
             insertIndex
           );
+
+          // Clear the pending operation when done
+          setPendingOperation(null);
         })
         .catch((error) => {
           console.error("Error calling generateNewColumn:", error);
@@ -197,6 +229,9 @@ const LiveTableToolbar: React.FC = () => {
             headerToAdd,
             insertIndex
           );
+
+          // Clear the pending operation when done
+          setPendingOperation(null);
         });
     });
   };
@@ -317,6 +352,9 @@ const LiveTableToolbar: React.FC = () => {
     isTableLoaded;
   const canDownload = isTableLoaded && yHeaders.length > 0; // Can download if loaded and has headers
 
+  // For disabling buttons, check for any pending operations
+  const isAnyOperationPending = isPending && pendingOperation !== null;
+
   // Effect to listen to UndoManager stack changes
   useEffect(() => {
     if (!undoManager) return;
@@ -353,7 +391,7 @@ const LiveTableToolbar: React.FC = () => {
                 e.preventDefault();
                 handleUndo();
               }}
-              disabled={!canUndo || isPending}
+              disabled={!canUndo || isAnyOperationPending}
             >
               <Undo className="h-4 w-4" />
             </Button>
@@ -369,7 +407,7 @@ const LiveTableToolbar: React.FC = () => {
                 e.preventDefault();
                 handleRedo();
               }}
-              disabled={!canRedo || isPending}
+              disabled={!canRedo || isAnyOperationPending}
             >
               <Redo className="h-4 w-4" />
             </Button>
@@ -390,9 +428,13 @@ const LiveTableToolbar: React.FC = () => {
                 e.preventDefault();
                 handleAddRowRelative("above");
               }}
-              disabled={!canOperateOnSelection} // Disable if no cell selected
+              disabled={!canOperateOnSelection || isAnyOperationPending}
             >
-              <ArrowUpFromLine className="h-4 w-4" />
+              {isPending && pendingOperation === "add-row-above" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowUpFromLine className="h-4 w-4" />
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>Add Row Above</TooltipContent>
@@ -407,9 +449,13 @@ const LiveTableToolbar: React.FC = () => {
                 e.preventDefault();
                 handleAddRowRelative("below");
               }}
-              disabled={!canOperateOnSelection} // Disable if no cell selected
+              disabled={!canOperateOnSelection || isAnyOperationPending}
             >
-              <ArrowDownToLine className="h-4 w-4" />
+              {isPending && pendingOperation === "add-row-below" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowDownToLine className="h-4 w-4" />
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>Add Row Below</TooltipContent>
@@ -423,7 +469,7 @@ const LiveTableToolbar: React.FC = () => {
                 e.preventDefault();
                 handleDeleteRow();
               }}
-              disabled={!canOperateOnSelection} // Updated condition
+              disabled={!canOperateOnSelection || isAnyOperationPending}
               className="text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-4 w-4 mr-1" />
@@ -435,7 +481,7 @@ const LiveTableToolbar: React.FC = () => {
 
         {/* AI Fill Row Button */}
         <AiFillRowButton
-          isDisabled={!selectedCell || !isTableLoaded}
+          isDisabled={!selectedCell || !isTableLoaded || isAnyOperationPending}
           selectedCell={selectedCell}
           yDoc={yDoc}
           yTable={yTable}
@@ -455,9 +501,13 @@ const LiveTableToolbar: React.FC = () => {
                 e.preventDefault();
                 handleAddColumnRelative("left");
               }}
-              disabled={!canAddColumn}
+              disabled={!canAddColumn || isAnyOperationPending}
             >
-              <ArrowLeftFromLine className="h-4 w-4" />
+              {isPending && pendingOperation === "add-column-left" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowLeftFromLine className="h-4 w-4" />
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>Add Column Left</TooltipContent>
@@ -472,9 +522,13 @@ const LiveTableToolbar: React.FC = () => {
                 e.preventDefault();
                 handleAddColumnRelative("right");
               }}
-              disabled={!canAddColumn}
+              disabled={!canAddColumn || isAnyOperationPending}
             >
-              <ArrowRightFromLine className="h-4 w-4" />
+              {isPending && pendingOperation === "add-column-right" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRightFromLine className="h-4 w-4" />
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>Add Column Right</TooltipContent>
@@ -488,7 +542,7 @@ const LiveTableToolbar: React.FC = () => {
                 e.preventDefault();
                 handleDeleteColumn();
               }}
-              disabled={!canDeleteColumn} // Updated condition
+              disabled={!canDeleteColumn || isAnyOperationPending}
               className="text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-4 w-4 mr-1" />
@@ -500,7 +554,7 @@ const LiveTableToolbar: React.FC = () => {
 
         {/* AI Fill Column Button */}
         <AiFillColumnButton
-          isDisabled={!selectedCell || !isTableLoaded}
+          isDisabled={!selectedCell || !isTableLoaded || isAnyOperationPending}
           selectedCell={selectedCell}
           yDoc={yDoc}
           yTable={yTable}
@@ -520,7 +574,7 @@ const LiveTableToolbar: React.FC = () => {
                 e.preventDefault();
                 handleDownloadCsv();
               }}
-              disabled={!canDownload} // Use the download condition
+              disabled={!canDownload || isAnyOperationPending}
             >
               <Download className="h-4 w-4" />
             </Button>
