@@ -1,6 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Input } from "@/components/ui/input";
 
@@ -124,93 +129,99 @@ const LiveTable: React.FC = () => {
   }, [resizingHeader, handleMouseMove, handleMouseUp]);
 
   return (
-    <table
-      ref={tableRef}
-      className="table-fixed border-collapse border border-slate-400 relative w-full"
-      style={{ tableLayout: "fixed" }}
-    >
-      <thead>
-        <tr>
-          {headers?.map((header, index) => {
-            const width = columnWidths?.[header] ?? DEFAULT_COL_WIDTH;
-            return (
-              <th
-                key={`${header}-${index}`}
-                data-header={header}
-                className="border border-slate-300 p-0 text-left relative group overflow-hidden"
-                style={{
-                  width: `${width}px`,
-                  minWidth: `${width}px`,
-                  maxWidth: `${width}px`,
-                  verticalAlign: "top",
-                }}
-              >
-                <div className="flex items-start justify-between">
-                  {editingHeaderIndex === index ? (
-                    <Input
-                      type="text"
-                      value={editingHeaderValue}
-                      onChange={handleHeaderChange}
-                      onBlur={handleHeaderBlur}
-                      onKeyDown={handleHeaderKeyDown}
-                      autoFocus
-                      className="flex-grow h-full p-2 border-none focus:outline-none m-0 block bg-transparent"
-                    />
-                  ) : (
-                    <div
-                      className="p-2 cursor-text flex-grow break-words"
-                      onDoubleClick={() => handleHeaderDoubleClick(index)}
-                    >
-                      {header}
+    <div className="overflow-x-auto h-full">
+      <div className="w-max min-w-full">
+        <table
+          ref={tableRef}
+          className="table-fixed border-collapse border border-slate-400 relative"
+          style={{ tableLayout: "fixed" }}
+        >
+          <thead>
+            <tr>
+              {headers?.map((header, index) => {
+                const width = columnWidths?.[header] ?? DEFAULT_COL_WIDTH;
+                return (
+                  <th
+                    key={`${header}-${index}`}
+                    data-header={header}
+                    className="border border-slate-300 p-0 text-left relative group overflow-hidden"
+                    style={{
+                      width: `${width}px`,
+                      minWidth: `${width}px`,
+                      maxWidth: `${width}px`,
+                      verticalAlign: "top",
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      {editingHeaderIndex === index ? (
+                        <Input
+                          type="text"
+                          value={editingHeaderValue}
+                          onChange={handleHeaderChange}
+                          onBlur={handleHeaderBlur}
+                          onKeyDown={handleHeaderKeyDown}
+                          autoFocus
+                          className="flex-grow h-full p-2 border-none focus:outline-none m-0 block bg-transparent"
+                        />
+                      ) : (
+                        <div
+                          className="p-2 cursor-text flex-grow break-words"
+                          onDoubleClick={() => handleHeaderDoubleClick(index)}
+                        >
+                          {header}
+                        </div>
+                      )}
+                      <div
+                        className={`absolute top-0 right-0 bottom-0 w-2 cursor-col-resize bg-transparent group-hover:bg-blue-200 ${
+                          resizingHeader === header ? "bg-blue-400" : ""
+                        }`}
+                        onMouseDown={(e) => handleMouseDown(e, header)}
+                        onTouchStart={(e) => handleMouseDown(e, header)}
+                      />
                     </div>
-                  )}
-                  <div
-                    className={`absolute top-0 right-0 bottom-0 w-2 cursor-col-resize bg-transparent group-hover:bg-blue-200 ${
-                      resizingHeader === header ? "bg-blue-400" : ""
-                    }`}
-                    onMouseDown={(e) => handleMouseDown(e, header)}
-                    onTouchStart={(e) => handleMouseDown(e, header)}
-                  />
-                </div>
-              </th>
-            );
-          })}
-        </tr>
-      </thead>
-      <tbody>
-        {tableData?.map((row, rowIndex) => (
-          <tr key={rowIndex}>
-            {headers?.map((header, colIndex) => {
-              const cellKey = `${rowIndex}-${colIndex}`;
-              const isSelected =
-                selectedCell?.rowIndex === rowIndex &&
-                selectedCell?.colIndex === colIndex;
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {tableData?.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {headers?.map((header, colIndex) => {
+                  const cellKey = `${rowIndex}-${colIndex}`;
+                  const isSelected =
+                    selectedCell?.rowIndex === rowIndex &&
+                    selectedCell?.colIndex === colIndex;
 
-              return (
-                <td
-                  key={cellKey}
-                  className="border p-0 relative"
-                  style={{
-                    boxShadow: isSelected ? "inset 0 0 0 2px blue" : undefined,
-                  }}
-                >
-                  <input
-                    type="text"
-                    value={String(row[header] ?? "")}
-                    onChange={(e) =>
-                      handleCellChange(rowIndex, header, e.target.value)
-                    }
-                    onFocus={() => handleCellFocus(rowIndex, colIndex)}
-                    onBlur={handleCellBlur}
-                    className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-300 bg-transparent"
-                  />
-                </td>
-              );
-            })}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+                  return (
+                    <td
+                      key={cellKey}
+                      className="border p-0 relative"
+                      style={{
+                        boxShadow: isSelected
+                          ? "inset 0 0 0 2px blue"
+                          : undefined,
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={String(row[header] ?? "")}
+                        onChange={(e) =>
+                          handleCellChange(rowIndex, header, e.target.value)
+                        }
+                        onFocus={() => handleCellFocus(rowIndex, colIndex)}
+                        onBlur={handleCellBlur}
+                        className="w-full h-full p-2 border-none focus:outline-none focus:ring-2 focus:ring-blue-300 bg-transparent"
+                      />
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 };
 

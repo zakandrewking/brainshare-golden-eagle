@@ -6,7 +6,7 @@ import { Stack } from "@/components/ui/stack";
 export default function Planets() {
   return (
     <Container>
-      <Stack direction="col" gap={4} className="py-8 w-full" alignItems="start">
+      <Stack direction="col" gap={4} className="w-full" alignItems="start">
         <Stack
           direction="row"
           gap={4}
