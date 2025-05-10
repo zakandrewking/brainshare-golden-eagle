@@ -21,3 +21,5 @@ out/
 redis-dev-data/
 
 __debug*
+
+.vite/

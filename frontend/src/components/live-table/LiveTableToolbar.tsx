@@ -564,6 +564,7 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Add column to the left"
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleAddColumnRelative("left");
@@ -580,6 +581,7 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Add column to the right"
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleAddColumnRelative("right");
