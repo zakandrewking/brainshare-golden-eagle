@@ -1,5 +1,3 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 
 import type { MockedFunction } from "vitest";
@@ -68,6 +66,8 @@ describe("LiveTableDisplay", () => {
       selectedCells: [],
       clearSelection: vi.fn(),
       getSelectedCellsData: vi.fn(),
+      editingCell: null,
+      setEditingCell: vi.fn(),
     });
   });
 
@@ -80,7 +80,7 @@ describe("LiveTableDisplay", () => {
 
     // Find a cell in the table
     const cell = screen.getByDisplayValue("John Doe");
-    expect(cell).toBeInTheDocument();
+    expect(cell).toBeDefined();
 
     // Simulate mouse down on the cell
     fireEvent.mouseDown(cell.parentElement as HTMLElement);

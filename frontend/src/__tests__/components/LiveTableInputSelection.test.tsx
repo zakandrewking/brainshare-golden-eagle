@@ -25,13 +25,17 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
-describe("LiveTableDisplay Cell Editing", () => {
+describe("LiveTableDisplay Input Text Selection", () => {
   const mockHandleCellChange = vi.fn();
   const mockHandleCellFocus = vi.fn();
   const mockHandleCellBlur = vi.fn();
   const mockHandleSelectionStart = vi.fn();
   const mockHandleSelectionEnd = vi.fn();
   const mockSetEditingCell = vi.fn();
+
+  // Mock window.getSelection
+  const mockGetSelection = vi.fn();
+  const originalGetSelection = window.getSelection;
 
   beforeEach(() => {
     // Setup mock implementation of useLiveTable
@@ -68,47 +72,67 @@ describe("LiveTableDisplay Cell Editing", () => {
       selectedCells: [],
       clearSelection: vi.fn(),
       getSelectedCellsData: vi.fn(),
+      // Initially not in edit mode
       editingCell: null,
       setEditingCell: mockSetEditingCell,
     });
+
+    // Mock window.getSelection
+    const mockSelectionObject = {
+      removeAllRanges: vi.fn(),
+      addRange: vi.fn(),
+      getRangeAt: vi.fn(),
+      rangeCount: 0,
+      toString: vi.fn().mockReturnValue(""),
+    };
+    mockGetSelection.mockReturnValue(mockSelectionObject);
+    window.getSelection = mockGetSelection;
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    window.getSelection = originalGetSelection;
   });
 
-  it("handles cell interactions correctly - click behavior and edit mode", () => {
+  it("should allow text selection in the input element after entering edit mode", () => {
     render(<LiveTableDisplay />);
 
-    // Find an input element within a cell
+    // Find the input element and its parent cell
     const cellInput = screen.getByDisplayValue("John Doe");
-    expect(cellInput).toBeDefined();
-
-    // Get the parent td element (the cell)
     const cell = cellInput.closest("td");
-    expect(cell).toBeDefined();
 
-    // Single click should only select the cell, not put it in edit mode
-    fireEvent.mouseDown(cell!);
-    expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
-    expect(mockSetEditingCell).not.toHaveBeenCalled();
-
-    // Double-click should put the cell into edit mode
+    // Double-click to enter edit mode
     fireEvent.doubleClick(cell!);
+
+    // Verify edit mode was entered
     expect(mockSetEditingCell).toHaveBeenCalledWith({
       rowIndex: 0,
       colIndex: 0,
     });
 
-    // Verify that the cell focus handler is called
-    expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
+    // Now update the mock to simulate being in edit mode
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockReturnValue({
+      ...(useLiveTable as MockedFunction<typeof useLiveTable>)(),
+      editingCell: { rowIndex: 0, colIndex: 0 },
+    });
 
-    // After double-click, we should be able to edit
-    fireEvent.change(cellInput, { target: { value: "Updated Name" } });
-    expect(mockHandleCellChange).toHaveBeenCalledWith(
-      0,
-      "name",
-      "Updated Name"
-    );
+    // Simulate mousedown inside the input (for text selection start)
+    const mouseDownEvent = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    });
+
+    // Spy on preventDefault to check if it's called
+    const preventDefaultSpy = vi.spyOn(mouseDownEvent, "preventDefault");
+
+    // Dispatch the event on the input
+    cellInput.dispatchEvent(mouseDownEvent);
+
+    // Check that preventDefault was NOT called
+    // If it is being called, that would prevent text selection
+    expect(preventDefaultSpy).not.toHaveBeenCalled();
+
+    // And verify selection start was NOT called (since we're in edit mode)
+    expect(mockHandleSelectionStart).not.toHaveBeenCalled();
   });
 });

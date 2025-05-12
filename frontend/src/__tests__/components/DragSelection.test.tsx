@@ -1,3 +1,5 @@
+// TODO rename to LiveTableDragSelection.test.tsx after committing changes
+
 import {
   beforeEach,
   describe,
@@ -40,6 +42,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     const mockHandleSelectionStart = vi.fn();
     const mockHandleSelectionMove = vi.fn();
     const mockHandleSelectionEnd = vi.fn();
+    const mockSetEditingCell = vi.fn();
     const mockIsCellSelected = vi
       .fn()
       .mockImplementation((rowIndex, colIndex) => {
@@ -90,6 +93,9 @@ describe("LiveTableDisplay - Drag Selection", () => {
       isCellSelected: mockIsCellSelected,
       clearSelection: vi.fn(),
       getSelectedCellsData: mockGetSelectedCellsData,
+      // Editing state
+      editingCell: null,
+      setEditingCell: mockSetEditingCell,
     };
 
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
@@ -99,7 +105,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     );
   });
 
-  it("should start selection when mousedown on a cell", () => {
+  it("should start selection when mousedown on a cell (not in edit mode)", () => {
     render(<LiveTableDisplay />);
 
     // Find and trigger mousedown on a cell
@@ -111,6 +117,26 @@ describe("LiveTableDisplay - Drag Selection", () => {
       LiveTableProviderModule.useLiveTable
     )().handleSelectionStart;
     expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
+  });
+
+  it("should not start selection when mousedown on a cell in edit mode", () => {
+    // Override to simulate being in edit mode for this cell
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValueOnce({
+      ...vi.mocked(LiveTableProviderModule.useLiveTable)(),
+      editingCell: { rowIndex: 0, colIndex: 0 },
+    } as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
+
+    render(<LiveTableDisplay />);
+
+    // Find and trigger mousedown on the cell that is in edit mode
+    const cell = screen.getAllByRole("cell")[0]; // First cell
+    fireEvent.mouseDown(cell);
+
+    // Verify handleSelectionStart was NOT called (since we're in edit mode)
+    const mockHandleSelectionStart = vi.mocked(
+      LiveTableProviderModule.useLiveTable
+    )().handleSelectionStart;
+    expect(mockHandleSelectionStart).not.toHaveBeenCalled();
   });
 
   it("should update selection when mousemove over cells during selection", () => {
@@ -185,6 +211,25 @@ describe("LiveTableDisplay - Drag Selection", () => {
     // Check that each cell has the expected selection style attribute
     cells.forEach((cell) => {
       expect(cell.getAttribute("data-selected")).toBe("true");
+    });
+  });
+
+  it("should enter edit mode on double-click", () => {
+    render(<LiveTableDisplay />);
+
+    // Get first cell
+    const cell = screen.getAllByRole("cell")[0];
+
+    // Double-click the cell
+    fireEvent.doubleClick(cell);
+
+    // Verify setEditingCell was called with the correct coordinates
+    const mockSetEditingCell = vi.mocked(LiveTableProviderModule.useLiveTable)()
+      .setEditingCell;
+
+    expect(mockSetEditingCell).toHaveBeenCalledWith({
+      rowIndex: 0,
+      colIndex: 0,
     });
   });
 });
