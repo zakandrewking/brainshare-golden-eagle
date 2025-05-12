@@ -1,6 +1,9 @@
+# instructions
+
 - NEVER EVER add comments to code. The only exceptions are you can add a docstring
   to a function or module, or you can add a couple sentences describing a
   complex design decision. Otherwise, NO COMMENTS.
+- always run tests using the shell tool after implementing them
 - always use frontend components from /components/ui when possible
 - always use lucide-react for icons if possible
 - use server actions instead of api routes in next.js

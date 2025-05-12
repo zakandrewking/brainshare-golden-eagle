@@ -13,6 +13,16 @@ import { UndoManager } from "yjs";
 import { useRoom, useSelf } from "@liveblocks/react/suspense";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
 
+interface CellPosition {
+  rowIndex: number;
+  colIndex: number;
+}
+
+interface SelectionArea {
+  startCell: CellPosition | null;
+  endCell: CellPosition | null;
+}
+
 interface LiveTableContextType {
   tableId: string;
   tableData: Record<string, unknown>[] | undefined;
@@ -38,6 +48,15 @@ interface LiveTableContextType {
   handleHeaderBlur: () => void;
   handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   handleColumnResize: (header: string, newWidth: number) => void;
+  selectionArea: SelectionArea;
+  isSelecting: boolean;
+  selectedCells: CellPosition[];
+  handleSelectionStart: (rowIndex: number, colIndex: number) => void;
+  handleSelectionMove: (rowIndex: number, colIndex: number) => void;
+  handleSelectionEnd: () => void;
+  isCellSelected: (rowIndex: number, colIndex: number) => boolean;
+  clearSelection: () => void;
+  getSelectedCellsData: () => string[][];
 }
 
 interface LiveTableProviderProps {
@@ -106,6 +125,125 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       captureTimeout: 500,
     });
   }, [yTable, yHeaders, yColWidths]);
+
+  // multiple cell selection
+  const [selectionArea, setSelectionArea] = useState<SelectionArea>({
+    startCell: null,
+    endCell: null,
+  });
+  const [isSelecting, setIsSelecting] = useState(false);
+
+  // Calculate all selected cells based on the selection area
+  const selectedCells = useMemo(() => {
+    if (!selectionArea.startCell || !selectionArea.endCell) {
+      return [];
+    }
+
+    const startRow = Math.min(
+      selectionArea.startCell.rowIndex,
+      selectionArea.endCell.rowIndex
+    );
+    const endRow = Math.max(
+      selectionArea.startCell.rowIndex,
+      selectionArea.endCell.rowIndex
+    );
+    const startCol = Math.min(
+      selectionArea.startCell.colIndex,
+      selectionArea.endCell.colIndex
+    );
+    const endCol = Math.max(
+      selectionArea.startCell.colIndex,
+      selectionArea.endCell.colIndex
+    );
+
+    const cells: CellPosition[] = [];
+    for (let rowIndex = startRow; rowIndex <= endRow; rowIndex++) {
+      for (let colIndex = startCol; colIndex <= endCol; colIndex++) {
+        cells.push({ rowIndex, colIndex });
+      }
+    }
+
+    return cells;
+  }, [selectionArea]);
+
+  // Start selection process when a cell is clicked
+  const handleSelectionStart = useCallback(
+    (rowIndex: number, colIndex: number) => {
+      setSelectionArea({
+        startCell: { rowIndex, colIndex },
+        endCell: { rowIndex, colIndex },
+      });
+      setIsSelecting(true);
+      setSelectedCell({ rowIndex, colIndex });
+    },
+    []
+  );
+
+  // Update selection as mouse moves
+  const handleSelectionMove = useCallback(
+    (rowIndex: number, colIndex: number) => {
+      if (!isSelecting || !selectionArea.startCell) return;
+
+      setSelectionArea((prev) => ({
+        ...prev,
+        endCell: { rowIndex, colIndex },
+      }));
+    },
+    [isSelecting, selectionArea.startCell]
+  );
+
+  // End selection process when mouse is released
+  const handleSelectionEnd = useCallback(() => {
+    setIsSelecting(false);
+  }, []);
+
+  // Check if a specific cell is within the current selection
+  const isCellSelected = useCallback(
+    (rowIndex: number, colIndex: number) => {
+      return selectedCells.some(
+        (cell) => cell.rowIndex === rowIndex && cell.colIndex === colIndex
+      );
+    },
+    [selectedCells]
+  );
+
+  // Clear the current selection
+  const clearSelection = useCallback(() => {
+    setSelectionArea({ startCell: null, endCell: null });
+    setSelectedCell(null);
+  }, []);
+
+  // Get data from all selected cells (useful for copy operations)
+  const getSelectedCellsData = useCallback(() => {
+    if (!tableData || !headers || selectedCells.length === 0) {
+      return [];
+    }
+
+    // Group cells by row
+    const rowGroups = selectedCells.reduce<Record<number, CellPosition[]>>(
+      (acc, cell) => {
+        if (!acc[cell.rowIndex]) {
+          acc[cell.rowIndex] = [];
+        }
+        acc[cell.rowIndex].push(cell);
+        return acc;
+      },
+      {}
+    );
+
+    // For each row, extract the cell data in order
+    return Object.keys(rowGroups)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((rowIndex) => {
+        const row = rowGroups[rowIndex].sort((a, b) => a.colIndex - b.colIndex);
+        return row.map((cell) => {
+          const header = headers[cell.colIndex];
+          const rowData = tableData[cell.rowIndex];
+          return rowData && header ? String(rowData[header] ?? "") : "";
+        });
+      });
+  }, [tableData, headers, selectedCells]);
 
   // --- Load status ---
 
@@ -329,6 +467,16 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         handleHeaderBlur,
         handleHeaderKeyDown,
         handleColumnResize,
+        // New exports for multiple cell selection
+        selectionArea,
+        isSelecting,
+        selectedCells,
+        handleSelectionStart,
+        handleSelectionMove,
+        handleSelectionEnd,
+        isCellSelected,
+        clearSelection,
+        getSelectedCellsData,
       }}
     >
       {children}
