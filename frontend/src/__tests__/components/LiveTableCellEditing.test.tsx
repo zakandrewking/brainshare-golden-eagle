@@ -11,7 +11,11 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import { render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
@@ -85,13 +89,13 @@ describe("LiveTableDisplay Cell Editing", () => {
     expect(cellInput).toBeDefined();
 
     // Single click should only select the cell, not put it in edit mode
-    await user.click(cellInput!);
+    await user.click(cellInput);
     expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
     expect(mockSetEditingCell).not.toHaveBeenCalled();
     expect(cellInput).not.toHaveFocus();
 
     // Double-click should put the cell into edit mode
-    await user.dblClick(cellInput!);
+    await user.dblClick(cellInput);
     expect(mockSetEditingCell).toHaveBeenCalledWith({
       rowIndex: 0,
       colIndex: 0,
@@ -100,5 +104,11 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Instead of asserting focus, which is problematic in JSDOM,
     // verify that the necessary conditions for edit mode are satisfied
     expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
+
+    // Change the value of the input
+    fireEvent.change(cellInput, { target: { value: "New Name" } });
+
+    // Verify that handleCellChange was called with correct parameters
+    expect(mockHandleCellChange).toHaveBeenCalledWith(0, "name", "New Name");
   });
 });

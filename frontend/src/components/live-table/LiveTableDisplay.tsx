@@ -195,24 +195,24 @@ const LiveTable: React.FC = () => {
     event.preventDefault();
 
     handleSelectionStart(rowIndex, colIndex);
-    handleCellFocus(rowIndex, colIndex);
   };
 
-  const handleCellDoubleClick = (rowIndex: number, colIndex: number) => {
+  const handleCellDoubleClick = (
+    rowIndex: number,
+    colIndex: number,
+    event: React.MouseEvent
+  ) => {
     // First, set the editing state
     setEditingCell({ rowIndex, colIndex });
 
-    // Notify that the cell has focus
+    // notify that the cell has focus
     handleCellFocus(rowIndex, colIndex);
 
     // Find and focus the input inside the current cell
-    const cell = tableRef.current?.querySelector(
-      `td[data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`
-    );
+    const cell = event.currentTarget as HTMLElement;
     if (cell) {
       const inputElement = cell.querySelector("input");
       if (inputElement) {
-        // Use setTimeout to ensure this happens after React has updated the DOM
         setTimeout(() => {
           inputElement.focus();
         }, 0);
@@ -239,7 +239,6 @@ const LiveTable: React.FC = () => {
 
     // Call both handlers directly since we're stopping propagation
     handleSelectionStart(rowIndex, colIndex);
-    handleCellFocus(rowIndex, colIndex);
   };
 
   return (
@@ -334,8 +333,8 @@ const LiveTable: React.FC = () => {
                       onMouseDown={(e) =>
                         handleCellMouseDown(rowIndex, colIndex, e)
                       }
-                      onDoubleClick={() =>
-                        handleCellDoubleClick(rowIndex, colIndex)
+                      onDoubleClick={(e) =>
+                        handleCellDoubleClick(rowIndex, colIndex, e)
                       }
                     >
                       <input
@@ -344,17 +343,6 @@ const LiveTable: React.FC = () => {
                         onChange={(e) =>
                           handleCellChange(rowIndex, header, e.target.value)
                         }
-                        onFocus={() => {
-                          // In edit mode, always keep focus and notify
-                          if (isEditing) {
-                            handleCellFocus(rowIndex, colIndex);
-                            return;
-                          }
-
-                          // In regular use, blur the input and only handle the focus notification
-                          (document.activeElement as HTMLElement)?.blur();
-                          handleCellFocus(rowIndex, colIndex);
-                        }}
                         onBlur={() => {
                           handleCellBlur();
                           if (isEditing) {
