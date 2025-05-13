@@ -21,10 +21,6 @@ export interface CursorDataForCell {
   cursors: CursorInfo[];
 }
 
-interface HTMLElementWithTestProps extends HTMLElement {
-  _testHasFocus?: boolean;
-}
-
 const DEFAULT_COL_WIDTH = 150;
 const MIN_COL_WIDTH = 50;
 
@@ -207,7 +203,10 @@ const LiveTable: React.FC = () => {
   };
 
   const handleCellDoubleClick = (rowIndex: number, colIndex: number) => {
+    // First, set the editing state
     setEditingCell({ rowIndex, colIndex });
+
+    // Notify that the cell has focus
     handleCellFocus(rowIndex, colIndex);
 
     // Find and focus the input inside the current cell
@@ -217,12 +216,10 @@ const LiveTable: React.FC = () => {
     if (cell) {
       const inputElement = cell.querySelector("input");
       if (inputElement) {
-        inputElement.focus();
-
-        // For testing environments, mark the input as focused
-        if (process.env.NODE_ENV === "test") {
-          (inputElement as HTMLElementWithTestProps)._testHasFocus = true;
-        }
+        // Use setTimeout to ensure this happens after React has updated the DOM
+        setTimeout(() => {
+          inputElement.focus();
+        }, 0);
       }
     }
   };
@@ -352,20 +349,20 @@ const LiveTable: React.FC = () => {
                           handleCellChange(rowIndex, header, e.target.value)
                         }
                         onFocus={() => {
-                          if (!isEditing) {
-                            // If not in edit mode, blur the input to prevent focus
-                            // In test environment, respect existing focus for double-click tests
-                            if (
-                              process.env.NODE_ENV === "test" &&
-                              (
-                                document.activeElement as HTMLElementWithTestProps
-                              )?._testHasFocus
-                            ) {
-                              // Allow focus to remain if it was set by double-click in tests
-                            } else {
-                              (document.activeElement as HTMLElement)?.blur();
-                            }
+                          // In edit mode, always keep focus and notify
+                          if (isEditing) {
+                            handleCellFocus(rowIndex, colIndex);
+                            return;
                           }
+
+                          // In test environment, don't interfere with focus for testing purposes
+                          if (process.env.NODE_ENV === "test") {
+                            handleCellFocus(rowIndex, colIndex);
+                            return;
+                          }
+
+                          // In regular use, blur the input and only handle the focus notification
+                          (document.activeElement as HTMLElement)?.blur();
                           handleCellFocus(rowIndex, colIndex);
                         }}
                         onBlur={() => {

@@ -86,10 +86,9 @@ describe("LiveTableDisplay Cell Editing", () => {
 
     // Single click should only select the cell, not put it in edit mode
     await user.click(cellInput!);
-    // We can't reliably check focus in jsdom, so we'll check that selection started
-    // but editing mode wasn't activated
     expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
     expect(mockSetEditingCell).not.toHaveBeenCalled();
+    expect(cellInput).not.toHaveFocus();
 
     // Double-click should put the cell into edit mode
     await user.dblClick(cellInput!);
@@ -98,20 +97,8 @@ describe("LiveTableDisplay Cell Editing", () => {
       colIndex: 0,
     });
 
-    // Verify that the cell focus handler is called
+    // Instead of asserting focus, which is problematic in JSDOM,
+    // verify that the necessary conditions for edit mode are satisfied
     expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
-
-    // After double-click, we should be able to edit
-    // In test environments, we'll directly simulate a change event
-    // since user.type doesn't work reliably with JSDOM
-    await user.dblClick(cellInput!);
-
-    // Now directly call the mock function we're testing
-    mockHandleCellChange(0, "name", "Updated Name");
-    expect(mockHandleCellChange).toHaveBeenCalledWith(
-      0,
-      "name",
-      "Updated Name"
-    );
   });
 });
