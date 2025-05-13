@@ -142,10 +142,6 @@ const LiveTable: React.FC = () => {
       if (!tableRef.current) return;
 
       if (typeof document.elementFromPoint !== "function") {
-        if (process.env.NODE_ENV === "test") {
-          handleSelectionMove(1, 1);
-          return;
-        }
         return;
       }
 
@@ -351,12 +347,6 @@ const LiveTable: React.FC = () => {
                         onFocus={() => {
                           // In edit mode, always keep focus and notify
                           if (isEditing) {
-                            handleCellFocus(rowIndex, colIndex);
-                            return;
-                          }
-
-                          // In test environment, don't interfere with focus for testing purposes
-                          if (process.env.NODE_ENV === "test") {
                             handleCellFocus(rowIndex, colIndex);
                             return;
                           }
