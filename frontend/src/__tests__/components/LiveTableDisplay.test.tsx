@@ -1,5 +1,3 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 
 import type { MockedFunction } from "vitest";
@@ -18,6 +16,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
@@ -68,6 +67,8 @@ describe("LiveTableDisplay", () => {
       selectedCells: [],
       clearSelection: vi.fn(),
       getSelectedCellsData: vi.fn(),
+      editingCell: null,
+      setEditingCell: vi.fn(),
     });
   });
 
@@ -75,21 +76,23 @@ describe("LiveTableDisplay", () => {
     vi.clearAllMocks();
   });
 
-  it("clicking on a cell allows editing the input element", () => {
+  it("clicking on a cell allows editing the input element", async () => {
+    const user = userEvent.setup();
+
     render(<LiveTableDisplay />);
 
     // Find a cell in the table
     const cell = screen.getByDisplayValue("John Doe");
-    expect(cell).toBeInTheDocument();
+    expect(cell).toBeDefined();
 
     // Simulate mouse down on the cell
-    fireEvent.mouseDown(cell.parentElement as HTMLElement);
+    await user.click(cell.parentElement as HTMLElement);
 
     // Verify that handleSelectionStart was called with correct row and column indices
     expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
 
     // Simulate focus on the input
-    fireEvent.focus(cell);
+    await user.click(cell);
 
     // Verify that handleCellFocus was called with correct row and column indices
     expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);

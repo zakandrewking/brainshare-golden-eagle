@@ -57,6 +57,8 @@ interface LiveTableContextType {
   isCellSelected: (rowIndex: number, colIndex: number) => boolean;
   clearSelection: () => void;
   getSelectedCellsData: () => string[][];
+  editingCell: { rowIndex: number; colIndex: number } | null;
+  setEditingCell: (cell: { rowIndex: number; colIndex: number } | null) => void;
 }
 
 interface LiveTableProviderProps {
@@ -99,6 +101,12 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     null
   );
   const [editingHeaderValue, setEditingHeaderValue] = useState<string>("");
+
+  // State for tracking the cell being edited
+  const [editingCell, setEditingCell] = useState<{
+    rowIndex: number;
+    colIndex: number;
+  } | null>(null);
 
   // yjs
   const room = useRoom();
@@ -477,6 +485,8 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         isCellSelected,
         clearSelection,
         getSelectedCellsData,
+        editingCell,
+        setEditingCell,
       }}
     >
       {children}
