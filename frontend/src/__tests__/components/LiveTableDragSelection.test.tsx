@@ -1,5 +1,3 @@
-// TODO rename to LiveTableDragSelection.test.tsx after committing changes
-
 import {
   beforeEach,
   describe,
