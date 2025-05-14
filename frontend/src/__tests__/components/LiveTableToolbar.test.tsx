@@ -96,6 +96,17 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       handleHeaderBlur: vi.fn(),
       handleHeaderKeyDown: vi.fn(),
       handleColumnResize: vi.fn(),
+      selectionArea: { startCell: null, endCell: null },
+      isSelecting: false,
+      selectedCells: [],
+      handleSelectionStart: vi.fn(),
+      handleSelectionMove: vi.fn(),
+      handleSelectionEnd: vi.fn(),
+      isCellSelected: vi.fn().mockReturnValue(false),
+      clearSelection: vi.fn(),
+      getSelectedCellsData: vi.fn().mockReturnValue([]),
+      editingCell: null,
+      setEditingCell: vi.fn(),
     };
 
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
@@ -242,7 +253,9 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       newColumnData?: string[];
       error?: string;
     }>(() => {});
-    vi.mocked(ActionsModule.generateNewColumn).mockReturnValueOnce(neverResolvedPromise);
+    vi.mocked(ActionsModule.generateNewColumn).mockReturnValueOnce(
+      neverResolvedPromise
+    );
 
     render(<LiveTableToolbar />);
 
@@ -262,7 +275,9 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       rowData?: Record<string, string>;
       error?: string;
     }>(() => {});
-    vi.mocked(ActionsModule.generateNewRow).mockReturnValueOnce(neverResolvedPromise);
+    vi.mocked(ActionsModule.generateNewRow).mockReturnValueOnce(
+      neverResolvedPromise
+    );
 
     render(<LiveTableToolbar />);
 
@@ -324,6 +339,17 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       handleHeaderBlur: vi.fn(),
       handleHeaderKeyDown: vi.fn(),
       handleColumnResize: vi.fn(),
+      selectionArea: { startCell: null, endCell: null },
+      isSelecting: false,
+      selectedCells: [],
+      handleSelectionStart: vi.fn(),
+      handleSelectionMove: vi.fn(),
+      handleSelectionEnd: vi.fn(),
+      isCellSelected: vi.fn().mockReturnValue(false),
+      clearSelection: vi.fn(),
+      getSelectedCellsData: vi.fn().mockReturnValue([]),
+      editingCell: null,
+      setEditingCell: vi.fn(),
     };
 
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
@@ -461,7 +487,9 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       rowData?: Record<string, string>;
       error?: string;
     }>(() => {});
-    vi.mocked(ActionsModule.generateNewRow).mockReturnValueOnce(neverResolvedPromise);
+    vi.mocked(ActionsModule.generateNewRow).mockReturnValueOnce(
+      neverResolvedPromise
+    );
 
     render(<LiveTableToolbar />);
 

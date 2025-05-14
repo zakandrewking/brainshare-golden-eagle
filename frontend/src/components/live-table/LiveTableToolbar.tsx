@@ -32,6 +32,7 @@ import {
 import { generateNewColumn, generateNewRow } from "./actions";
 import AiFillColumnButton from "./AiFillColumnButton";
 import AiFillRowButton from "./AiFillRowButton";
+import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import { useLiveTable } from "./LiveTableProvider";
 import {
   applyDefaultColumnToYDocOnError,
@@ -560,6 +561,11 @@ const LiveTableToolbar: React.FC = () => {
           yTable={yTable}
           yHeaders={yHeaders}
         />
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
+        {/* AI Fill Selection Button */}
+        <AiFillSelectionButton />
 
         <Separator orientation="vertical" className="h-6 mx-1" />
 
