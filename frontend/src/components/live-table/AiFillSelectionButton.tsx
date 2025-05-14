@@ -5,7 +5,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 
-import { generateSelectedCellsSuggestions } from "./actions";
+import generateSelectedCellsSuggestions
+  from "./actions/generateSelectedCellsSuggestions";
 import { useLiveTable } from "./LiveTableProvider";
 
 export function AiFillSelectionButton() {
@@ -19,6 +20,7 @@ export function AiFillSelectionButton() {
   } = useLiveTable();
 
   const handleClick = async () => {
+    console.log("handleClick");
     if (selectedCells.length === 0) return;
 
     setIsLoading(true);

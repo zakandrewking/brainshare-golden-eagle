@@ -14,11 +14,10 @@ import {
   screen,
 } from "@testing-library/react";
 
-import * as ActionsModule from "@/components/live-table/actions";
-import * as AiFillColumnButtonModule
-  from "@/components/live-table/AiFillColumnButton";
-import * as AiFillRowButtonModule
-  from "@/components/live-table/AiFillRowButton";
+import * as GenerateNewColumnModule
+  from "@/components/live-table/actions/generateNewColumn";
+import * as generateNewRowModule
+  from "@/components/live-table/actions/generateNewRow";
 import * as LiveTableProviderModule
   from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
@@ -28,25 +27,12 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
-vi.mock("@/components/live-table/actions", () => ({
-  generateNewColumn: vi.fn(),
-  generateColumnSuggestions: vi.fn(),
-  generateRowSuggestions: vi.fn(),
-  generateNewRow: vi.fn(),
+vi.mock("@/components/live-table/actions/generateNewColumn", () => ({
+  default: vi.fn(),
 }));
 
-const mockAiFillColumnButton = AiFillColumnButtonModule.default;
-vi.mock("@/components/live-table/AiFillColumnButton", () => ({
-  default: vi.fn(() => {
-    return <div data-testid="mock-ai-fill-column-button" />;
-  }),
-}));
-
-const mockAiFillRowButton = AiFillRowButtonModule.default;
-vi.mock("@/components/live-table/AiFillRowButton", () => ({
-  default: vi.fn(() => {
-    return <div data-testid="mock-ai-fill-row-button" />;
-  }),
+vi.mock("@/components/live-table/actions/generateNewRow", () => ({
+  default: vi.fn(),
 }));
 
 const mockApplyGeneratedColumnToYDoc =
@@ -119,7 +105,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
   });
 
   it("should call applyGeneratedColumnToYDoc when add left button is clicked and AI succeeds", async () => {
-    vi.mocked(ActionsModule.generateNewColumn).mockResolvedValueOnce({
+    vi.mocked(GenerateNewColumnModule.default).mockResolvedValueOnce({
       newHeader: "AI Column",
       newColumnData: ["value1", "value2"],
     });
@@ -131,7 +117,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     });
     fireEvent.mouseDown(addLeftButton);
 
-    expect(vi.mocked(ActionsModule.generateNewColumn)).toHaveBeenCalled();
+    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
 
     await vi.runAllTimersAsync();
 
@@ -148,7 +134,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
   });
 
   it("should call applyGeneratedColumnToYDoc with fallback values when AI resolves with an error for the right button", async () => {
-    vi.mocked(ActionsModule.generateNewColumn).mockResolvedValueOnce({
+    vi.mocked(GenerateNewColumnModule.default).mockResolvedValueOnce({
       error: "AI Error",
     });
 
@@ -158,7 +144,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     });
     fireEvent.mouseDown(addRightButton);
 
-    expect(vi.mocked(ActionsModule.generateNewColumn)).toHaveBeenCalled();
+    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
 
     await vi.runAllTimersAsync();
 
@@ -179,7 +165,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
   });
 
   it("should call applyDefaultColumnToYDocOnError when add left button is clicked and AI promise rejects", async () => {
-    vi.mocked(ActionsModule.generateNewColumn).mockRejectedValueOnce(
+    vi.mocked(GenerateNewColumnModule.default).mockRejectedValueOnce(
       new Error("Network Error")
     );
 
@@ -189,7 +175,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     });
     fireEvent.mouseDown(addLeftButton);
 
-    expect(vi.mocked(ActionsModule.generateNewColumn)).toHaveBeenCalled();
+    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
 
     await vi.runAllTimersAsync();
 
@@ -205,55 +191,13 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     expect(mockApplyGeneratedColumnToYDoc).not.toHaveBeenCalled();
   });
 
-  it("should render the AiFillColumnButton with correct props", () => {
-    render(<LiveTableToolbar />);
-
-    expect(mockAiFillColumnButton).toHaveBeenCalledWith(
-      expect.objectContaining({
-        isDisabled: false,
-        selectedCell: { rowIndex: 0, colIndex: 0 },
-        yDoc: mockYDoc,
-        yTable: mockYTable,
-        yHeaders: mockYHeaders,
-      }),
-      undefined
-    );
-  });
-
-  it("should render the AiFillRowButton with correct props", () => {
-    render(<LiveTableToolbar />);
-
-    expect(mockAiFillRowButton).toHaveBeenCalledWith(
-      expect.objectContaining({
-        isDisabled: false,
-        selectedCell: { rowIndex: 0, colIndex: 0 },
-        yDoc: mockYDoc,
-        yTable: mockYTable,
-        yHeaders: mockYHeaders,
-      }),
-      undefined
-    );
-  });
-
-  it("should render both AI fill buttons", () => {
-    render(<LiveTableToolbar />);
-
-    // Just check that both buttons are rendered
-    const rowButton = screen.getByTestId("mock-ai-fill-row-button");
-    const columnButton = screen.getByTestId("mock-ai-fill-column-button");
-
-    expect(rowButton).toBeDefined();
-    expect(columnButton).toBeDefined();
-  });
-
   it("should call the API and handle pending state when add column operation starts", async () => {
-    // Mock the generateNewColumn to return a promise that never resolves
     const neverResolvedPromise = new Promise<{
       newHeader?: string;
       newColumnData?: string[];
       error?: string;
     }>(() => {});
-    vi.mocked(ActionsModule.generateNewColumn).mockReturnValueOnce(
+    vi.mocked(GenerateNewColumnModule.default).mockReturnValueOnce(
       neverResolvedPromise
     );
 
@@ -266,16 +210,15 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     fireEvent.mouseDown(addColumnLeftButton);
 
     // After clicking, verify that React triggers the API call
-    expect(vi.mocked(ActionsModule.generateNewColumn)).toHaveBeenCalled();
+    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
   });
 
   it("should pass isDisabled to AI fill buttons when rendering", async () => {
-    // Mock the generateNewRow to return a promise that never resolves
     const neverResolvedPromise = new Promise<{
       rowData?: Record<string, string>;
       error?: string;
     }>(() => {});
-    vi.mocked(ActionsModule.generateNewRow).mockReturnValueOnce(
+    vi.mocked(generateNewRowModule.default).mockReturnValueOnce(
       neverResolvedPromise
     );
 
@@ -288,13 +231,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     // Click to trigger isPendingRow state
     fireEvent.mouseDown(addRowAboveButton);
 
-    // Verify API call was made
-    expect(vi.mocked(ActionsModule.generateNewRow)).toHaveBeenCalled();
-
-    // Verify that AI fill buttons were rendered (we can't test specific disabled states
-    // in this testing environment since useTransition doesn't work the same way)
-    expect(mockAiFillRowButton).toHaveBeenCalled();
-    expect(mockAiFillColumnButton).toHaveBeenCalled();
+    expect(vi.mocked(generateNewRowModule.default)).toHaveBeenCalled();
   });
 });
 
@@ -362,7 +299,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
   });
 
   it("should call applyGeneratedRowToYDoc when add row above button is clicked and AI succeeds", async () => {
-    vi.mocked(ActionsModule.generateNewRow).mockResolvedValueOnce({
+    vi.mocked(generateNewRowModule.default).mockResolvedValueOnce({
       rowData: {
         Name: "David",
         Age: "42",
@@ -377,7 +314,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     });
     fireEvent.mouseDown(addRowAboveButton);
 
-    expect(vi.mocked(ActionsModule.generateNewRow)).toHaveBeenCalled();
+    expect(vi.mocked(generateNewRowModule.default)).toHaveBeenCalled();
 
     await vi.runAllTimersAsync();
 
@@ -397,7 +334,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
   });
 
   it("should call applyGeneratedRowToYDoc when add row below button is clicked and AI succeeds", async () => {
-    vi.mocked(ActionsModule.generateNewRow).mockResolvedValueOnce({
+    vi.mocked(generateNewRowModule.default).mockResolvedValueOnce({
       rowData: {
         Name: "Bob",
         Age: "28",
@@ -412,7 +349,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     });
     fireEvent.mouseDown(addRowBelowButton);
 
-    expect(vi.mocked(ActionsModule.generateNewRow)).toHaveBeenCalled();
+    expect(vi.mocked(generateNewRowModule.default)).toHaveBeenCalled();
 
     await vi.runAllTimersAsync();
 
@@ -432,7 +369,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
   });
 
   it("should call applyDefaultRowToYDocOnError when add row button is clicked and AI resolves with an error", async () => {
-    vi.mocked(ActionsModule.generateNewRow).mockResolvedValueOnce({
+    vi.mocked(generateNewRowModule.default).mockResolvedValueOnce({
       error: "AI Error",
     });
 
@@ -442,7 +379,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     });
     fireEvent.mouseDown(addRowAboveButton);
 
-    expect(vi.mocked(ActionsModule.generateNewRow)).toHaveBeenCalled();
+    expect(vi.mocked(generateNewRowModule.default)).toHaveBeenCalled();
 
     await vi.runAllTimersAsync();
 
@@ -457,7 +394,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
   });
 
   it("should call applyDefaultRowToYDocOnError when add row button is clicked and AI promise rejects", async () => {
-    vi.mocked(ActionsModule.generateNewRow).mockRejectedValueOnce(
+    vi.mocked(generateNewRowModule.default).mockRejectedValueOnce(
       new Error("Network Error")
     );
 
@@ -467,7 +404,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     });
     fireEvent.mouseDown(addRowBelowButton);
 
-    expect(vi.mocked(ActionsModule.generateNewRow)).toHaveBeenCalled();
+    expect(vi.mocked(generateNewRowModule.default)).toHaveBeenCalled();
 
     await vi.runAllTimersAsync();
 
@@ -487,7 +424,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       rowData?: Record<string, string>;
       error?: string;
     }>(() => {});
-    vi.mocked(ActionsModule.generateNewRow).mockReturnValueOnce(
+    vi.mocked(generateNewRowModule.default).mockReturnValueOnce(
       neverResolvedPromise
     );
 
@@ -500,6 +437,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     fireEvent.mouseDown(addRowAboveButton);
 
     // After clicking, verify that React triggers the API call
-    expect(vi.mocked(ActionsModule.generateNewRow)).toHaveBeenCalled();
+    expect(vi.mocked(generateNewRowModule.default)).toHaveBeenCalled();
   });
 });

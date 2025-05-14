@@ -14,7 +14,8 @@ import {
   screen,
 } from "@testing-library/react";
 
-import * as actions from "@/components/live-table/actions";
+import * as generateSelectedCellsSuggestionsModule
+  from "@/components/live-table/actions/generateSelectedCellsSuggestions";
 import {
   AiFillSelectionButton,
 } from "@/components/live-table/AiFillSelectionButton";
@@ -25,9 +26,12 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
-vi.mock("@/components/live-table/actions", () => ({
-  generateSelectedCellsSuggestions: vi.fn(),
-}));
+vi.mock(
+  "@/components/live-table/actions/generateSelectedCellsSuggestions",
+  () => ({
+    default: vi.fn(),
+  })
+);
 
 // Mock the toast notifications
 vi.mock("sonner", () => ({
@@ -73,7 +77,6 @@ describe("AiFillSelectionButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Setup default mocks for useLiveTable
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
       tableData: mockTableData,
       headers: mockHeaders,
@@ -82,10 +85,11 @@ describe("AiFillSelectionButton", () => {
       handleCellChange: mockHandleCellChange,
     } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
 
-    // Setup default mock for generateSelectedCellsSuggestions
-    vi.mocked(actions.generateSelectedCellsSuggestions).mockResolvedValue({
-      suggestions: mockSuggestions,
-    });
+    vi.mocked(generateSelectedCellsSuggestionsModule.default).mockResolvedValue(
+      {
+        suggestions: mockSuggestions,
+      }
+    );
 
     // Mock the toast.promise to execute the callback immediately
     vi.mocked(toast.promise).mockImplementation((promiseFnOrPromise) => {
@@ -120,7 +124,7 @@ describe("AiFillSelectionButton", () => {
       fireEvent.click(button);
     });
 
-    expect(actions.generateSelectedCellsSuggestions).toHaveBeenCalledWith(
+    expect(generateSelectedCellsSuggestionsModule.default).toHaveBeenCalledWith(
       mockTableData,
       mockHeaders,
       mockSelectedCells,
@@ -151,7 +155,9 @@ describe("AiFillSelectionButton", () => {
 
   it("should show error toast when action fails", async () => {
     // Mock the action to return an error
-    vi.mocked(actions.generateSelectedCellsSuggestions).mockResolvedValueOnce({
+    vi.mocked(
+      generateSelectedCellsSuggestionsModule.default
+    ).mockResolvedValueOnce({
       error: "Failed to generate suggestions",
     });
 

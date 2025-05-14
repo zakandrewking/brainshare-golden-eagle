@@ -29,7 +29,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { generateNewColumn, generateNewRow } from "./actions";
+import generateNewColumn from "./actions/generateNewColumn";
+import generateNewRow from "./actions/generateNewRow";
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import { useLiveTable } from "./LiveTableProvider";
 import {

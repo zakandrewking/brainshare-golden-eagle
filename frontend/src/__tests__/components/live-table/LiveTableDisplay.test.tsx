@@ -3,6 +3,7 @@ import "@testing-library/jest-dom";
 import React from "react";
 
 import {
+  afterEach,
   beforeEach,
   describe,
   expect,
@@ -48,6 +49,7 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
 
     ydoc = new Y.Doc();
     yTableForMock = ydoc.getArray<Y.Map<unknown>>("tableData");
@@ -123,7 +125,11 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
     } as unknown as ReturnType<typeof useLiveTable>);
   });
 
-  it("should clear selection when clicking outside the table", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("should clear selection when clicking outside the table", async () => {
     const baseMockValues = mockedUseLiveTable();
 
     mockedUseLiveTable.mockReturnValueOnce({
@@ -134,15 +140,23 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
       ),
     } as unknown as ReturnType<typeof useLiveTable>);
 
+    const captureMouseDown = vi.fn();
+
     render(
       <div>
-        <div data-testid="outside-element">Click Outside Here</div>
+        <button data-testid="outside-element" onMouseDown={captureMouseDown}>
+          Click Outside Here
+        </button>
         <LiveTableDisplay />
       </div>
     );
 
-    fireEvent.mouseDown(screen.getByTestId("outside-element"));
+    const outsideElement = screen.getByTestId("outside-element");
+    fireEvent.mouseDown(outsideElement);
+    // external elements should also receive the click event
+    await vi.runAllTimersAsync();
     expect(mockClearSelection).toHaveBeenCalledTimes(1);
+    expect(captureMouseDown).toHaveBeenCalledTimes(1);
   });
 
   it("should not clear selection when clicking inside the table", () => {

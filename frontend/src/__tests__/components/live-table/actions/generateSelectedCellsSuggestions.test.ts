@@ -6,7 +6,6 @@ import {
   vi,
 } from "vitest";
 
-// Mock @langchain/openai
 const mockInvoke = vi.fn();
 const mockWithStructuredOutput = vi.fn(() => ({ invoke: mockInvoke }));
 const mockChatOpenAIInstance = {
@@ -44,7 +43,7 @@ vi.mock("@langchain/core/messages", async () => {
 });
 
 // Declare actionsModule here, it will be initialized in beforeEach
-let actionsModule: typeof import("@/components/live-table/actions");
+let generateSelectedCellsSuggestionsModule: typeof import("@/components/live-table/actions/generateSelectedCellsSuggestions");
 
 describe("generateSelectedCellsSuggestions", () => {
   const mockTableData = [
@@ -79,7 +78,9 @@ describe("generateSelectedCellsSuggestions", () => {
 
     // Dynamically import the module to be tested here
     // This ensures mocks are fully set up before the module code runs
-    actionsModule = await import("@/components/live-table/actions");
+    generateSelectedCellsSuggestionsModule = await import(
+      "@/components/live-table/actions/generateSelectedCellsSuggestions"
+    );
   });
 
   it("should call the LLM with correct prompts and process suggestions", async () => {
@@ -97,7 +98,7 @@ Selected Cells Data: ${JSON.stringify(mockSelectedCellsData)}
 Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data and context.`;
 
     // Act
-    const result = await actionsModule.generateSelectedCellsSuggestions(
+    const result = await generateSelectedCellsSuggestionsModule.default(
       mockTableData,
       mockHeaders,
       mockSelectedCells,
@@ -127,7 +128,7 @@ Please provide suggestions for each of the selected cells. Generate improvements
 
   it("should handle the case with no cells selected", async () => {
     // Act
-    const result = await actionsModule.generateSelectedCellsSuggestions(
+    const result = await generateSelectedCellsSuggestionsModule.default(
       mockTableData,
       mockHeaders,
       [], // Empty selection
@@ -157,7 +158,7 @@ Selected Cells Data: ${JSON.stringify(mockSelectedCellsData)}
 Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data and context.`;
 
     // Act
-    const result = await actionsModule.generateSelectedCellsSuggestions(
+    const result = await generateSelectedCellsSuggestionsModule.default(
       mockTableData,
       mockHeaders,
       mockSelectedCells,
