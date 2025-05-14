@@ -30,8 +30,6 @@ import {
 } from "@/components/ui/tooltip";
 
 import { generateNewColumn, generateNewRow } from "./actions";
-import AiFillColumnButton from "./AiFillColumnButton";
-import AiFillRowButton from "./AiFillRowButton";
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import { useLiveTable } from "./LiveTableProvider";
 import {
@@ -480,15 +478,6 @@ const LiveTableToolbar: React.FC = () => {
           <TooltipContent>Delete Row</TooltipContent>
         </Tooltip>
 
-        {/* AI Fill Row Button */}
-        <AiFillRowButton
-          isDisabled={!selectedCell || !isTableLoaded || isAnyOperationPending}
-          selectedCell={selectedCell}
-          yDoc={yDoc}
-          yTable={yTable}
-          yHeaders={yHeaders}
-        />
-
         <Separator orientation="vertical" className="h-6 mx-1" />
 
         {/* Column Operations */}
@@ -552,15 +541,6 @@ const LiveTableToolbar: React.FC = () => {
           </TooltipTrigger>
           <TooltipContent>Delete Column</TooltipContent>
         </Tooltip>
-
-        {/* AI Fill Column Button */}
-        <AiFillColumnButton
-          isDisabled={!selectedCell || !isTableLoaded || isAnyOperationPending}
-          selectedCell={selectedCell}
-          yDoc={yDoc}
-          yTable={yTable}
-          yHeaders={yHeaders}
-        />
 
         <Separator orientation="vertical" className="h-6 mx-1" />
 

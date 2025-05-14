@@ -83,7 +83,7 @@ export function AiFillSelectionButton() {
       disabled={selectedCells.length === 0 || isLoading}
     >
       <Wand2 className="mr-2 h-4 w-4" />
-      Fill Selection
+      AI Fill Selection
     </Button>
   );
 }
