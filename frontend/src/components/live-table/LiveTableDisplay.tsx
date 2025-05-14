@@ -47,6 +47,7 @@ const LiveTable: React.FC = () => {
     isCellSelected,
     editingCell,
     setEditingCell,
+    clearSelection,
   } = useLiveTable();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
@@ -179,6 +180,24 @@ const LiveTable: React.FC = () => {
       document.removeEventListener("mouseup", handleGlobalMouseUp);
     };
   }, [isSelecting, handleSelectionMove, handleSelectionEnd]);
+
+  // Effect to handle clicks outside the table
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        tableRef.current &&
+        !tableRef.current.contains(event.target as Node) &&
+        selectedCell
+      ) {
+        clearSelection();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [selectedCell, clearSelection, tableRef]);
 
   const handleCellMouseDown = (
     rowIndex: number,
