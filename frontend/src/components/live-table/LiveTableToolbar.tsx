@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 
 import generateNewColumn from "./actions/generateNewColumn";
-import generateNewRow from "./actions/generateNewRow";
+import generateNewRows from "./actions/generateNewRows";
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import { useLiveTable } from "./LiveTableProvider";
 import {
@@ -77,62 +77,147 @@ const LiveTableToolbar: React.FC = () => {
 
   const getSelectedRowIndices = (): number[] => {
     if (!selectedCells || selectedCells.length === 0) {
+      if (selectedCell) {
+        return [selectedCell.rowIndex];
+      }
       return [];
     }
     const uniqueIndices = [
       ...new Set(selectedCells.map((cell) => cell.rowIndex)),
     ];
-    return uniqueIndices.sort((a, b) => a - b); // Sort ascending for consistent order
+    return uniqueIndices.sort((a, b) => a - b);
   };
 
   const handleAddRowRelative = (direction: "above" | "below") => {
-    if (!yDoc || !yTable || !selectedCell || !yHeaders) return; // Require selection and headers
+    const currentSelectedCell = selectedCell;
+    const currentSelectedCells = selectedCells;
 
-    const insertIndex =
-      direction === "above" ? selectedCell.rowIndex : selectedCell.rowIndex + 1;
+    if (!yDoc || !yTable || !currentSelectedCell || !yHeaders) return;
+
+    let numRowsToAdd = 1;
+    const uniqueSelectedRowIndices: number[] = [];
+
+    if (currentSelectedCells && currentSelectedCells.length > 0) {
+      const indices = currentSelectedCells.map((cell) => cell.rowIndex);
+      const uniqueSet = new Set(indices);
+      uniqueSelectedRowIndices.push(...uniqueSet);
+      uniqueSelectedRowIndices.sort((a, b) => a - b);
+      numRowsToAdd =
+        uniqueSelectedRowIndices.length > 0
+          ? uniqueSelectedRowIndices.length
+          : 1;
+    } else if (currentSelectedCell) {
+      // Only currentSelectedCell is available
+      uniqueSelectedRowIndices.push(currentSelectedCell.rowIndex);
+      numRowsToAdd = 1;
+    } else {
+      // Should not happen if buttons are correctly disabled
+      console.error(
+        "handleAddRowRelative: No selection information available."
+      );
+      return;
+    }
+
+    if (numRowsToAdd === 0) return;
+
+    let calculatedInitialInsertIndex: number;
+    if (uniqueSelectedRowIndices.length > 0) {
+      const minSelectedRowIndex = uniqueSelectedRowIndices[0]; // Since it's sorted
+      const maxSelectedRowIndex =
+        uniqueSelectedRowIndices[uniqueSelectedRowIndices.length - 1];
+      calculatedInitialInsertIndex =
+        direction === "above" ? minSelectedRowIndex : maxSelectedRowIndex + 1;
+    } else {
+      // Fallback, though the above logic should always populate uniqueSelectedRowIndices if currentSelectedCell exists
+      console.warn(
+        "handleAddRowRelative: Could not determine min/max selected rows, falling back to currentSelectedCell directly."
+      );
+      calculatedInitialInsertIndex =
+        direction === "above"
+          ? currentSelectedCell.rowIndex
+          : currentSelectedCell.rowIndex + 1;
+    }
+
+    const initialInsertIndex = calculatedInitialInsertIndex;
 
     console.log(
-      `[handleAddRowRelative] Adding row ${direction}, at index: ${insertIndex}`
+      `[handleAddRowRelative] Adding ${numRowsToAdd} row(s) ${direction}. Base selection range for insert: [${uniqueSelectedRowIndices.join(
+        ", "
+      )}], determined initial Yjs insert index: ${initialInsertIndex}`
     );
 
-    // Set the pending operation
     setPendingOperation(
       direction === "above" ? "add-row-above" : "add-row-below"
     );
 
-    startTransition(() => {
-      // Asynchronously attempt to generate row data
-      generateNewRow(
-        yTable.toArray().map((row) => row.toJSON()),
-        yHeaders.toArray()
-      )
-        .then((result) => {
-          if (result.error || !result.rowData) {
-            console.warn(
-              "Failed to generate AI row data, falling back to default:",
-              result.error
+    startTransition(async () => {
+      try {
+        // Call the new batch generation action
+        const result = await generateNewRows(
+          yTable.toArray().map((row) => row.toJSON()),
+          yHeaders.toArray(),
+          numRowsToAdd
+        );
+
+        if (result.error || !result.newRows) {
+          console.warn(
+            `Failed to generate AI rows batch, falling back to default rows. Error: ${result.error}`
+          );
+          // Fallback: add default empty rows
+          for (let i = 0; i < numRowsToAdd; i++) {
+            const currentInsertIndex = initialInsertIndex + i;
+            applyDefaultRowToYDocOnError(
+              yDoc,
+              yTable,
+              yHeaders,
+              currentInsertIndex
             );
-            applyDefaultRowToYDocOnError(yDoc, yTable, yHeaders, insertIndex);
-          } else {
-            console.log(`[handleAddRowRelative] AI generated row data`);
+          }
+        } else {
+          // Apply the generated rows
+          result.newRows.forEach((rowData, index) => {
+            const currentInsertIndex = initialInsertIndex + index;
             applyGeneratedRowToYDoc(
               yDoc,
               yTable,
               yHeaders,
-              result.rowData,
-              insertIndex
+              rowData,
+              currentInsertIndex
             );
+          });
+
+          // If LLM returned fewer rows than requested, fill the remainder with default rows
+          if (result.newRows.length < numRowsToAdd) {
+            console.warn(
+              `AI returned ${result.newRows.length} rows, but ${numRowsToAdd} were requested. Filling remainder with default rows.`
+            );
+            for (let i = result.newRows.length; i < numRowsToAdd; i++) {
+              const currentInsertIndex = initialInsertIndex + i;
+              applyDefaultRowToYDocOnError(
+                yDoc,
+                yTable,
+                yHeaders,
+                currentInsertIndex
+              );
+            }
           }
-          // Clear the pending operation when done
-          setPendingOperation(null);
-        })
-        .catch((error) => {
-          console.error("Error calling generateNewRow:", error);
-          toast.error("Failed to generate AI row suggestion.");
-          applyDefaultRowToYDocOnError(yDoc, yTable, yHeaders, insertIndex);
-          // Clear the pending operation when done
-          setPendingOperation(null);
-        });
+        }
+      } catch (error) {
+        console.error(`Error calling generateNewRows or applying rows:`, error);
+        toast.error("Failed to generate AI row suggestions.");
+        // Fallback: add default empty rows on catastrophic failure
+        for (let i = 0; i < numRowsToAdd; i++) {
+          const currentInsertIndex = initialInsertIndex + i;
+          applyDefaultRowToYDocOnError(
+            yDoc,
+            yTable,
+            yHeaders,
+            currentInsertIndex
+          );
+        }
+      } finally {
+        setPendingOperation(null);
+      }
     });
   };
 
@@ -142,14 +227,12 @@ const LiveTableToolbar: React.FC = () => {
     );
 
     if (uniqueRowIndicesToDelete.length === 0 || !yDoc || !yTable) {
-      console.log("Delete row(s) aborted: missing selection, yDoc, or yTable.");
       return;
     }
 
     yDoc.transact(() => {
       try {
         uniqueRowIndicesToDelete.forEach((rowIndex) => {
-          console.log(`Attempting to delete row at index: ${rowIndex}`);
           yTable.delete(rowIndex, 1); // Delete 1 row at the specified index
         });
       } catch (error) {
@@ -160,17 +243,11 @@ const LiveTableToolbar: React.FC = () => {
 
   const handleAddColumnRelative = (direction: "left" | "right") => {
     if (!yDoc || !yTable || !yHeaders) {
-      console.log(
-        "handleAddColumnRelative aborted: missing doc, table, or headers"
-      );
       return;
     }
 
     // Allow adding a column if table is empty, even without selection
     if (!selectedCell && yTable.length > 0) {
-      console.log(
-        "handleAddColumnRelative aborted: no cell selected in non-empty table"
-      );
       return;
     }
 
@@ -185,10 +262,6 @@ const LiveTableToolbar: React.FC = () => {
     }
 
     const headerToAdd = defaultHeaderName; // Start with default
-
-    console.log(
-      `[handleAddColumnRelative] Determined default header: "${headerToAdd}", direction: ${direction}`
-    );
 
     // Determine insertion index based on direction and selection
     let insertIndex = yHeaders.length; // Default to end if no selection/direction
@@ -214,7 +287,7 @@ const LiveTableToolbar: React.FC = () => {
       )
         .then((result) => {
           let finalHeader = headerToAdd;
-          let finalData: (string | undefined)[] | null = null; // Use null to signify default empty strings
+          let finalData: (string | undefined)[] | null = null;
 
           if (result.error || !result.newHeader || !result.newColumnData) {
             console.warn(
@@ -269,9 +342,6 @@ const LiveTableToolbar: React.FC = () => {
       !yHeaders ||
       !yTable
     ) {
-      console.log(
-        "Delete column aborted: missing selection, yDoc, yHeaders, or yTable."
-      );
       return;
     }
 
@@ -281,7 +351,7 @@ const LiveTableToolbar: React.FC = () => {
           const headerToDelete = yHeaders.get(colIndex);
           if (headerToDelete !== undefined) {
             console.log(
-              `Deleting header: \"${headerToDelete}\" at index ${colIndex}`
+              `Deleting header: "${headerToDelete}" at index ${colIndex}`
             );
             yHeaders.delete(colIndex, 1);
             yTable.forEach((row: Y.Map<unknown>) => {
