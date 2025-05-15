@@ -6,6 +6,7 @@ import {
   describe,
   expect,
   it,
+  type Mock,
   vi,
 } from "vitest";
 import * as Y from "yjs";
@@ -20,12 +21,11 @@ import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-// Mock React.useTransition
 vi.mock("react", async () => {
-  const actualReact = (await vi.importActual("react")) as any;
+  const actualReact = await vi.importActual<typeof import("react")>("react");
   return {
     ...actualReact,
-    default: actualReact.default || actualReact, // Preserve default export
+    default: actualReact,
     useTransition: vi.fn(() => [
       false,
       vi.fn((callback) => {
@@ -73,7 +73,7 @@ vi.mock("lucide-react", async () => {
 
 const mockedUseLiveTable = vi.mocked(useLiveTable);
 
-describe("LiveTableToolbar - Delete Row", () => {
+describe("LiveTableToolbar - Delete Rows", () => {
   let ydoc: Y.Doc;
   let yTable: Y.Array<Y.Map<unknown>>;
   let yHeaders: Y.Array<string>;
@@ -81,6 +81,7 @@ describe("LiveTableToolbar - Delete Row", () => {
 
   const initialHeaders = ["Header1", "Header2"];
   const initialTableContent = [
+    { Header1: "R0C1", Header2: "R0C2" },
     { Header1: "R1C1", Header2: "R1C2" },
     { Header1: "R2C1", Header2: "R2C2" },
     { Header1: "R3C1", Header2: "R3C2" },
@@ -104,7 +105,7 @@ describe("LiveTableToolbar - Delete Row", () => {
       if (callback) callback();
     });
     // Now use the imported useTransition directly
-    (useTransition as any).mockReturnValue([false, mockStartTransition]);
+    (useTransition as Mock).mockReturnValue([false, mockStartTransition]);
 
     ydoc = new Y.Doc();
     yTable = ydoc.getArray<Y.Map<unknown>>("tableData");
@@ -126,8 +127,9 @@ describe("LiveTableToolbar - Delete Row", () => {
     ydoc.destroy();
   });
 
-  it("should delete the selected row when the delete button is clicked", () => {
+  it("should delete the selected row when a single row is selected and update aria-label", () => {
     const selectedRowIndex = 1;
+    const selectedCellForTest = { rowIndex: selectedRowIndex, colIndex: 0 };
     const mockUndoManager = {
       undo: vi.fn(),
       redo: vi.fn(),
@@ -145,7 +147,8 @@ describe("LiveTableToolbar - Delete Row", () => {
       yDoc: ydoc,
       yTable,
       yHeaders,
-      selectedCell: { rowIndex: selectedRowIndex, colIndex: 0 },
+      selectedCell: selectedCellForTest,
+      selectedCells: [selectedCellForTest],
       undoManager: mockUndoManager,
       isTableLoaded: true,
       headers: initialHeaders,
@@ -162,8 +165,8 @@ describe("LiveTableToolbar - Delete Row", () => {
       handleHeaderKeyDown: vi.fn(),
       handleColumnResize: vi.fn(),
       selectionArea: {
-        startCell: { rowIndex: selectedRowIndex, colIndex: 0 },
-        endCell: { rowIndex: selectedRowIndex, colIndex: 0 },
+        startCell: selectedCellForTest,
+        endCell: selectedCellForTest,
       },
       handleSelectionStart: vi.fn(),
       handleSelectionMove: vi.fn(),
@@ -174,7 +177,6 @@ describe("LiveTableToolbar - Delete Row", () => {
       setEditingCell: vi.fn(),
       clearSelection: vi.fn(),
       tableId: "test-delete-table",
-      selectedCells: [{ rowIndex: selectedRowIndex, colIndex: 0 }],
       getSelectedCellsData: vi.fn(() => [
         [initialTableContent[selectedRowIndex].Header1],
       ]),
@@ -189,6 +191,7 @@ describe("LiveTableToolbar - Delete Row", () => {
     const deleteButton = findDeleteRowButton();
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).not.toBeDisabled();
+    expect(deleteButton).toHaveAttribute("aria-label", "Delete selected row");
 
     expect(yTable.length).toBe(initialTableContent.length);
     expect(yTable.get(selectedRowIndex).toJSON()).toEqual(
@@ -196,6 +199,9 @@ describe("LiveTableToolbar - Delete Row", () => {
     );
 
     fireEvent.click(deleteButton!);
+
+    expect(yTableDeleteSpy).toHaveBeenCalledTimes(1);
+    expect(yTableDeleteSpy).toHaveBeenCalledWith(selectedRowIndex, 1);
 
     expect(yTable.length).toBe(initialTableContent.length - 1);
     const remainingRows = yTable.toArray().map((row) => row.toJSON());
@@ -216,7 +222,99 @@ describe("LiveTableToolbar - Delete Row", () => {
     expect(foundDeletedContent).toBe(false);
   });
 
-  it("should not delete any row if no cell is selected and button should be disabled", () => {
+  it("should delete multiple selected rows and update aria-label", () => {
+    const rowIndicesToDelete = [0, 2]; // Delete R0 and R2
+    const selectedCellsForTest = rowIndicesToDelete.map((rowIndex) => ({
+      rowIndex,
+      colIndex: 0,
+    }));
+
+    const mockUndoManager = {
+      undo: vi.fn(),
+      redo: vi.fn(),
+      stopCapturing: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      undoStack: [],
+      redoStack: [],
+    } as unknown as Y.UndoManager;
+
+    const yTableDeleteSpy = vi.spyOn(yTable, "delete");
+
+    mockedUseLiveTable.mockReturnValue({
+      yDoc: ydoc,
+      yTable,
+      yHeaders,
+      selectedCell: selectedCellsForTest[0], // e.g., primary selected cell
+      selectedCells: selectedCellsForTest,
+      undoManager: mockUndoManager,
+      isTableLoaded: true,
+      headers: initialHeaders,
+      tableData: yTable.toArray().map((row) => row.toJSON()),
+      columnWidths: {},
+      handleCellChange: vi.fn(),
+      handleCellFocus: vi.fn(),
+      handleCellBlur: vi.fn(),
+      editingHeaderIndex: null,
+      editingHeaderValue: "",
+      handleHeaderDoubleClick: vi.fn(),
+      handleHeaderChange: vi.fn(),
+      handleHeaderBlur: vi.fn(),
+      handleHeaderKeyDown: vi.fn(),
+      handleColumnResize: vi.fn(),
+      selectionArea: {
+        startCell: selectedCellsForTest[0],
+        endCell: selectedCellsForTest[selectedCellsForTest.length - 1],
+      },
+      handleSelectionStart: vi.fn(),
+      handleSelectionMove: vi.fn(),
+      handleSelectionEnd: vi.fn(),
+      isSelecting: false,
+      isCellSelected: vi.fn((rI, cI) =>
+        selectedCellsForTest.some(
+          (cell) => cell.rowIndex === rI && cell.colIndex === cI
+        )
+      ),
+      editingCell: null,
+      setEditingCell: vi.fn(),
+      clearSelection: vi.fn(),
+      tableId: "test-delete-multi-row-table",
+      getSelectedCellsData: vi.fn(() => [["R0C1"], ["R2C1"]]), // Example data
+    });
+
+    render(
+      <TooltipProvider>
+        <LiveTableToolbar />
+      </TooltipProvider>
+    );
+
+    const deleteButton = findDeleteRowButton();
+    expect(deleteButton).toBeInTheDocument();
+    expect(deleteButton).not.toBeDisabled();
+    expect(deleteButton).toHaveAttribute("aria-label", "Delete selected rows");
+
+    expect(yTable.length).toBe(initialTableContent.length);
+
+    fireEvent.click(deleteButton!);
+
+    // Deletion happens in descending order of indices
+    expect(yTableDeleteSpy).toHaveBeenCalledTimes(rowIndicesToDelete.length);
+    // R2 (index 2) is deleted first, then R0 (index 0)
+    expect(yTableDeleteSpy).toHaveBeenNthCalledWith(1, 2, 1); // Deletes initialTableContent[2]
+    expect(yTableDeleteSpy).toHaveBeenNthCalledWith(2, 0, 1); // Deletes initialTableContent[0]
+
+    expect(yTable.length).toBe(
+      initialTableContent.length - rowIndicesToDelete.length
+    );
+    const remainingRows = yTable.toArray().map((row) => row.toJSON());
+    const expectedRemainingContent = [
+      initialTableContent[1], // R1 was not deleted
+      initialTableContent[3], // R3 was not deleted
+    ];
+    expect(remainingRows).toEqual(expectedRemainingContent);
+  });
+
+  it("should not delete any row if no cells are selected and button should be disabled", () => {
     const mockUndoManager = {
       undo: vi.fn(),
       redo: vi.fn(),
@@ -232,6 +330,7 @@ describe("LiveTableToolbar - Delete Row", () => {
       yTable,
       yHeaders,
       selectedCell: null,
+      selectedCells: [],
       undoManager: mockUndoManager,
       isTableLoaded: true,
       headers: initialHeaders,
@@ -257,7 +356,6 @@ describe("LiveTableToolbar - Delete Row", () => {
       setEditingCell: vi.fn(),
       clearSelection: vi.fn(),
       tableId: "test-no-delete-table",
-      selectedCells: [],
       getSelectedCellsData: vi.fn(() => []),
     });
 
@@ -270,6 +368,7 @@ describe("LiveTableToolbar - Delete Row", () => {
     const deleteButton = findDeleteRowButton();
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).toBeDisabled();
+    expect(deleteButton).toHaveAttribute("aria-label", "Delete selected row");
 
     const initialLength = yTable.length;
     expect(yTable.length).toBe(initialLength);

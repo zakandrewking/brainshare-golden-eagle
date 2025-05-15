@@ -75,6 +75,16 @@ const LiveTableToolbar: React.FC = () => {
     return uniqueIndices.sort((a, b) => a - b); // Sort ascending for consistent display/aria-label order
   };
 
+  const getSelectedRowIndices = (): number[] => {
+    if (!selectedCells || selectedCells.length === 0) {
+      return [];
+    }
+    const uniqueIndices = [
+      ...new Set(selectedCells.map((cell) => cell.rowIndex)),
+    ];
+    return uniqueIndices.sort((a, b) => a - b); // Sort ascending for consistent order
+  };
+
   const handleAddRowRelative = (direction: "above" | "below") => {
     if (!yDoc || !yTable || !selectedCell || !yHeaders) return; // Require selection and headers
 
@@ -126,18 +136,22 @@ const LiveTableToolbar: React.FC = () => {
     });
   };
 
-  const handleDeleteRow = () => {
-    if (!yDoc || !yTable || !selectedCell) {
-      console.log("Delete row aborted: missing doc, table, or selection");
+  const handleDeleteRows = () => {
+    const uniqueRowIndicesToDelete = getSelectedRowIndices().sort(
+      (a, b) => b - a // Sort descending for safe deletion
+    );
+
+    if (uniqueRowIndicesToDelete.length === 0 || !yDoc || !yTable) {
+      console.log("Delete row(s) aborted: missing selection, yDoc, or yTable.");
       return;
     }
 
-    const rowIndexToDelete = selectedCell.rowIndex;
-    console.log(`Attempting to delete row at index: ${rowIndexToDelete}`);
-
     yDoc.transact(() => {
       try {
-        yTable.delete(rowIndexToDelete, 1); // Delete 1 row at the selected index
+        uniqueRowIndicesToDelete.forEach((rowIndex) => {
+          console.log(`Attempting to delete row at index: ${rowIndex}`);
+          yTable.delete(rowIndex, 1); // Delete 1 row at the specified index
+        });
       } catch (error) {
         console.error("Error during row deletion transaction:", error);
       }
@@ -363,7 +377,10 @@ const LiveTableToolbar: React.FC = () => {
   const selectedColumnIndices = getSelectedColumnIndices();
   const numSelectedCols = selectedColumnIndices.length;
 
-  const canDeleteRow = canOperateOnSelection && isTableLoaded; // Keep original logic for canDeleteRow
+  const selectedRowIndices = getSelectedRowIndices();
+  const numSelectedRows = selectedRowIndices.length;
+
+  const canDeleteRow = numSelectedRows > 0 && isTableLoaded && !!yTable;
 
   const canDeleteColumn =
     numSelectedCols > 0 &&
@@ -487,15 +504,23 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleDeleteRow}
+              onClick={handleDeleteRows}
               disabled={!canDeleteRow || isAnyOperationPending}
-              aria-label="Delete selected row"
+              aria-label={
+                numSelectedRows > 1
+                  ? "Delete selected rows"
+                  : "Delete selected row"
+              }
             >
               <Trash2 className="h-4 w-4 mr-1" />
               <Rows3 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Delete Row</TooltipContent>
+          <TooltipContent>
+            {numSelectedRows > 1
+              ? `Delete ${numSelectedRows} Rows`
+              : "Delete Row"}
+          </TooltipContent>
         </Tooltip>
 
         <Separator orientation="vertical" className="h-6 mx-1" />
