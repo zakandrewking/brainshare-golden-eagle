@@ -35,9 +35,9 @@ import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import { useLiveTable } from "./LiveTableProvider";
 import {
   applyDefaultColumnToYDocOnError,
-  applyDefaultRowToYDocOnError,
   applyGeneratedColumnToYDoc,
-  applyGeneratedRowToYDoc,
+  createDefaultYMapForRow,
+  createYMapFromData,
 } from "./yjs-operations";
 
 // Define the possible pending operations
@@ -107,28 +107,30 @@ const LiveTableToolbar: React.FC = () => {
           ? uniqueSelectedRowIndices.length
           : 1;
     } else if (currentSelectedCell) {
-      // Only currentSelectedCell is available
       uniqueSelectedRowIndices.push(currentSelectedCell.rowIndex);
       numRowsToAdd = 1;
     } else {
-      // Should not happen if buttons are correctly disabled
       console.error(
         "handleAddRowRelative: No selection information available."
       );
+      toast.info("No cell selected to add rows relative to.");
       return;
     }
 
-    if (numRowsToAdd === 0) return;
+    if (numRowsToAdd === 0) {
+      // Should not happen if buttons are correctly disabled
+      toast.info("No rows were added as the selection was empty.");
+      return;
+    }
 
     let calculatedInitialInsertIndex: number;
     if (uniqueSelectedRowIndices.length > 0) {
-      const minSelectedRowIndex = uniqueSelectedRowIndices[0]; // Since it's sorted
+      const minSelectedRowIndex = uniqueSelectedRowIndices[0];
       const maxSelectedRowIndex =
         uniqueSelectedRowIndices[uniqueSelectedRowIndices.length - 1];
       calculatedInitialInsertIndex =
         direction === "above" ? minSelectedRowIndex : maxSelectedRowIndex + 1;
     } else {
-      // Fallback, though the above logic should always populate uniqueSelectedRowIndices if currentSelectedCell exists
       console.warn(
         "handleAddRowRelative: Could not determine min/max selected rows, falling back to currentSelectedCell directly."
       );
@@ -139,82 +141,93 @@ const LiveTableToolbar: React.FC = () => {
     }
 
     const initialInsertIndex = calculatedInitialInsertIndex;
-
-    console.log(
-      `[handleAddRowRelative] Adding ${numRowsToAdd} row(s) ${direction}. Base selection range for insert: [${uniqueSelectedRowIndices.join(
-        ", "
-      )}], determined initial Yjs insert index: ${initialInsertIndex}`
-    );
+    const yHeadersArray = yHeaders.toArray(); // Get headers once
 
     setPendingOperation(
       direction === "above" ? "add-row-above" : "add-row-below"
     );
 
     startTransition(async () => {
+      let aiRowsAddedCount = 0;
+      let defaultRowsAddedCount = 0;
+      const rowsToInsertInYjs: Y.Map<unknown>[] = [];
+
       try {
-        // Call the new batch generation action
         const result = await generateNewRows(
           yTable.toArray().map((row) => row.toJSON()),
-          yHeaders.toArray(),
+          yHeadersArray,
           numRowsToAdd
         );
 
-        if (result.error || !result.newRows) {
+        if (result.error || !result.newRows || result.newRows.length === 0) {
           console.warn(
-            `Failed to generate AI rows batch, falling back to default rows. Error: ${result.error}`
+            `Failed to generate AI rows or no rows returned, falling back to default rows. Error: ${result.error}`
           );
-          // Fallback: add default empty rows
           for (let i = 0; i < numRowsToAdd; i++) {
-            const currentInsertIndex = initialInsertIndex + i;
-            applyDefaultRowToYDocOnError(
-              yDoc,
-              yTable,
-              yHeaders,
-              currentInsertIndex
-            );
+            rowsToInsertInYjs.push(createDefaultYMapForRow(yHeadersArray));
+            defaultRowsAddedCount++;
           }
         } else {
-          // Apply the generated rows
-          result.newRows.forEach((rowData, index) => {
-            const currentInsertIndex = initialInsertIndex + index;
-            applyGeneratedRowToYDoc(
-              yDoc,
-              yTable,
-              yHeaders,
-              rowData,
-              currentInsertIndex
-            );
-          });
-
-          // If LLM returned fewer rows than requested, fill the remainder with default rows
-          if (result.newRows.length < numRowsToAdd) {
-            console.warn(
-              `AI returned ${result.newRows.length} rows, but ${numRowsToAdd} were requested. Filling remainder with default rows.`
-            );
-            for (let i = result.newRows.length; i < numRowsToAdd; i++) {
-              const currentInsertIndex = initialInsertIndex + i;
-              applyDefaultRowToYDocOnError(
-                yDoc,
-                yTable,
-                yHeaders,
-                currentInsertIndex
+          result.newRows.forEach((rowData) => {
+            if (rowsToInsertInYjs.length < numRowsToAdd) {
+              rowsToInsertInYjs.push(
+                createYMapFromData(rowData, yHeadersArray)
               );
+              aiRowsAddedCount++;
             }
+          });
+          const remainingRowsToFill = numRowsToAdd - aiRowsAddedCount;
+          for (let i = 0; i < remainingRowsToFill; i++) {
+            rowsToInsertInYjs.push(createDefaultYMapForRow(yHeadersArray));
+            defaultRowsAddedCount++;
           }
         }
-      } catch (error) {
-        console.error(`Error calling generateNewRows or applying rows:`, error);
-        toast.error("Failed to generate AI row suggestions.");
-        // Fallback: add default empty rows on catastrophic failure
-        for (let i = 0; i < numRowsToAdd; i++) {
-          const currentInsertIndex = initialInsertIndex + i;
-          applyDefaultRowToYDocOnError(
-            yDoc,
-            yTable,
-            yHeaders,
-            currentInsertIndex
-          );
+
+        if (rowsToInsertInYjs.length > 0) {
+          yDoc.transact(() => {
+            yTable.insert(initialInsertIndex, rowsToInsertInYjs);
+          });
         }
+
+        // Consolidated Toast Message Logic
+        if (aiRowsAddedCount > 0 && defaultRowsAddedCount === 0) {
+          toast.success(
+            `Successfully added ${aiRowsAddedCount} AI-suggested row(s).`
+          );
+        } else if (aiRowsAddedCount > 0 && defaultRowsAddedCount > 0) {
+          toast.info(
+            `Added ${numRowsToAdd} row(s): ${aiRowsAddedCount} AI-suggested, ${defaultRowsAddedCount} default.`
+          );
+        } else if (defaultRowsAddedCount > 0) {
+          // This implies aiRowsAddedCount is 0
+          toast.info(
+            `Added ${defaultRowsAddedCount} default row(s) as AI suggestions were not available or failed.`
+          );
+        } else if (numRowsToAdd > 0 && rowsToInsertInYjs.length === 0) {
+          // This case should ideally not be hit if logic is correct, but acts as a fallback.
+          toast.info("Attempted to add rows, but no rows were prepared.");
+        }
+        // If numRowsToAdd was 0, a toast might have already been shown.
+        // If rowsToInsertInYjs.length is 0 and numRowsToAdd > 0, something went wrong.
+      } catch (error) {
+        console.error(`Error during add row operation:`, error);
+        // Fallback: add default empty rows on catastrophic failure
+        const fallbackRows: Y.Map<unknown>[] = [];
+        for (let i = 0; i < numRowsToAdd; i++) {
+          fallbackRows.push(createDefaultYMapForRow(yHeadersArray));
+        }
+        if (fallbackRows.length > 0) {
+          yDoc.transact(() => {
+            yTable.insert(initialInsertIndex, fallbackRows);
+          });
+        }
+        toast.error(
+          `Failed to add ${numRowsToAdd} row(s). ${
+            fallbackRows.length > 0
+              ? `${fallbackRows.length} default row(s) added as fallback.`
+              : "No rows were added."
+          }`
+        );
       } finally {
         setPendingOperation(null);
       }
@@ -532,9 +545,12 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              aria-label="Add row above"
-              onMouseDown={(e) => {
-                e.preventDefault();
+              aria-label={
+                numSelectedRows > 1
+                  ? `Add ${numSelectedRows} Rows Above`
+                  : "Add Row Above"
+              }
+              onClick={() => {
                 handleAddRowRelative("above");
               }}
               disabled={!canOperateOnSelection || isAnyOperationPending}
@@ -546,14 +562,22 @@ const LiveTableToolbar: React.FC = () => {
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Add Row Above</TooltipContent>
+          <TooltipContent>
+            {numSelectedRows > 1
+              ? `Add ${numSelectedRows} Rows Above`
+              : `Add Row Above`}
+          </TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              aria-label="Add row below"
+              aria-label={
+                numSelectedRows > 1
+                  ? `Add ${numSelectedRows} Rows Below`
+                  : "Add Row Below"
+              }
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleAddRowRelative("below");
@@ -567,7 +591,11 @@ const LiveTableToolbar: React.FC = () => {
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Add Row Below</TooltipContent>
+          <TooltipContent>
+            {numSelectedRows > 1
+              ? `Add ${numSelectedRows} Rows Below`
+              : `Add Row Below`}
+          </TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -578,8 +606,8 @@ const LiveTableToolbar: React.FC = () => {
               disabled={!canDeleteRow || isAnyOperationPending}
               aria-label={
                 numSelectedRows > 1
-                  ? "Delete selected rows"
-                  : "Delete selected row"
+                  ? `Delete ${numSelectedRows} Rows`
+                  : "Delete Row"
               }
             >
               <Trash2 className="h-4 w-4 mr-1" />

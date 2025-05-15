@@ -138,3 +138,32 @@ export function applyDefaultRowToYDocOnError(
     toast.error("Failed to add row. Please try again.");
   }
 }
+
+// New helper functions for creating Y.Map instances for rows
+
+export const createYMapFromData = (
+  rowData: Record<string, string>,
+  currentHeaders: string[]
+): Y.Map<unknown> => {
+  const newYRow = new Y.Map<unknown>();
+  currentHeaders.forEach((header) => {
+    newYRow.set(header, rowData[header] ?? "");
+  });
+  // Add any extra keys from rowData that are not in currentHeaders.
+  Object.keys(rowData).forEach((key) => {
+    if (!currentHeaders.includes(key)) {
+      newYRow.set(key, rowData[key]);
+    }
+  });
+  return newYRow;
+};
+
+export const createDefaultYMapForRow = (
+  currentHeaders: string[]
+): Y.Map<unknown> => {
+  const newYRow = new Y.Map<unknown>();
+  currentHeaders.forEach((header) => {
+    newYRow.set(header, "");
+  });
+  return newYRow;
+};

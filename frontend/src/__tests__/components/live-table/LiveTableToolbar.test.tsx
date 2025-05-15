@@ -1,26 +1,11 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
-import * as GenerateNewColumnModule
-  from "@/components/live-table/actions/generateNewColumn";
-import * as generateNewRowsModule
-  from "@/components/live-table/actions/generateNewRows";
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
+import * as GenerateNewColumnModule from "@/components/live-table/actions/generateNewColumn";
+import * as generateNewRowsModule from "@/components/live-table/actions/generateNewRows";
+import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import * as YjsOperationsModule from "@/components/live-table/yjs-operations";
 
@@ -36,7 +21,10 @@ vi.mock("@/components/live-table/actions/generateNewRows", () => ({
   default: vi.fn(),
 }));
 
-vi.mock("@/components/live-table/yjs-operations", () => ({
+vi.mock("@/components/live-table/yjs-operations", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/components/live-table/yjs-operations")
+  >()),
   applyGeneratedColumnToYDoc: vi.fn(),
   applyDefaultColumnToYDocOnError: vi.fn(),
   applyGeneratedRowToYDoc: vi.fn(),
@@ -237,11 +225,11 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     render(<LiveTableToolbar />);
 
     const addRowAboveButton = screen.getByRole("button", {
-      name: "Add row above",
+      name: "Add Row Above",
     });
 
     // Click to trigger isPendingRow state
-    fireEvent.mouseDown(addRowAboveButton);
+    fireEvent.click(addRowAboveButton);
 
     expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalled();
   });
@@ -354,10 +342,12 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       newRows: [{ H1: "AI Row Above" }],
     });
 
+    const yTableInsert = vi.spyOn(mockYTable, "insert");
+
     render(<LiveTableToolbar />);
-    const button = screen.getByRole("button", { name: "Add row above" });
+    const button = screen.getByRole("button", { name: "Add Row Above" });
     await act(async () => {
-      fireEvent.mouseDown(button);
+      fireEvent.click(button);
       await vi.runAllTimersAsync();
     });
 
@@ -367,21 +357,8 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       ["H1"], // headers
       1 // numRowsToAdd
     );
-    expect(
-      vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).toHaveBeenCalledTimes(1);
-    expect(
-      vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).toHaveBeenCalledWith(
-      mockYDoc,
-      mockYTable,
-      mockYHeaders,
-      { H1: "AI Row Above" },
-      1 // Corrected: yTable before yHeaders
-    );
-    expect(
-      vi.mocked(YjsOperationsModule.applyDefaultRowToYDocOnError)
-    ).not.toHaveBeenCalled();
+    expect(yTableInsert).toHaveBeenCalledTimes(1);
+    expect(yTableInsert).toHaveBeenCalledWith(1, [expect.any(Y.Map)]);
   });
 
   it("Add Row Below: 1 selected row, AI fails, adds 1 default row", async () => {
@@ -405,29 +382,17 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
     vi.mocked(generateNewRowsModule.default).mockResolvedValueOnce({
       error: "AI Error",
     });
+    const yTableInsert = vi.spyOn(mockYTable, "insert");
 
     render(<LiveTableToolbar />);
-    const button = screen.getByRole("button", { name: "Add row below" });
+    const button = screen.getByRole("button", { name: "Add Row Below" });
     await act(async () => {
       fireEvent.mouseDown(button);
       await vi.runAllTimersAsync();
     });
 
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalledWith(
-      expect.any(Array),
-      ["H1"],
-      1
-    );
-    expect(
-      vi.mocked(YjsOperationsModule.applyDefaultRowToYDocOnError)
-    ).toHaveBeenCalledTimes(1);
-    expect(
-      vi.mocked(YjsOperationsModule.applyDefaultRowToYDocOnError)
-    ).toHaveBeenCalledWith(mockYDoc, mockYTable, mockYHeaders, 1); // Corrected
-    expect(
-      vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).not.toHaveBeenCalled();
+    expect(yTableInsert).toHaveBeenCalledTimes(1);
+    expect(yTableInsert).toHaveBeenCalledWith(1, [expect.any(Y.Map)]);
   });
 
   it("Add Row Above: 2 selected rows, AI succeeds, adds 2 rows", async () => {
@@ -456,10 +421,12 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       newRows: [{ H1: "AI Row 1" }, { H1: "AI Row 2" }],
     });
 
+    const yTableInsert = vi.spyOn(mockYTable, "insert");
+
     render(<LiveTableToolbar />);
-    const button = screen.getByRole("button", { name: "Add row above" });
+    const button = screen.getByRole("button", { name: "Add 2 Rows Above" });
     await act(async () => {
-      fireEvent.mouseDown(button);
+      fireEvent.click(button);
       await vi.runAllTimersAsync();
     });
 
@@ -469,30 +436,14 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       ["H1"],
       2
     ); // numRowsToAdd = 2
+    expect(yTableInsert).toHaveBeenCalledTimes(1);
+    expect(yTableInsert).toHaveBeenCalledWith(0, [
+      expect.any(Y.Map),
+      expect.any(Y.Map),
+    ]);
     expect(
       vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).toHaveBeenCalledTimes(2);
-    // Inserted above min_selected_row (0). New rows go to index 0 and 1
-    expect(
-      vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).toHaveBeenNthCalledWith(
-      1,
-      mockYDoc,
-      mockYTable,
-      mockYHeaders,
-      { H1: "AI Row 1" },
-      0
-    ); // Old insertIndex was 1
-    expect(
-      vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).toHaveBeenNthCalledWith(
-      2,
-      mockYDoc,
-      mockYTable,
-      mockYHeaders,
-      { H1: "AI Row 2" },
-      1
-    ); // Old insertIndex was 2
+    ).not.toHaveBeenCalled();
     expect(
       vi.mocked(YjsOperationsModule.applyDefaultRowToYDocOnError)
     ).not.toHaveBeenCalled();
@@ -528,8 +479,10 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       newRows: [{ H1: "AI Row A" }, { H1: "AI Row B" }], // AI returns only 2 rows
     });
 
+    const yTableInsert = vi.spyOn(mockYTable, "insert");
+
     render(<LiveTableToolbar />);
-    const button = screen.getByRole("button", { name: "Add row below" });
+    const button = screen.getByRole("button", { name: "Add 3 Rows Below" });
     await act(async () => {
       fireEvent.mouseDown(button);
       await vi.runAllTimersAsync();
@@ -542,37 +495,18 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       3
     ); // numRowsToAdd = 3
 
+    expect(yTableInsert).toHaveBeenCalledTimes(1);
+    expect(yTableInsert).toHaveBeenCalledWith(4, [
+      expect.any(Y.Map),
+      expect.any(Y.Map),
+      expect.any(Y.Map),
+    ]);
     expect(
       vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).toHaveBeenCalledTimes(2); // For the 2 AI rows
+    ).not.toHaveBeenCalled();
     expect(
       vi.mocked(YjsOperationsModule.applyDefaultRowToYDocOnError)
-    ).toHaveBeenCalledTimes(1); // For the 1 default filled row
-
-    // Inserted below max_selected_row (3). New rows go to index 4, 5, 6
-    expect(
-      vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).toHaveBeenNthCalledWith(
-      1,
-      mockYDoc,
-      mockYTable,
-      mockYHeaders,
-      { H1: "AI Row A" },
-      4
-    ); // Old insertIndex was 2
-    expect(
-      vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).toHaveBeenNthCalledWith(
-      2,
-      mockYDoc,
-      mockYTable,
-      mockYHeaders,
-      { H1: "AI Row B" },
-      5
-    ); // Old insertIndex was 3
-    expect(
-      vi.mocked(YjsOperationsModule.applyDefaultRowToYDocOnError)
-    ).toHaveBeenCalledWith(mockYDoc, mockYTable, mockYHeaders, 6); // Old insertIndex was 4
+    ).not.toHaveBeenCalled();
   });
 
   it("Add Row Above: selectedCell is set but selectedCells is empty, adds 1 AI row", async () => {
@@ -597,10 +531,12 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       newRows: [{ H1: "AI Row Single" }],
     });
 
+    const yTableInsert = vi.spyOn(mockYTable, "insert");
+
     render(<LiveTableToolbar />);
-    const button = screen.getByRole("button", { name: "Add row above" });
+    const button = screen.getByRole("button", { name: "Add Row Above" });
     await act(async () => {
-      fireEvent.mouseDown(button);
+      fireEvent.click(button);
       await vi.runAllTimersAsync();
     });
 
@@ -610,17 +546,13 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       ["H1"],
       1
     );
+    expect(yTableInsert).toHaveBeenCalledTimes(1);
+    expect(yTableInsert).toHaveBeenCalledWith(0, [expect.any(Y.Map)]);
     expect(
       vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).toHaveBeenCalledTimes(1);
+    ).not.toHaveBeenCalled();
     expect(
-      vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc)
-    ).toHaveBeenCalledWith(
-      mockYDoc,
-      mockYTable,
-      mockYHeaders,
-      { H1: "AI Row Single" },
-      0
-    ); // Corrected
+      vi.mocked(YjsOperationsModule.applyDefaultRowToYDocOnError)
+    ).not.toHaveBeenCalled();
   });
 });

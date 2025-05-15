@@ -191,7 +191,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
     const deleteButton = findDeleteRowButton();
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).not.toBeDisabled();
-    expect(deleteButton).toHaveAttribute("aria-label", "Delete selected row");
+    expect(deleteButton).toHaveAttribute("aria-label", "Delete Row");
 
     expect(yTable.length).toBe(initialTableContent.length);
     expect(yTable.get(selectedRowIndex).toJSON()).toEqual(
@@ -291,7 +291,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
     const deleteButton = findDeleteRowButton();
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).not.toBeDisabled();
-    expect(deleteButton).toHaveAttribute("aria-label", "Delete selected rows");
+    expect(deleteButton).toHaveAttribute("aria-label", "Delete 2 Rows");
 
     expect(yTable.length).toBe(initialTableContent.length);
 
@@ -368,7 +368,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
     const deleteButton = findDeleteRowButton();
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).toBeDisabled();
-    expect(deleteButton).toHaveAttribute("aria-label", "Delete selected row");
+    expect(deleteButton).toHaveAttribute("aria-label", "Delete Row");
 
     const initialLength = yTable.length;
     expect(yTable.length).toBe(initialLength);
