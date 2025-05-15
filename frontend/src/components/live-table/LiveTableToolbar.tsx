@@ -110,7 +110,6 @@ const LiveTableToolbar: React.FC = () => {
   };
 
   const handleDeleteRow = () => {
-    console.log("handleDeleteRow called", { selectedCell });
     if (!yDoc || !yTable || !selectedCell) {
       console.log("Delete row aborted: missing doc, table, or selection");
       return;
@@ -121,15 +120,7 @@ const LiveTableToolbar: React.FC = () => {
 
     yDoc.transact(() => {
       try {
-        console.log(
-          "yTable before delete:",
-          yTable.toArray().map((r) => r.toJSON())
-        );
         yTable.delete(rowIndexToDelete, 1); // Delete 1 row at the selected index
-        console.log(
-          "yTable after delete:",
-          yTable.toArray().map((r) => r.toJSON())
-        );
       } catch (error) {
         console.error("Error during row deletion transaction:", error);
       }
@@ -465,10 +456,7 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleDeleteRow();
-              }}
+              onClick={handleDeleteRow}
               disabled={!canOperateOnSelection || isAnyOperationPending}
               className="text-destructive hover:bg-destructive/10"
             >
@@ -509,8 +497,7 @@ const LiveTableToolbar: React.FC = () => {
               variant="ghost"
               size="sm"
               aria-label="Add column to the right"
-              onMouseDown={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 handleAddColumnRelative("right");
               }}
               disabled={!canAddColumn || isAnyOperationPending}
@@ -529,10 +516,7 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleDeleteColumn();
-              }}
+              onClick={handleDeleteColumn}
               disabled={!canDeleteColumn || isAnyOperationPending}
               className="text-destructive hover:bg-destructive/10"
             >

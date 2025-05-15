@@ -142,7 +142,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     const addRightButton = screen.getByRole("button", {
       name: "Add column to the right",
     });
-    fireEvent.mouseDown(addRightButton);
+    fireEvent.click(addRightButton);
 
     expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
 
