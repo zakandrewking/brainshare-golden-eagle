@@ -82,15 +82,17 @@ describe("LiveTableToolbar - Delete Column", () => {
   let yColWidthsMap: Y.Map<number>;
   let mockStartTransition: React.TransitionStartFunction;
 
-  const initialHeadersData = ["Header1", "Header2", "Header3"];
+  const initialHeadersData = ["Header1", "Header2", "Header3", "Header4"];
   const initialColWidthsData = {
     Header1: 100,
     Header2: 150,
     Header3: 200,
+    Header4: 120,
   };
   const initialTableContentData = [
-    { Header1: "R1C1", Header2: "R1C2", Header3: "R1C3" },
-    { Header1: "R2C1", Header2: "R2C2", Header3: "R2C3" },
+    { Header1: "R1C1", Header2: "R1C2", Header3: "R1C3", Header4: "R1C4" },
+    { Header1: "R2C1", Header2: "R2C2", Header3: "R2C3", Header4: "R2C4" },
+    { Header1: "R3C1", Header2: "R3C2", Header3: "R3C3", Header4: "R3C4" },
   ];
 
   function findDeleteColumnButton(): HTMLElement | null {
@@ -141,7 +143,7 @@ describe("LiveTableToolbar - Delete Column", () => {
     ydoc.destroy();
   });
 
-  it("should delete the selected column when the delete button is clicked", () => {
+  it("should delete the selected column when a single column is selected and update aria-label", () => {
     const colIndexToDelete = 1; // Delete "Header2"
     const headerToDelete = initialHeadersData[colIndexToDelete];
     const selectedCellForTest = { rowIndex: 0, colIndex: colIndexToDelete };
@@ -164,6 +166,7 @@ describe("LiveTableToolbar - Delete Column", () => {
       yTable,
       yHeaders,
       selectedCell: selectedCellForTest,
+      selectedCells: [selectedCellForTest],
       undoManager: mockUndoManager,
       isTableLoaded: true,
       headers: yHeaders.toArray(),
@@ -196,8 +199,7 @@ describe("LiveTableToolbar - Delete Column", () => {
       setEditingCell: vi.fn(),
       clearSelection: vi.fn(),
       tableId: "test-delete-col-table",
-      selectedCells: [selectedCellForTest],
-      getSelectedCellsData: vi.fn(() => [["R1C2"]]), // Example data for selected cell
+      getSelectedCellsData: vi.fn(() => [["R1C2"]]),
     });
 
     render(
@@ -209,6 +211,10 @@ describe("LiveTableToolbar - Delete Column", () => {
     const deleteButton = findDeleteColumnButton();
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).not.toBeDisabled();
+    expect(deleteButton).toHaveAttribute(
+      "aria-label",
+      "Delete selected column"
+    );
 
     expect(yHeaders.length).toBe(initialHeadersData.length);
     expect(yTable.get(0).get(headerToDelete)).toBe("R1C2");
@@ -219,7 +225,7 @@ describe("LiveTableToolbar - Delete Column", () => {
     expect(yHeadersDeleteSpy).toHaveBeenCalledWith(colIndexToDelete, 1);
 
     expect(yHeaders.length).toBe(initialHeadersData.length - 1);
-    expect(yHeaders.toArray()).toEqual(["Header1", "Header3"]);
+    expect(yHeaders.toArray()).toEqual(["Header1", "Header3", "Header4"]);
 
     // Verify column is removed from each row in yTable
     yTable.forEach((row) => {
@@ -236,7 +242,115 @@ describe("LiveTableToolbar - Delete Column", () => {
     );
   });
 
-  it("should not delete any column if no cell is selected and button should be disabled", () => {
+  it("should delete multiple selected columns and update aria-label", () => {
+    const colIndicesToDelete = [0, 2]; // Delete "Header1" and "Header3"
+    const headersToDelete = colIndicesToDelete.map(
+      (idx) => initialHeadersData[idx]
+    );
+    const selectedCellsForTest = colIndicesToDelete.map((colIndex) => ({
+      rowIndex: 0,
+      colIndex,
+    }));
+
+    const mockUndoManager = {
+      undo: vi.fn(),
+      redo: vi.fn(),
+      stopCapturing: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      undoStack: [],
+      redoStack: [],
+    } as unknown as Y.UndoManager;
+
+    const yHeadersDeleteSpy = vi.spyOn(yHeaders, "delete");
+
+    mockedUseLiveTable.mockReturnValue({
+      yDoc: ydoc,
+      yTable,
+      yHeaders,
+      selectedCell: selectedCellsForTest[0], // e.g., primary selected cell
+      selectedCells: selectedCellsForTest,
+      undoManager: mockUndoManager,
+      isTableLoaded: true,
+      headers: yHeaders.toArray(),
+      tableData: yTable.toArray().map((row) => row.toJSON()),
+      columnWidths: Object.fromEntries(yColWidthsMap.entries()),
+      handleCellChange: vi.fn(),
+      handleCellFocus: vi.fn(),
+      handleCellBlur: vi.fn(),
+      editingHeaderIndex: null,
+      editingHeaderValue: "",
+      handleHeaderDoubleClick: vi.fn(),
+      handleHeaderChange: vi.fn(),
+      handleHeaderBlur: vi.fn(),
+      handleHeaderKeyDown: vi.fn(),
+      handleColumnResize: vi.fn(),
+      selectionArea: {
+        startCell: selectedCellsForTest[0],
+        endCell: selectedCellsForTest[selectedCellsForTest.length - 1],
+      },
+      handleSelectionStart: vi.fn(),
+      handleSelectionMove: vi.fn(),
+      handleSelectionEnd: vi.fn(),
+      isSelecting: false,
+      isCellSelected: vi.fn((rI, cI) =>
+        selectedCellsForTest.some(
+          (cell) => cell.rowIndex === rI && cell.colIndex === cI
+        )
+      ),
+      editingCell: null,
+      setEditingCell: vi.fn(),
+      clearSelection: vi.fn(),
+      tableId: "test-delete-multi-col-table",
+      getSelectedCellsData: vi.fn(() => [["R1C1"], ["R1C3"]]), // Example data
+    });
+
+    render(
+      <TooltipProvider>
+        <LiveTableToolbar />
+      </TooltipProvider>
+    );
+
+    const deleteButton = findDeleteColumnButton();
+    expect(deleteButton).toBeInTheDocument();
+    expect(deleteButton).not.toBeDisabled();
+    expect(deleteButton).toHaveAttribute(
+      "aria-label",
+      "Delete selected columns"
+    );
+
+    expect(yHeaders.length).toBe(initialHeadersData.length);
+    headersToDelete.forEach((header) => {
+      expect(yTable.get(0).get(header)).toBeDefined();
+    });
+
+    fireEvent.click(deleteButton!);
+
+    // Deletion happens in descending order of indices
+    expect(yHeadersDeleteSpy).toHaveBeenCalledTimes(colIndicesToDelete.length);
+    // Header3 (index 2) is deleted first, then Header1 (index 0)
+    expect(yHeadersDeleteSpy).toHaveBeenNthCalledWith(1, 2, 1); // Deletes initialHeadersData[2] ("Header3")
+    expect(yHeadersDeleteSpy).toHaveBeenNthCalledWith(2, 0, 1); // Deletes initialHeadersData[0] ("Header1") from the modified array
+
+    expect(yHeaders.length).toBe(
+      initialHeadersData.length - colIndicesToDelete.length
+    );
+    expect(yHeaders.toArray()).toEqual(["Header2", "Header4"]);
+
+    yTable.forEach((row) => {
+      headersToDelete.forEach((header) => {
+        expect(row.has(header)).toBe(false);
+      });
+    });
+    expect(yTable.get(0).get("Header2")).toBe("R1C2");
+    expect(yTable.get(0).get("Header4")).toBe("R1C4");
+
+    expect(Object.fromEntries(yColWidthsMap.entries())).toEqual(
+      initialColWidthsData
+    );
+  });
+
+  it("should not delete any column if no cell is selected and button should be disabled, with default aria-label", () => {
     const mockUndoManager = {
       undo: vi.fn(),
       redo: vi.fn(),
@@ -252,6 +366,7 @@ describe("LiveTableToolbar - Delete Column", () => {
       yTable,
       yHeaders,
       selectedCell: null, // No cell selected
+      selectedCells: [], // No cells selected
       undoManager: mockUndoManager,
       isTableLoaded: true,
       headers: yHeaders.toArray(),
@@ -277,7 +392,6 @@ describe("LiveTableToolbar - Delete Column", () => {
       setEditingCell: vi.fn(),
       clearSelection: vi.fn(),
       tableId: "test-no-delete-col-table",
-      selectedCells: [],
       getSelectedCellsData: vi.fn(() => []),
     });
 
@@ -290,6 +404,11 @@ describe("LiveTableToolbar - Delete Column", () => {
     const deleteButton = findDeleteColumnButton();
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).toBeDisabled();
+    // Corrected: When disabled due to no selection, it's singular
+    expect(deleteButton).toHaveAttribute(
+      "aria-label",
+      "Delete selected column"
+    );
 
     expect(yHeaders.length).toBe(initialHeadersData.length);
     expect(yTable.toArray().map((r) => r.toJSON())).toEqual(

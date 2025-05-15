@@ -20,7 +20,6 @@ export function AiFillSelectionButton() {
   } = useLiveTable();
 
   const handleClick = async () => {
-    console.log("handleClick");
     if (selectedCells.length === 0) return;
 
     setIsLoading(true);

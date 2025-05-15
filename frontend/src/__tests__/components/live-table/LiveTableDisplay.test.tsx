@@ -140,11 +140,11 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
       ),
     } as unknown as ReturnType<typeof useLiveTable>);
 
-    const captureMouseDown = vi.fn();
+    const captureClick = vi.fn();
 
     render(
       <div>
-        <button data-testid="outside-element" onMouseDown={captureMouseDown}>
+        <button data-testid="outside-element" onClick={captureClick}>
           Click Outside Here
         </button>
         <LiveTableDisplay />
@@ -152,11 +152,11 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
     );
 
     const outsideElement = screen.getByTestId("outside-element");
-    fireEvent.mouseDown(outsideElement);
+    fireEvent.click(outsideElement);
     // external elements should also receive the click event
     await vi.runAllTimersAsync();
     expect(mockClearSelection).toHaveBeenCalledTimes(1);
-    expect(captureMouseDown).toHaveBeenCalledTimes(1);
+    expect(captureClick).toHaveBeenCalledTimes(1);
   });
 
   it("should not clear selection when clicking inside the table", () => {

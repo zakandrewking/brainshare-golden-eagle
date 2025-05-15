@@ -49,14 +49,31 @@ type PendingOperation =
   | null;
 
 const LiveTableToolbar: React.FC = () => {
-  const { yDoc, yTable, yHeaders, selectedCell, undoManager, isTableLoaded } =
-    useLiveTable();
+  const {
+    yDoc,
+    yTable,
+    yHeaders,
+    selectedCell,
+    undoManager,
+    isTableLoaded,
+    selectedCells,
+  } = useLiveTable();
 
   const [isPending, startTransition] = useTransition();
   const [pendingOperation, setPendingOperation] =
     useState<PendingOperation>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+
+  const getSelectedColumnIndices = (): number[] => {
+    if (!selectedCells || selectedCells.length === 0) {
+      return [];
+    }
+    const uniqueIndices = [
+      ...new Set(selectedCells.map((cell) => cell.colIndex)),
+    ];
+    return uniqueIndices.sort((a, b) => a - b); // Sort ascending for consistent display/aria-label order
+  };
 
   const handleAddRowRelative = (direction: "above" | "below") => {
     if (!yDoc || !yTable || !selectedCell || !yHeaders) return; // Require selection and headers
@@ -227,36 +244,40 @@ const LiveTableToolbar: React.FC = () => {
     });
   };
 
-  const handleDeleteColumn = () => {
-    if (!selectedCell) {
-      console.log("Delete column aborted: missing selection.");
-      return;
-    }
+  const handleDeleteColumns = () => {
+    const uniqueColIndicesToDelete = getSelectedColumnIndices().sort(
+      (a, b) => b - a
+    );
 
-    const colIndexToDelete = selectedCell.colIndex;
-    const headerToDelete = yHeaders.get(colIndexToDelete); // Get header from yHeaders
-
-    if (headerToDelete === undefined) {
-      // Extra safety check
-      console.error(
-        "Could not find header to delete at index",
-        colIndexToDelete
+    if (
+      uniqueColIndicesToDelete.length === 0 ||
+      !yDoc ||
+      !yHeaders ||
+      !yTable
+    ) {
+      console.log(
+        "Delete column aborted: missing selection, yDoc, yHeaders, or yTable."
       );
       return;
     }
 
-    console.log(
-      `Attempting to delete column: "${headerToDelete}" at index ${colIndexToDelete}`
-    );
-
     yDoc.transact(() => {
       try {
-        // 1. Delete header from yHeaders array
-        yHeaders.delete(colIndexToDelete, 1);
-
-        // 2. Delete the corresponding key from each row in yTable
-        yTable.forEach((row: Y.Map<unknown>) => {
-          row.delete(headerToDelete);
+        uniqueColIndicesToDelete.forEach((colIndex) => {
+          const headerToDelete = yHeaders.get(colIndex);
+          if (headerToDelete !== undefined) {
+            console.log(
+              `Deleting header: \"${headerToDelete}\" at index ${colIndex}`
+            );
+            yHeaders.delete(colIndex, 1);
+            yTable.forEach((row: Y.Map<unknown>) => {
+              row.delete(headerToDelete);
+            });
+          } else {
+            console.warn(
+              `Header at index ${colIndex} not found during deletion.`
+            );
+          }
         });
       } catch (error) {
         console.error("Error during column deletion transaction:", error);
@@ -334,14 +355,24 @@ const LiveTableToolbar: React.FC = () => {
   const canOperateOnSelection = !!selectedCell && isTableLoaded;
 
   // Can add column if there is a selection or the table is empty
-  const canAddColumn = canOperateOnSelection || yTable.length === 0;
+  const canAddColumn =
+    ((selectedCell || (selectedCells && selectedCells.length > 0)) &&
+      isTableLoaded) ||
+    (yTable && yTable.length === 0);
+
+  const selectedColumnIndices = getSelectedColumnIndices();
+  const numSelectedCols = selectedColumnIndices.length;
+
+  const canDeleteRow = canOperateOnSelection && isTableLoaded; // Keep original logic for canDeleteRow
 
   const canDeleteColumn =
-    canOperateOnSelection &&
+    numSelectedCols > 0 &&
+    isTableLoaded &&
+    yHeaders &&
     yHeaders.length > 0 &&
-    !!yHeaders.get(selectedCell?.colIndex) &&
-    isTableLoaded;
-  const canDownload = isTableLoaded && yHeaders.length > 0; // Can download if loaded and has headers
+    selectedColumnIndices.every((index) => index < yHeaders.length);
+
+  const canDownload = isTableLoaded && yHeaders && yHeaders.length > 0;
 
   // For disabling buttons, check for any pending operations
   const isAnyOperationPending = isPending && pendingOperation !== null;
@@ -457,8 +488,8 @@ const LiveTableToolbar: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={handleDeleteRow}
-              disabled={!canOperateOnSelection || isAnyOperationPending}
-              className="text-destructive hover:bg-destructive/10"
+              disabled={!canDeleteRow || isAnyOperationPending}
+              aria-label="Delete selected row"
             >
               <Trash2 className="h-4 w-4 mr-1" />
               <Rows3 className="h-4 w-4" />
@@ -516,15 +547,23 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleDeleteColumn}
+              onClick={handleDeleteColumns}
               disabled={!canDeleteColumn || isAnyOperationPending}
-              className="text-destructive hover:bg-destructive/10"
+              aria-label={
+                numSelectedCols > 1
+                  ? "Delete selected columns"
+                  : "Delete selected column"
+              }
             >
               <Trash2 className="h-4 w-4 mr-1" />
               <Columns3 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Delete Column</TooltipContent>
+          <TooltipContent>
+            {numSelectedCols > 1
+              ? `Delete ${numSelectedCols} Columns`
+              : "Delete Column"}
+          </TooltipContent>
         </Tooltip>
 
         <Separator orientation="vertical" className="h-6 mx-1" />
