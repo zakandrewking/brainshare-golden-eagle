@@ -10,8 +10,10 @@ import React, {
 import * as Y from "yjs";
 import { UndoManager } from "yjs";
 
-import { useRoom, useSelf } from "@liveblocks/react/suspense";
-import { getYjsProviderForRoom } from "@liveblocks/yjs";
+import { useRoom } from "@liveblocks/react/suspense";
+
+import { initializeLiveblocksRoom } from "./LiveTableDoc";
+import { useUpdatedSelf } from "./useUpdatedSelf";
 
 interface CellPosition {
   rowIndex: number;
@@ -108,31 +110,25 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     colIndex: number;
   } | null>(null);
 
-  // yjs
+  // liveblocks
   const room = useRoom();
-  const yProvider = getYjsProviderForRoom(room);
-  const yDoc = yProvider.getYDoc();
-  const self = useSelf();
-
-  // yjs entities
-  const yTable = useMemo(
-    () => yDoc.getArray<Y.Map<unknown>>("tableData"),
-    [yDoc]
+  const { liveTableDoc, yProvider } = useMemo(
+    () => initializeLiveblocksRoom(room),
+    [room]
   );
-  const yHeaders = useMemo(() => yDoc.getArray<string>("tableHeaders"), [yDoc]);
-  const yColWidths = useMemo(() => yDoc.getMap<number>("colWidths"), [yDoc]);
+  const yDoc = useMemo(() => liveTableDoc.yDoc, [liveTableDoc]);
+  const yHeaders = useMemo(() => liveTableDoc.yHeaders, [liveTableDoc]);
+  const yTable = useMemo(() => liveTableDoc.yTable, [liveTableDoc]);
+  const yColWidths = useMemo(() => liveTableDoc.yColWidths, [liveTableDoc]);
+  const undoManager = useMemo(() => liveTableDoc.undoManager, [liveTableDoc]);
+
+  // update self info in awareness
+  useUpdatedSelf(yProvider);
 
   const [selectedCell, setSelectedCell] = useState<{
     rowIndex: number;
     colIndex: number;
   } | null>(null);
-
-  const undoManager = useMemo(() => {
-    if (!yTable || !yHeaders || !yColWidths) return null;
-    return new UndoManager([yTable, yHeaders, yColWidths], {
-      captureTimeout: 500,
-    });
-  }, [yTable, yHeaders, yColWidths]);
 
   // multiple cell selection
   const [selectionArea, setSelectionArea] = useState<SelectionArea>({
@@ -265,13 +261,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   }, [tableData, headers, isTableLoaded, yTable.length, columnWidths]);
 
   // --- Awareness & Focus ---
-
-  useEffect(() => {
-    yProvider.awareness.setLocalStateField("user", {
-      name: self?.info?.name ?? "Anonymous",
-      color: self?.info?.color ?? "#000000",
-    });
-  }, [self?.info?.name, self?.info?.color, yProvider.awareness]);
 
   const handleCellFocus = useCallback(
     (rowIndex: number, colIndex: number) => {
