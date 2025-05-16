@@ -25,7 +25,7 @@ interface SelectionArea {
   endCell: CellPosition | null;
 }
 
-interface LiveTableContextType {
+export interface LiveTableContextType {
   tableId: string;
   tableData: Record<string, unknown>[] | undefined;
   headers: string[] | undefined;
@@ -72,9 +72,6 @@ const LiveTableContext = createContext<LiveTableContextType | undefined>(
   undefined
 );
 
-function yMapToObject(yMap: Y.Map<unknown>): Record<string, unknown> {
-  return Object.fromEntries(yMap.entries());
-}
 const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   children,
   tableId,
@@ -116,6 +113,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     () => initializeLiveblocksRoom(room),
     [room]
   );
+  liveTableDoc.tableDataUpdateCallback = setTableData;
+  liveTableDoc.headersUpdateCallback = setHeaders;
+  liveTableDoc.columnWidthsUpdateCallback = setColumnWidths;
   const yDoc = useMemo(() => liveTableDoc.yDoc, [liveTableDoc]);
   const yHeaders = useMemo(() => liveTableDoc.yHeaders, [liveTableDoc]);
   const yTable = useMemo(() => liveTableDoc.yTable, [liveTableDoc]);
@@ -333,66 +333,13 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [yDoc, yColWidths]
   );
 
-  // map yjs entities to react state
+  // wire up yjs observers
   useEffect(() => {
-    const updateTableState = () => {
-      const currentData = yTable.toArray().map(yMapToObject);
-      setTableData(currentData);
-    };
-
-    // Function to update React state for headers
-    const updateHeadersState = () => {
-      const currentHeaders = yHeaders.toArray();
-      if (currentHeaders.length === 0 && yTable.length > 0) {
-        const firstRowMap = yTable.get(0);
-        if (firstRowMap) {
-          const initialHeaders = Array.from(firstRowMap.keys()).sort();
-          yDoc.transact(() => {
-            if (yHeaders.length === 0) {
-              yHeaders.push(initialHeaders);
-              setHeaders(initialHeaders);
-            } else {
-              setHeaders(yHeaders.toArray());
-            }
-          });
-        } else {
-          setHeaders([]);
-        }
-      } else {
-        setHeaders(currentHeaders);
-      }
-    };
-
-    // Function to update React state for column widths
-    const updateColWidthsState = () => {
-      const currentWidths = Object.fromEntries(yColWidths.entries());
-      setColumnWidths(currentWidths);
-    };
-
-    // Initial state load
-    updateTableState();
-    updateHeadersState();
-    updateColWidthsState();
-
-    // Observe changes
-    const tableObserver = () => updateTableState();
-    const headersObserver = () => updateHeadersState();
-    const widthsObserver = () => updateColWidthsState();
-
-    // yTable is not going to reactively update, so we need to observe changes
-    // to it and create react state that will reactively update UI. Downstream
-    // components should read table, headers, and colWidths for most uses cases.
-    yTable.observeDeep(tableObserver);
-    yHeaders.observe(headersObserver);
-    yColWidths.observe(widthsObserver);
-
-    // Cleanup observers on unmount
+    liveTableDoc.initializeObservers();
     return () => {
-      yTable.unobserveDeep(tableObserver);
-      yHeaders.unobserve(headersObserver);
-      yColWidths.unobserve(widthsObserver);
+      liveTableDoc.cleanupObservers();
     };
-  }, [yTable, yHeaders, yColWidths, yDoc]);
+  }, [liveTableDoc]);
 
   // Function to handle cell changes
   const handleCellChange = useCallback(

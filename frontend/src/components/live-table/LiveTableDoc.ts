@@ -21,10 +21,23 @@ export class LiveTableDoc {
   public yHeaders: Y.Array<string>;
   public yColWidths: Y.Map<number>;
 
+  public tableDataUpdateCallback:
+    | ((data: Record<string, unknown>[]) => void)
+    | undefined;
+  public headersUpdateCallback: ((headers: string[]) => void) | undefined;
+  public columnWidthsUpdateCallback:
+    | ((widths: Record<string, number>) => void)
+    | undefined;
+
   // public editLocks: Y.Map<EditLock>;
 
   // undo/redo manager
   public undoManager: UndoManager;
+
+  // persistent observer functions
+  public updateTableStateObserver: () => void;
+  public updateHeadersStateObserver: () => void;
+  public updateColWidthsStateObserver: () => void;
 
   constructor(yDoc: Y.Doc) {
     this.yDoc = yDoc;
@@ -37,6 +50,11 @@ export class LiveTableDoc {
     // // TODO validate with zod on receipt
     // this.editLocks = yDoc.getMap<EditLock>("editLocks");
 
+    // persistent observer functions
+    this.updateTableStateObserver = this.updateTableState.bind(this);
+    this.updateHeadersStateObserver = this.updateHeadersState.bind(this);
+    this.updateColWidthsStateObserver = this.updateColWidthsState.bind(this);
+
     // undo/redo manager
     this.undoManager = new UndoManager(
       [this.yTable, this.yHeaders, this.yColWidths],
@@ -44,6 +62,60 @@ export class LiveTableDoc {
         captureTimeout: 500,
       }
     );
+  }
+
+  updateTableState() {
+    const currentData = this.yTable.toArray().map((yMap) => {
+      return Object.fromEntries(yMap.entries());
+    });
+    this.tableDataUpdateCallback?.(currentData);
+  }
+
+  // Function to update React state for headers
+  updateHeadersState() {
+    const currentHeaders = this.yHeaders.toArray();
+    if (currentHeaders.length === 0 && this.yTable.length > 0) {
+      const firstRowMap = this.yTable.get(0);
+      if (firstRowMap) {
+        const initialHeaders = Array.from(firstRowMap.keys()).sort();
+        this.yDoc.transact(() => {
+          if (this.yHeaders.length === 0) {
+            this.yHeaders.push(initialHeaders);
+            this.headersUpdateCallback?.(initialHeaders);
+          } else {
+            this.headersUpdateCallback?.(this.yHeaders.toArray());
+          }
+        });
+      } else {
+        this.headersUpdateCallback?.([]);
+      }
+    } else {
+      this.headersUpdateCallback?.(currentHeaders);
+    }
+  }
+
+  // Function to update React state for column widths
+  updateColWidthsState() {
+    const currentWidths = Object.fromEntries(this.yColWidths.entries());
+    this.columnWidthsUpdateCallback?.(currentWidths);
+  }
+
+  /**
+   * Initialize yDoc observers.
+   */
+  initializeObservers() {
+    this.yTable.observeDeep(this.updateTableStateObserver);
+    this.yHeaders.observe(this.updateHeadersStateObserver);
+    this.yColWidths.observe(this.updateColWidthsStateObserver);
+  }
+
+  /**
+   * Cleanup yDoc observers.
+   */
+  cleanupObservers() {
+    this.yTable.unobserveDeep(this.updateTableStateObserver);
+    this.yHeaders.unobserve(this.updateHeadersStateObserver);
+    this.yColWidths.unobserve(this.updateColWidthsStateObserver);
   }
 
   /**
