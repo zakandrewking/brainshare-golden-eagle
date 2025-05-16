@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import * as Y from "yjs";
 
+import generateNewRows from "@/components/live-table/actions/generateNewRows";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -30,7 +31,9 @@ import {
 } from "@/components/ui/tooltip";
 
 import generateNewColumn from "./actions/generateNewColumn";
-import generateNewRows from "./actions/generateNewRows";
+import generateNewColumns, {
+  GeneratedColumn,
+} from "./actions/generateNewColumns";
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import { useLiveTable } from "./LiveTableProvider";
 import {
@@ -65,14 +68,15 @@ const LiveTableToolbar: React.FC = () => {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
-  const getSelectedColumnIndices = (): number[] => {
+  const getUniqueSelectedColumnIndices = (): number[] => {
     if (!selectedCells || selectedCells.length === 0) {
+      if (selectedCell) return [selectedCell.colIndex];
       return [];
     }
     const uniqueIndices = [
       ...new Set(selectedCells.map((cell) => cell.colIndex)),
     ];
-    return uniqueIndices.sort((a, b) => a - b); // Sort ascending for consistent display/aria-label order
+    return uniqueIndices.sort((a, b) => a - b);
   };
 
   const getSelectedRowIndices = (): number[] => {
@@ -168,7 +172,7 @@ const LiveTableToolbar: React.FC = () => {
             defaultRowsAddedCount++;
           }
         } else {
-          result.newRows.forEach((rowData) => {
+          result.newRows.forEach((rowData: Record<string, string>) => {
             if (rowsToInsertInYjs.length < numRowsToAdd) {
               rowsToInsertInYjs.push(
                 createYMapFromData(rowData, yHeadersArray)
@@ -255,97 +259,263 @@ const LiveTableToolbar: React.FC = () => {
   };
 
   const handleAddColumnRelative = (direction: "left" | "right") => {
-    if (!yDoc || !yTable || !yHeaders) {
+    const currentSelectedCell = selectedCell;
+    if (!yDoc || !yTable || !yHeaders || !currentSelectedCell) return;
+
+    const uniqueSelectedColIndices = getUniqueSelectedColumnIndices();
+    let numColsToAdd = 1;
+
+    if (uniqueSelectedColIndices.length > 0) {
+      const selectionIsConsideredMultiColumn =
+        selectedCells.length > 1 &&
+        new Set(selectedCells.map((s) => s.colIndex)).size > 1;
+      if (selectionIsConsideredMultiColumn) {
+        numColsToAdd = uniqueSelectedColIndices.length;
+      } else if (selectedCells.length === 0 && selectedCell) {
+        numColsToAdd = 1;
+      } else if (
+        selectedCells.length > 0 &&
+        new Set(selectedCells.map((s) => s.colIndex)).size === 1
+      ) {
+        numColsToAdd = 1;
+      } else if (selectedCells.length > 0) {
+        numColsToAdd =
+          uniqueSelectedColIndices.length > 0
+            ? uniqueSelectedColIndices.length
+            : 1;
+      } else {
+        numColsToAdd = 1;
+      }
+    } else if (selectedCell) {
+      numColsToAdd = 1;
+    } else {
+      toast.info("No cell selected to add columns relative to.");
       return;
     }
 
-    // Allow adding a column if table is empty, even without selection
-    if (!selectedCell && yTable.length > 0) {
+    if (
+      selectedCell &&
+      numColsToAdd === 0 &&
+      uniqueSelectedColIndices.length === 0
+    )
+      numColsToAdd = 1;
+    if (numColsToAdd === 0) {
+      toast.info(
+        "No columns were added as the selection was effectively empty for columns."
+      );
       return;
     }
 
-    const baseName = "New Column";
-    let counter = 1;
-    let defaultHeaderName = `${baseName} ${counter}`;
-    const existingHeadersLower = yHeaders.toArray().map((h) => h.toLowerCase());
-
-    while (existingHeadersLower.includes(defaultHeaderName.toLowerCase())) {
-      counter++;
-      defaultHeaderName = `${baseName} ${counter}`;
-    }
-
-    const headerToAdd = defaultHeaderName; // Start with default
-
-    // Determine insertion index based on direction and selection
-    let insertIndex = yHeaders.length; // Default to end if no selection/direction
-
-    // Only use selectedCell for index if it exists
-    if (selectedCell) {
-      insertIndex =
+    let calculatedInitialInsertIndex: number;
+    if (uniqueSelectedColIndices.length > 0) {
+      const minSelectedColIndex = uniqueSelectedColIndices[0];
+      const maxSelectedColIndex =
+        uniqueSelectedColIndices[uniqueSelectedColIndices.length - 1];
+      calculatedInitialInsertIndex =
+        direction === "left" ? minSelectedColIndex : maxSelectedColIndex + 1;
+    } else {
+      calculatedInitialInsertIndex =
         direction === "left"
-          ? selectedCell.colIndex
-          : selectedCell.colIndex + 1;
+          ? currentSelectedCell.colIndex
+          : currentSelectedCell.colIndex + 1;
     }
+    const initialInsertIndex = calculatedInitialInsertIndex;
 
-    // Set the pending operation
     setPendingOperation(
       direction === "left" ? "add-column-left" : "add-column-right"
     );
 
-    startTransition(() => {
-      // Asynchronously attempt to generate a better header and data
-      generateNewColumn(
-        yTable.toArray().map((row) => row.toJSON()),
-        yHeaders.toArray()
-      )
-        .then((result) => {
-          let finalHeader = headerToAdd;
-          let finalData: (string | undefined)[] | null = null;
+    startTransition(async () => {
+      const initialYHeadersArray = yHeaders.toArray();
+      const currentTableData = yTable
+        .toArray()
+        .map((r: Y.Map<unknown>) => r.toJSON());
+      const headersAddedInThisTx: string[] = [...initialYHeadersArray];
 
-          if (result.error || !result.newHeader || !result.newColumnData) {
-            console.warn(
-              "Failed to generate AI column name or data, falling back to default:",
-              result.error
-            );
+      const generateUniqueDefaultHeader = (
+        base: string,
+        existingInTx: string[]
+      ): string => {
+        let counter = 1;
+        let name = `${base} ${counter}`;
+        while (
+          existingInTx.map((h) => h.toLowerCase()).includes(name.toLowerCase())
+        ) {
+          counter++;
+          name = `${base} ${counter}`;
+        }
+        return name;
+      };
+
+      let aiResults: GeneratedColumn[] = [];
+      let operationError: string | undefined;
+
+      try {
+        if (numColsToAdd === 1) {
+          const result = await generateNewColumn(
+            currentTableData,
+            initialYHeadersArray
+          );
+          if (result.error) {
+            operationError = result.error;
+          } else if (result.newHeader && result.newColumnData) {
+            aiResults.push({
+              headerName: result.newHeader,
+              columnData: result.newColumnData,
+            });
           } else {
-            finalHeader = result.newHeader;
-            finalData = result.newColumnData;
-            console.log(
-              `[handleAddColumnRelative] AI generated header: "${finalHeader}"`
+            operationError =
+              "AI function for single column returned incomplete data.";
+          }
+        } else {
+          const result = await generateNewColumns(
+            currentTableData,
+            initialYHeadersArray,
+            numColsToAdd
+          );
+          if (result.error) {
+            operationError = result.error;
+          } else if (result.generatedColumns) {
+            aiResults = result.generatedColumns;
+          } else {
+            operationError =
+              "AI function for multiple columns returned no data.";
+          }
+        }
+
+        yDoc.transact(() => {
+          let actualColsAdded = 0;
+          let defaultColsAdded = 0;
+          let aiColsSuccessfullyAdded = 0;
+
+          if (operationError || aiResults.length === 0) {
+            console.warn(
+              `AI column generation failed or returned no columns. Error: ${operationError}. Adding ${numColsToAdd} default column(s).`
             );
+            for (let i = 0; i < numColsToAdd; i++) {
+              const insertIdx = initialInsertIndex + actualColsAdded;
+              const newHeaderName = generateUniqueDefaultHeader(
+                "New Column",
+                headersAddedInThisTx
+              );
+              applyDefaultColumnToYDocOnError(
+                yDoc,
+                yHeaders,
+                yTable,
+                newHeaderName,
+                insertIdx
+              );
+              headersAddedInThisTx.push(newHeaderName);
+              actualColsAdded++;
+              defaultColsAdded++;
+            }
+          } else {
+            for (let i = 0; i < numColsToAdd; i++) {
+              const insertIdx = initialInsertIndex + actualColsAdded;
+              if (i < aiResults.length) {
+                const col = aiResults[i];
+                if (
+                  headersAddedInThisTx
+                    .map((h) => h.toLowerCase())
+                    .includes(col.headerName.toLowerCase())
+                ) {
+                  console.warn(
+                    `Header '${col.headerName}' from AI conflicts, adding default instead.`
+                  );
+                  const newHeaderName = generateUniqueDefaultHeader(
+                    "New Column",
+                    headersAddedInThisTx
+                  );
+                  applyDefaultColumnToYDocOnError(
+                    yDoc,
+                    yHeaders,
+                    yTable,
+                    newHeaderName,
+                    insertIdx
+                  );
+                  headersAddedInThisTx.push(newHeaderName);
+                  defaultColsAdded++;
+                } else {
+                  applyGeneratedColumnToYDoc(
+                    yDoc,
+                    yHeaders,
+                    yTable,
+                    col.headerName,
+                    col.columnData,
+                    insertIdx
+                  );
+                  headersAddedInThisTx.push(col.headerName);
+                  aiColsSuccessfullyAdded++;
+                }
+              } else {
+                const newHeaderName = generateUniqueDefaultHeader(
+                  "New Column",
+                  headersAddedInThisTx
+                );
+                applyDefaultColumnToYDocOnError(
+                  yDoc,
+                  yHeaders,
+                  yTable,
+                  newHeaderName,
+                  insertIdx
+                );
+                headersAddedInThisTx.push(newHeaderName);
+                defaultColsAdded++;
+              }
+              actualColsAdded++;
+            }
           }
 
-          applyGeneratedColumnToYDoc(
-            yDoc,
-            yHeaders,
-            yTable,
-            finalHeader,
-            finalData,
-            insertIndex
-          );
-
-          // Clear the pending operation when done
-          setPendingOperation(null);
-        })
-        .catch((error) => {
-          console.error("Error calling generateNewColumn:", error);
-          toast.error("Failed to generate AI column suggestion.");
-          applyDefaultColumnToYDocOnError(
-            yDoc,
-            yHeaders,
-            yTable,
-            headerToAdd,
-            insertIndex
-          );
-
-          // Clear the pending operation when done
-          setPendingOperation(null);
+          if (aiColsSuccessfullyAdded > 0 && defaultColsAdded === 0) {
+            toast.success(
+              `Successfully added ${aiColsSuccessfullyAdded} AI-suggested column(s).`
+            );
+          } else if (aiColsSuccessfullyAdded > 0 && defaultColsAdded > 0) {
+            toast.info(
+              `Added ${actualColsAdded} column(s): ${aiColsSuccessfullyAdded} AI-suggested, ${defaultColsAdded} default.`
+            );
+          } else if (defaultColsAdded > 0 && aiColsSuccessfullyAdded === 0) {
+            toast.info(
+              `Added ${defaultColsAdded} default column(s) as AI suggestions were not available, failed, or conflicted.`
+            );
+          } else if (numColsToAdd > 0 && actualColsAdded === 0) {
+            toast.error(
+              "Attempted to add columns, but no columns were prepared or could be added."
+            );
+          }
         });
+      } catch (error) {
+        console.error("Error during add column operation:", error);
+        yDoc.transact(() => {
+          let fallbackAdded = 0;
+          for (let i = 0; i < numColsToAdd; i++) {
+            const insertIdx = initialInsertIndex + i;
+            const newHeaderName = generateUniqueDefaultHeader(
+              "New Column",
+              headersAddedInThisTx
+            );
+            applyDefaultColumnToYDocOnError(
+              yDoc,
+              yHeaders,
+              yTable,
+              newHeaderName,
+              insertIdx
+            );
+            headersAddedInThisTx.push(newHeaderName);
+            fallbackAdded++;
+          }
+          toast.error(
+            `Failed to add columns due to an unexpected error. ${fallbackAdded} default column(s) added as fallback.`
+          );
+        });
+      } finally {
+        setPendingOperation(null);
+      }
     });
   };
 
   const handleDeleteColumns = () => {
-    const uniqueColIndicesToDelete = getSelectedColumnIndices().sort(
+    const uniqueColIndicesToDelete = getUniqueSelectedColumnIndices().sort(
       (a, b) => b - a
     );
 
@@ -451,26 +621,10 @@ const LiveTableToolbar: React.FC = () => {
   // Update conditions based on isTableLoaded
   const canOperateOnSelection = !!selectedCell && isTableLoaded;
 
-  // Can add column if there is a selection or the table is empty
-  const canAddColumn =
-    ((selectedCell || (selectedCells && selectedCells.length > 0)) &&
-      isTableLoaded) ||
-    (yTable && yTable.length === 0);
-
-  const selectedColumnIndices = getSelectedColumnIndices();
-  const numSelectedCols = selectedColumnIndices.length;
-
   const selectedRowIndices = getSelectedRowIndices();
   const numSelectedRows = selectedRowIndices.length;
 
   const canDeleteRow = numSelectedRows > 0 && isTableLoaded && !!yTable;
-
-  const canDeleteColumn =
-    numSelectedCols > 0 &&
-    isTableLoaded &&
-    yHeaders &&
-    yHeaders.length > 0 &&
-    selectedColumnIndices.every((index) => index < yHeaders.length);
 
   const canDownload = isTableLoaded && yHeaders && yHeaders.length > 0;
 
@@ -499,6 +653,64 @@ const LiveTableToolbar: React.FC = () => {
       undoManager.off("stack-item-popped", updateUndoRedoState);
     };
   }, [undoManager]); // Rerun if undoManager instance changes
+
+  const addRowAboveButtonLabel =
+    numSelectedRows === 1
+      ? "Add Row Above"
+      : `Add ${numSelectedRows} Rows Above`;
+  const addRowBelowButtonLabel =
+    numSelectedRows === 1
+      ? "Add Row Below"
+      : `Add ${numSelectedRows} Rows Below`;
+  const deleteRowsButtonLabel =
+    numSelectedRows === 0 // Check if no rows are selected
+      ? "Delete Row" // Default singular label when disabled due to no selection
+      : numSelectedRows === 1
+      ? "Delete Row"
+      : `Delete ${numSelectedRows} Rows`;
+
+  const uniqueSelectedColIndices = getUniqueSelectedColumnIndices();
+  let numColsToModify = 1;
+  if (
+    selectedCells.length > 1 &&
+    new Set(selectedCells.map((s) => s.colIndex)).size > 1
+  ) {
+    numColsToModify = uniqueSelectedColIndices.length;
+  } else if (
+    selectedCells.length > 0 &&
+    new Set(selectedCells.map((s) => s.colIndex)).size === 1 &&
+    uniqueSelectedColIndices.length === 1
+  ) {
+    numColsToModify = 1;
+  } else if (
+    uniqueSelectedColIndices.length > 0 &&
+    uniqueSelectedColIndices.length !== 1
+  ) {
+    numColsToModify = uniqueSelectedColIndices.length;
+  } else if (selectedCell && selectedCells.length <= 1) {
+    numColsToModify = 1;
+  }
+  if (selectedCell && numColsToModify === 0) numColsToModify = 1;
+
+  const addColLeftButtonLabel =
+    numColsToModify === 1
+      ? "Add column to the left"
+      : `Add ${numColsToModify} Columns to the left`;
+  const addColRightButtonLabel =
+    numColsToModify === 1
+      ? "Add column to the right"
+      : `Add ${numColsToModify} Columns to the right`;
+  const deleteColButtonLabel =
+    uniqueSelectedColIndices.length === 0
+      ? "Delete selected column"
+      : uniqueSelectedColIndices.length === 1
+      ? "Delete selected column"
+      : `Delete ${uniqueSelectedColIndices.length} Columns`;
+
+  const isAddColumnLeftPending =
+    isPending && pendingOperation === "add-column-left";
+  const isAddColumnRightPending =
+    isPending && pendingOperation === "add-column-right";
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -545,11 +757,7 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              aria-label={
-                numSelectedRows > 1
-                  ? `Add ${numSelectedRows} Rows Above`
-                  : "Add Row Above"
-              }
+              aria-label={addRowAboveButtonLabel}
               onClick={() => {
                 handleAddRowRelative("above");
               }}
@@ -562,22 +770,14 @@ const LiveTableToolbar: React.FC = () => {
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>
-            {numSelectedRows > 1
-              ? `Add ${numSelectedRows} Rows Above`
-              : `Add Row Above`}
-          </TooltipContent>
+          <TooltipContent>{addRowAboveButtonLabel}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              aria-label={
-                numSelectedRows > 1
-                  ? `Add ${numSelectedRows} Rows Below`
-                  : "Add Row Below"
-              }
+              aria-label={addRowBelowButtonLabel}
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleAddRowRelative("below");
@@ -591,11 +791,7 @@ const LiveTableToolbar: React.FC = () => {
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>
-            {numSelectedRows > 1
-              ? `Add ${numSelectedRows} Rows Below`
-              : `Add Row Below`}
-          </TooltipContent>
+          <TooltipContent>{addRowBelowButtonLabel}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -604,21 +800,13 @@ const LiveTableToolbar: React.FC = () => {
               size="sm"
               onClick={handleDeleteRows}
               disabled={!canDeleteRow || isAnyOperationPending}
-              aria-label={
-                numSelectedRows > 1
-                  ? `Delete ${numSelectedRows} Rows`
-                  : "Delete Row"
-              }
+              aria-label={deleteRowsButtonLabel}
             >
               <Trash2 className="h-4 w-4 mr-1" />
               <Rows3 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>
-            {numSelectedRows > 1
-              ? `Delete ${numSelectedRows} Rows`
-              : "Delete Row"}
-          </TooltipContent>
+          <TooltipContent>{deleteRowsButtonLabel}</TooltipContent>
         </Tooltip>
 
         <Separator orientation="vertical" className="h-6 mx-1" />
@@ -628,42 +816,49 @@ const LiveTableToolbar: React.FC = () => {
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              size="sm"
-              aria-label="Add column to the left"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleAddColumnRelative("left");
-              }}
-              disabled={!canAddColumn || isAnyOperationPending}
+              size="icon"
+              onClick={() => handleAddColumnRelative("left")}
+              aria-label={addColLeftButtonLabel}
+              disabled={
+                isAddColumnLeftPending ||
+                isAddColumnRightPending ||
+                !isTableLoaded ||
+                !selectedCell
+              }
+              className="h-9 rounded-md px-3"
             >
-              {isPending && pendingOperation === "add-column-left" ? (
+              {isAddColumnLeftPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <ArrowLeftFromLine className="h-4 w-4" />
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Add Column Left</TooltipContent>
+          <TooltipContent>{addColLeftButtonLabel}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              size="sm"
-              aria-label="Add column to the right"
-              onClick={() => {
-                handleAddColumnRelative("right");
-              }}
-              disabled={!canAddColumn || isAnyOperationPending}
+              size="icon"
+              onClick={() => handleAddColumnRelative("right")}
+              aria-label={addColRightButtonLabel}
+              disabled={
+                isAddColumnRightPending ||
+                isAddColumnLeftPending ||
+                !isTableLoaded ||
+                !selectedCell
+              }
+              className="h-9 rounded-md px-3"
             >
-              {isPending && pendingOperation === "add-column-right" ? (
+              {isAddColumnRightPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <ArrowRightFromLine className="h-4 w-4" />
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Add Column Right</TooltipContent>
+          <TooltipContent>{addColRightButtonLabel}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -671,22 +866,19 @@ const LiveTableToolbar: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={handleDeleteColumns}
-              disabled={!canDeleteColumn || isAnyOperationPending}
-              aria-label={
-                numSelectedCols > 1
-                  ? "Delete selected columns"
-                  : "Delete selected column"
+              disabled={
+                isPending ||
+                !isTableLoaded ||
+                uniqueSelectedColIndices.length === 0
               }
+              aria-label={deleteColButtonLabel}
+              className="h-9 rounded-md px-3"
             >
               <Trash2 className="h-4 w-4 mr-1" />
               <Columns3 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>
-            {numSelectedCols > 1
-              ? `Delete ${numSelectedCols} Columns`
-              : "Delete Column"}
-          </TooltipContent>
+          <TooltipContent>{deleteColButtonLabel}</TooltipContent>
         </Tooltip>
 
         <Separator orientation="vertical" className="h-6 mx-1" />

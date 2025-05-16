@@ -316,7 +316,7 @@ describe("LiveTableToolbar - Delete Column", () => {
     expect(deleteButton).not.toBeDisabled();
     expect(deleteButton).toHaveAttribute(
       "aria-label",
-      "Delete selected columns"
+      `Delete ${colIndicesToDelete.length} Columns`
     );
 
     expect(yHeaders.length).toBe(initialHeadersData.length);

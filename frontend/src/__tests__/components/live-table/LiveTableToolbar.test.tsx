@@ -1,11 +1,30 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
-import * as GenerateNewColumnModule from "@/components/live-table/actions/generateNewColumn";
-import * as generateNewRowsModule from "@/components/live-table/actions/generateNewRows";
-import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
+import * as GenerateNewColumnModule
+  from "@/components/live-table/actions/generateNewColumn";
+import * as GenerateNewColumnsModule
+  from "@/components/live-table/actions/generateNewColumns";
+// Import the action AFTER vi.mock to get a handle to the mocked function
+import generateNewRowsAction
+  from "@/components/live-table/actions/generateNewRows";
+import * as LiveTableProviderModule
+  from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import * as YjsOperationsModule from "@/components/live-table/yjs-operations";
 
@@ -18,6 +37,10 @@ vi.mock("@/components/live-table/actions/generateNewColumn", () => ({
 }));
 
 vi.mock("@/components/live-table/actions/generateNewRows", () => ({
+  default: vi.fn(), // Plain vi.fn() here
+}));
+
+vi.mock("@/components/live-table/actions/generateNewColumns", () => ({
   default: vi.fn(),
 }));
 
@@ -31,6 +54,8 @@ vi.mock("@/components/live-table/yjs-operations", async (importOriginal) => ({
   applyDefaultRowToYDocOnError: vi.fn(),
 }));
 
+const mockGenerateNewRowsCtrl = vi.mocked(generateNewRowsAction);
+
 describe("LiveTableToolbar - Add Column Buttons", () => {
   const mockYDoc = new Y.Doc();
   const mockYHeaders = mockYDoc.getArray<string>("headers");
@@ -40,6 +65,9 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    // Reset the global mock for generateNewRows if it was used by a previous test/suite
+    // mockGenerateNewRowsGlobal.mockReset();
+    mockGenerateNewRowsCtrl.mockReset();
 
     const mockUseLiveTableReturnValue: ReturnType<
       typeof LiveTableProviderModule.useLiveTable
@@ -92,16 +120,69 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       newColumnData: ["value1", "value2"],
     });
 
+    // Setup initial Yjs state: 1 row, 0 headers
+    // This ensures that when a column is added, it affects the existing row.
+    mockYHeaders.delete(0, mockYHeaders.length); // Clear existing headers
+    mockYTable.delete(0, mockYTable.length); // Clear existing table data
+    const initialRow = new Y.Map<unknown>();
+    mockYTable.push([initialRow]);
+
+    // Mock useLiveTable to provide selectedCell and initial empty yHeaders and yTable
+    const mockLiveTableContext = {
+      yDoc: mockYDoc,
+      yHeaders: mockYHeaders,
+      yTable: mockYTable,
+      undoManager: mockUndoManager,
+      isTableLoaded: true,
+      selectedCell: { rowIndex: 0, colIndex: 0 }, // For initial column insertion point
+      tableId: "test-table",
+      tableData: [], // Initially empty or reflecting setup
+      headers: [], // Initially empty
+      selectedCells: [{ rowIndex: 0, colIndex: 0 }], // Ensure numColsToAdd is 1
+      // ... other necessary mocks from beforeEach, potentially adjusted
+      columnWidths: {},
+      handleCellChange: vi.fn(),
+      handleCellFocus: vi.fn(),
+      handleCellBlur: vi.fn(),
+      editingHeaderIndex: null,
+      editingHeaderValue: "",
+      handleHeaderDoubleClick: vi.fn(),
+      handleHeaderChange: vi.fn(),
+      handleHeaderBlur: vi.fn(),
+      handleHeaderKeyDown: vi.fn(),
+      handleColumnResize: vi.fn(),
+      selectionArea: { startCell: null, endCell: null },
+      isSelecting: false,
+      isCellSelected: vi.fn().mockReturnValue(false),
+      clearSelection: vi.fn(),
+      getSelectedCellsData: vi.fn().mockReturnValue([]),
+      editingCell: null,
+      setEditingCell: vi.fn(),
+      handleSelectionStart: vi.fn(),
+      handleSelectionMove: vi.fn(),
+      handleSelectionEnd: vi.fn(),
+    };
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
+      mockLiveTableContext
+    );
+
     render(<LiveTableToolbar />);
 
     const addLeftButton = screen.getByRole("button", {
       name: "Add column to the left",
     });
-    fireEvent.mouseDown(addLeftButton);
+    // fireEvent.mouseDown(addLeftButton); // Changed to click for consistency
+    await act(async () => {
+      fireEvent.click(addLeftButton);
+      await vi.runAllTimersAsync();
+    });
 
-    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
-
-    await vi.runAllTimersAsync();
+    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalledWith(
+      // currentTableData is initially [{}] because of the one empty row added
+      [{}], // tableData passed to generateNewColumn if one empty row exists
+      [] // initialYHeadersArray is empty
+    );
 
     expect(
       vi.mocked(YjsOperationsModule.applyGeneratedColumnToYDoc)
@@ -110,51 +191,86 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       vi.mocked(YjsOperationsModule.applyGeneratedColumnToYDoc)
     ).toHaveBeenCalledWith(
       mockYDoc,
-      mockYTable,
-      mockYHeaders,
+      mockYHeaders, // Corrected: yHeaders first
+      mockYTable, // Then yTable
       "AI Column",
       ["value1", "value2"],
-      0
+      0 // insertIndex
     );
     expect(
       vi.mocked(YjsOperationsModule.applyDefaultColumnToYDocOnError)
     ).not.toHaveBeenCalled();
   });
 
-  it("should call applyGeneratedColumnToYDoc with fallback values when AI resolves with an error for the right button", async () => {
+  it("should call applyDefaultColumnToYDocOnError when AI returns an error for add right button (single column)", async () => {
     vi.mocked(GenerateNewColumnModule.default).mockResolvedValueOnce({
       error: "AI Error",
     });
 
-    render(<LiveTableToolbar />); // yHeaders is empty initially
+    const mockSelectedCell = { rowIndex: 0, colIndex: 0 };
+    // Get the base mock value from the outer scope's beforeEach
+    const originalMockLiveTableContext =
+      vi
+        .mocked(LiveTableProviderModule.useLiveTable)
+        .getMockImplementation()?.() || {};
+
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockImplementation(() => ({
+      ...(originalMockLiveTableContext as ReturnType<
+        typeof LiveTableProviderModule.useLiveTable
+      >),
+      yDoc: mockYDoc, // Ensure these are from the test's specific Yjs instances if they differ
+      yHeaders: mockYHeaders,
+      yTable: mockYTable,
+      undoManager: mockUndoManager,
+      isTableLoaded: true,
+      selectedCell: mockSelectedCell,
+      selectedCells: [mockSelectedCell],
+      headers: mockYHeaders.toArray(),
+      tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()), // Ensure correct typing for map
+    }));
+
+    mockYHeaders.delete(0, mockYHeaders.length);
+    mockYTable.delete(0, mockYTable.length);
+    mockYTable.push([new Y.Map()]); // Ensure at least one row for consistent tableData for generateNewColumn
+
+    render(<LiveTableToolbar />);
     const addRightButton = screen.getByRole("button", {
       name: "Add column to the right",
     });
-    fireEvent.click(addRightButton);
 
-    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(addRightButton);
+      await vi.runAllTimersAsync();
+    });
 
-    await vi.runAllTimersAsync();
-
-    // Determine the expected default header name when yHeaders is empty
-    const expectedDefaultHeader = "New Column 1";
-    const expectedInsertIndex = 1; // For 'right' when selectedCell.colIndex is 0
-
-    expect(
-      vi.mocked(YjsOperationsModule.applyGeneratedColumnToYDoc)
-    ).toHaveBeenCalledTimes(1);
-    expect(
-      vi.mocked(YjsOperationsModule.applyGeneratedColumnToYDoc)
-    ).toHaveBeenCalledWith(
-      mockYDoc,
-      mockYTable,
-      mockYHeaders,
-      expectedDefaultHeader,
-      null,
-      expectedInsertIndex
+    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalledTimes(1);
+    // currentTableData is [{}], initialYHeadersArray is []
+    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalledWith(
+      [{}],
+      []
     );
+
+    // Check that the default error handler was called
     expect(
       vi.mocked(YjsOperationsModule.applyDefaultColumnToYDocOnError)
+    ).toHaveBeenCalledTimes(1);
+
+    const expectedDefaultHeader = "New Column 1"; // Default naming convention
+    const expectedInsertIndex = 1; // Adding to the right of colIndex 0
+
+    expect(
+      vi.mocked(YjsOperationsModule.applyDefaultColumnToYDocOnError)
+    ).toHaveBeenCalledWith(
+      mockYDoc,
+      mockYHeaders, // Corrected order
+      mockYTable,
+      expectedDefaultHeader,
+      expectedInsertIndex
+    );
+
+    // Ensure the success path was not taken
+    expect(
+      vi.mocked(YjsOperationsModule.applyGeneratedColumnToYDoc)
     ).not.toHaveBeenCalled();
   });
 
@@ -163,16 +279,42 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       new Error("Network Error")
     );
 
+    // Setup similar to other column tests for consistency
+    mockYHeaders.delete(0, mockYHeaders.length);
+    mockYTable.delete(0, mockYTable.length);
+    const initialRow = new Y.Map<unknown>();
+    mockYTable.push([initialRow]);
+
+    const baseMock =
+      vi
+        .mocked(LiveTableProviderModule.useLiveTable)
+        .getMockImplementation()?.() || {};
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
+      ...(baseMock as ReturnType<typeof LiveTableProviderModule.useLiveTable>),
+      yDoc: mockYDoc, // these should be from the test block's scope
+      yHeaders: mockYHeaders,
+      yTable: mockYTable,
+      undoManager: mockUndoManager,
+      isTableLoaded: true,
+      selectedCell: { rowIndex: 0, colIndex: 0 },
+      selectedCells: [{ rowIndex: 0, colIndex: 0 }], // Explicit single selection
+      headers: mockYHeaders.toArray(),
+      tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
+    });
+
     render(<LiveTableToolbar />);
     const addLeftButton = screen.getByRole("button", {
       name: "Add column to the left",
     });
-    fireEvent.mouseDown(addLeftButton);
+
+    await act(async () => {
+      fireEvent.click(addLeftButton); // Use click for consistency, wrapped in act
+      await vi.runAllTimersAsync(); // Ensure all async operations complete
+    });
 
     expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
 
-    await vi.runAllTimersAsync();
-
+    // Timers already run, so yjs operations should have been called if logic proceeded
     expect(
       vi.mocked(YjsOperationsModule.applyDefaultColumnToYDocOnError)
     ).toHaveBeenCalledTimes(1);
@@ -181,8 +323,8 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       vi.mocked(YjsOperationsModule.applyDefaultColumnToYDocOnError)
     ).toHaveBeenCalledWith(
       mockYDoc,
-      mockYTable,
       mockYHeaders,
+      mockYTable,
       defaultHeaderName,
       0
     );
@@ -201,26 +343,51 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       neverResolvedPromise
     );
 
+    // Setup similar to other column tests for consistency
+    mockYHeaders.delete(0, mockYHeaders.length);
+    mockYTable.delete(0, mockYTable.length);
+    const initialRow = new Y.Map<unknown>();
+    mockYTable.push([initialRow]);
+
+    const baseMock =
+      vi
+        .mocked(LiveTableProviderModule.useLiveTable)
+        .getMockImplementation()?.() || {};
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
+      ...(baseMock as ReturnType<typeof LiveTableProviderModule.useLiveTable>),
+      yDoc: mockYDoc,
+      yHeaders: mockYHeaders,
+      yTable: mockYTable,
+      undoManager: mockUndoManager,
+      isTableLoaded: true,
+      selectedCell: { rowIndex: 0, colIndex: 0 },
+      selectedCells: [{ rowIndex: 0, colIndex: 0 }], // Explicit single selection
+      headers: mockYHeaders.toArray(),
+      tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
+    });
+
     render(<LiveTableToolbar />);
 
-    // Click the add column left button
     const addColumnLeftButton = screen.getByRole("button", {
       name: "Add column to the left",
     });
-    fireEvent.mouseDown(addColumnLeftButton);
+    await act(async () => {
+      fireEvent.click(addColumnLeftButton);
+      // No need to await vi.runAllTimersAsync() if only checking for the call itself
+      // and the operation doesn't need to complete for this assertion.
+      // However, if generateNewColumn is not called, it implies a condition before it failed.
+      // Let's add timers to be safe, as startTransition is async.
+      await vi.runAllTimersAsync();
+    });
 
-    // After clicking, verify that React triggers the API call
     expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
   });
 
   it("should pass isDisabled to AI fill buttons when rendering", async () => {
-    const neverResolvedPromise = new Promise<{
-      newRows?: Record<string, string>[];
-      error?: string;
-    }>(() => {});
-    vi.mocked(generateNewRowsModule.default).mockReturnValueOnce(
-      neverResolvedPromise
-    );
+    // mockGenerateNewRowsGlobal.mockResolvedValueOnce({
+    mockGenerateNewRowsCtrl.mockResolvedValueOnce({
+      newRows: [{ dummy: "row" }],
+    }); // Simple resolving mock
 
     render(<LiveTableToolbar />);
 
@@ -228,10 +395,13 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       name: "Add Row Above",
     });
 
-    // Click to trigger isPendingRow state
-    fireEvent.click(addRowAboveButton);
+    await act(async () => {
+      fireEvent.click(addRowAboveButton);
+      await vi.runAllTimersAsync(); // Ensure timers run for the transition and async action
+    });
 
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalled();
+    // expect(mockGenerateNewRowsGlobal).toHaveBeenCalled();
+    expect(mockGenerateNewRowsCtrl).toHaveBeenCalled();
   });
 });
 
@@ -240,6 +410,15 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
   let mockYHeaders: Y.Array<string>;
   let mockYTable: Y.Array<Y.Map<unknown>>;
   let mockUndoManager: Y.UndoManager;
+
+  beforeAll(async () => {
+    // vi.doMock is no longer needed as we use the global mock
+    // vi.doMock("@/components/live-table/actions/generateNewRows", () => {
+    // return {
+    // default: mockGenerateNewRowsFn,
+    // };
+    // });
+  });
 
   const setupYjsData = (
     headers: string[],
@@ -304,6 +483,7 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    mockGenerateNewRowsCtrl.mockReset(); // Ensure it's reset for this suite
     const initialHeaders = ["Name", "Age"];
     const initialTableData = [{ Name: "Alice", Age: 30 }];
     setupYjsData(initialHeaders, initialTableData);
@@ -311,7 +491,10 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
       getDefaultMockLiveTableReturnValue()
     );
-    vi.mocked(generateNewRowsModule.default).mockReset();
+
+    // Ensure mockGenerateNewRowsGlobal is a fresh mock for each test that resolves to a base case
+    mockGenerateNewRowsCtrl.mockResolvedValue({ newRows: [] });
+
     vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc).mockReset();
     vi.mocked(YjsOperationsModule.applyDefaultRowToYDocOnError).mockReset();
   });
@@ -338,7 +521,7 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
       testSpecificMockValue
     );
-    vi.mocked(generateNewRowsModule.default).mockResolvedValueOnce({
+    mockGenerateNewRowsCtrl.mockResolvedValueOnce({
       newRows: [{ H1: "AI Row Above" }],
     });
 
@@ -351,8 +534,8 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalledWith(
+    expect(mockGenerateNewRowsCtrl).toHaveBeenCalledTimes(1);
+    expect(mockGenerateNewRowsCtrl).toHaveBeenCalledWith(
       expect.any(Array), // tableData
       ["H1"], // headers
       1 // numRowsToAdd
@@ -379,9 +562,8 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
       testSpecificMockValue
     );
-    vi.mocked(generateNewRowsModule.default).mockResolvedValueOnce({
-      error: "AI Error",
-    });
+    mockGenerateNewRowsCtrl.mockResolvedValueOnce({ error: "AI Error" });
+
     const yTableInsert = vi.spyOn(mockYTable, "insert");
 
     render(<LiveTableToolbar />);
@@ -417,7 +599,7 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
       testSpecificMockValue
     );
-    vi.mocked(generateNewRowsModule.default).mockResolvedValueOnce({
+    mockGenerateNewRowsCtrl.mockResolvedValueOnce({
       newRows: [{ H1: "AI Row 1" }, { H1: "AI Row 2" }],
     });
 
@@ -430,8 +612,8 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalledWith(
+    expect(mockGenerateNewRowsCtrl).toHaveBeenCalledTimes(1);
+    expect(mockGenerateNewRowsCtrl).toHaveBeenCalledWith(
       expect.any(Array),
       ["H1"],
       2
@@ -475,7 +657,7 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
       testSpecificMockValue
     );
-    vi.mocked(generateNewRowsModule.default).mockResolvedValueOnce({
+    mockGenerateNewRowsCtrl.mockResolvedValueOnce({
       newRows: [{ H1: "AI Row A" }, { H1: "AI Row B" }], // AI returns only 2 rows
     });
 
@@ -488,8 +670,8 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalledWith(
+    expect(mockGenerateNewRowsCtrl).toHaveBeenCalledTimes(1);
+    expect(mockGenerateNewRowsCtrl).toHaveBeenCalledWith(
       expect.any(Array),
       ["H1"],
       3
@@ -527,7 +709,7 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
       testSpecificMockValue
     );
-    vi.mocked(generateNewRowsModule.default).mockResolvedValueOnce({
+    mockGenerateNewRowsCtrl.mockResolvedValueOnce({
       newRows: [{ H1: "AI Row Single" }],
     });
 
@@ -540,8 +722,8 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(generateNewRowsModule.default)).toHaveBeenCalledWith(
+    expect(mockGenerateNewRowsCtrl).toHaveBeenCalledTimes(1);
+    expect(mockGenerateNewRowsCtrl).toHaveBeenCalledWith(
       expect.any(Array),
       ["H1"],
       1
@@ -553,6 +735,249 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
     ).not.toHaveBeenCalled();
     expect(
       vi.mocked(YjsOperationsModule.applyDefaultRowToYDocOnError)
+    ).not.toHaveBeenCalled();
+  });
+});
+
+describe("LiveTableToolbar - Add Multiple Columns", () => {
+  const mockYDoc = new Y.Doc();
+  let mockYHeaders: Y.Array<string>;
+  let mockYTable: Y.Array<Y.Map<unknown>>;
+  let mockUndoManager: Y.UndoManager;
+
+  // Helper to set up Yjs document state for each test
+  const setupYjsBaseDoc = (
+    initialHeaders: string[],
+    initialTableData: Record<string, unknown>[],
+    rowsPerInitialDataEntry = 1
+  ) => {
+    mockYHeaders = mockYDoc.getArray<string>("headers");
+    mockYHeaders.delete(0, mockYHeaders.length);
+    if (initialHeaders.length > 0) mockYHeaders.push(initialHeaders);
+
+    mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
+    mockYTable.delete(0, mockYTable.length);
+    if (initialTableData.length > 0) {
+      const rowsToInsert: Y.Map<unknown>[] = [];
+      initialTableData.forEach((rowData) => {
+        for (let i = 0; i < rowsPerInitialDataEntry; i++) {
+          const yRow = new Y.Map<unknown>();
+          initialHeaders.forEach((header) => {
+            if (Object.prototype.hasOwnProperty.call(rowData, header)) {
+              yRow.set(header, rowData[header]);
+            }
+          });
+          rowsToInsert.push(yRow);
+        }
+      });
+      if (rowsToInsert.length > 0) {
+        mockYTable.push(rowsToInsert);
+      }
+    }
+    if (
+      initialTableData.length > 0 &&
+      mockYTable.length === 0 &&
+      initialHeaders.length > 0
+    ) {
+      const emptyRow = new Y.Map<unknown>();
+      initialHeaders.forEach((h) => emptyRow.set(h, undefined));
+      mockYTable.push([emptyRow]);
+    }
+    mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
+  };
+
+  const getDefaultLiveTableMock = () => ({
+    yDoc: mockYDoc,
+    yHeaders: mockYHeaders,
+    yTable: mockYTable,
+    undoManager: mockUndoManager,
+    isTableLoaded: true,
+    selectedCell: { rowIndex: 0, colIndex: 0 },
+    selectedCells: [{ rowIndex: 0, colIndex: 0 }],
+    tableId: "multi-col-test",
+    headers: mockYHeaders.toArray(),
+    tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
+    columnWidths: {},
+    handleCellChange: vi.fn(),
+    handleCellFocus: vi.fn(),
+    handleCellBlur: vi.fn(),
+    editingHeaderIndex: null,
+    editingHeaderValue: "",
+    handleHeaderDoubleClick: vi.fn(),
+    handleHeaderChange: vi.fn(),
+    handleHeaderBlur: vi.fn(),
+    handleHeaderKeyDown: vi.fn(),
+    handleColumnResize: vi.fn(),
+    selectionArea: { startCell: null, endCell: null },
+    isSelecting: false,
+    isCellSelected: vi.fn().mockReturnValue(false),
+    clearSelection: vi.fn(),
+    getSelectedCellsData: vi.fn().mockReturnValue([]),
+    editingCell: null,
+    setEditingCell: vi.fn(),
+    handleSelectionStart: vi.fn(),
+    handleSelectionMove: vi.fn(),
+    handleSelectionEnd: vi.fn(),
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    setupYjsBaseDoc(["H1", "H2"], [{ H1: "r1v1", H2: "r1v2" }]);
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
+      getDefaultLiveTableMock()
+    );
+    vi.mocked(GenerateNewColumnsModule.default).mockReset();
+    vi.mocked(YjsOperationsModule.applyGeneratedColumnToYDoc).mockReset();
+    vi.mocked(YjsOperationsModule.applyDefaultColumnToYDocOnError).mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("should add 2 AI columns to the left when AI succeeds", async () => {
+    const numColsToRequest = 2;
+    setupYjsBaseDoc(["ExCol1", "ExCol2"], [{ ExCol1: "Val1", ExCol2: "Val2" }]);
+    const currentTableDataJson = mockYTable
+      .toArray()
+      .map((r: Y.Map<unknown>) => r.toJSON());
+    const currentHeadersArray = mockYHeaders.toArray();
+
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
+      ...getDefaultLiveTableMock(),
+      selectedCell: { rowIndex: 0, colIndex: 0 },
+      selectedCells: [
+        { rowIndex: 0, colIndex: 0 },
+        { rowIndex: 0, colIndex: 1 },
+      ],
+      headers: currentHeadersArray,
+      tableData: currentTableDataJson,
+    });
+
+    vi.mocked(GenerateNewColumnsModule.default).mockResolvedValueOnce({
+      generatedColumns: [
+        { headerName: "AI Col 1", columnData: ["d1"] },
+        { headerName: "AI Col 2", columnData: ["d2"] },
+      ],
+    });
+
+    render(<LiveTableToolbar />);
+    const addLeftButton = screen.getByRole("button", {
+      name: `Add ${numColsToRequest} Columns to the left`,
+    });
+
+    await act(async () => {
+      fireEvent.click(addLeftButton);
+      await vi.runAllTimersAsync();
+    });
+
+    expect(GenerateNewColumnsModule.default).toHaveBeenCalledTimes(1);
+    expect(GenerateNewColumnsModule.default).toHaveBeenCalledWith(
+      currentTableDataJson,
+      currentHeadersArray,
+      numColsToRequest
+    );
+
+    expect(
+      YjsOperationsModule.applyGeneratedColumnToYDoc
+    ).toHaveBeenCalledTimes(numColsToRequest);
+    expect(
+      YjsOperationsModule.applyGeneratedColumnToYDoc
+    ).toHaveBeenNthCalledWith(
+      1,
+      mockYDoc,
+      mockYHeaders,
+      mockYTable,
+      "AI Col 1",
+      ["d1"],
+      0
+    );
+    expect(
+      YjsOperationsModule.applyGeneratedColumnToYDoc
+    ).toHaveBeenNthCalledWith(
+      2,
+      mockYDoc,
+      mockYHeaders,
+      mockYTable,
+      "AI Col 2",
+      ["d2"],
+      1
+    );
+    expect(
+      YjsOperationsModule.applyDefaultColumnToYDocOnError
+    ).not.toHaveBeenCalled();
+  });
+
+  it("should add 2 default columns to the right when AI for multiple columns returns error", async () => {
+    const numColsToRequest = 2;
+    setupYjsBaseDoc(["ExCol1", "ExCol2"], [{ ExCol1: "Val1", ExCol2: "Val2" }]);
+    const currentTableDataJson = mockYTable
+      .toArray()
+      .map((r: Y.Map<unknown>) => r.toJSON());
+    const currentHeadersArray = mockYHeaders.toArray();
+
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
+      ...getDefaultLiveTableMock(),
+      selectedCell: { rowIndex: 0, colIndex: 1 }, // Adding right of ExCol2
+      selectedCells: [
+        { rowIndex: 0, colIndex: 0 }, // Cell in ExCol1
+        { rowIndex: 0, colIndex: 1 }, // Cell in ExCol2 (to trigger numColsToAdd = 2)
+      ],
+      headers: currentHeadersArray,
+      tableData: currentTableDataJson,
+    });
+
+    vi.mocked(GenerateNewColumnsModule.default).mockResolvedValueOnce({
+      error: "AI multi-column error",
+    });
+
+    render(<LiveTableToolbar />);
+    const addRightButton = screen.getByRole("button", {
+      name: `Add ${numColsToRequest} Columns to the right`,
+    });
+
+    await act(async () => {
+      fireEvent.click(addRightButton);
+      await vi.runAllTimersAsync();
+    });
+
+    expect(GenerateNewColumnsModule.default).toHaveBeenCalledTimes(1);
+    expect(GenerateNewColumnsModule.default).toHaveBeenCalledWith(
+      currentTableDataJson,
+      currentHeadersArray,
+      numColsToRequest
+    );
+
+    expect(
+      YjsOperationsModule.applyDefaultColumnToYDocOnError
+    ).toHaveBeenCalledTimes(numColsToRequest);
+    // Insert to right of ExCol2 (index 1). So, new cols at index 2, then index 3.
+    // Initial headers: ["ExCol1", "ExCol2"]
+    // After 1st default: ["ExCol1", "ExCol2", "New Column 1"]
+    // After 2nd default: ["ExCol1", "ExCol2", "New Column 1", "New Column 2"]
+    expect(
+      YjsOperationsModule.applyDefaultColumnToYDocOnError
+    ).toHaveBeenNthCalledWith(
+      1,
+      mockYDoc,
+      mockYHeaders,
+      mockYTable,
+      "New Column 1",
+      2 // Insert index for 1st default col (right of ExCol2)
+    );
+    expect(
+      YjsOperationsModule.applyDefaultColumnToYDocOnError
+    ).toHaveBeenNthCalledWith(
+      2,
+      mockYDoc,
+      mockYHeaders,
+      mockYTable,
+      "New Column 2",
+      3 // Insert index for 2nd default col (right of the first new one)
+    );
+    expect(
+      YjsOperationsModule.applyGeneratedColumnToYDoc
     ).not.toHaveBeenCalled();
   });
 });
