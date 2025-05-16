@@ -110,5 +110,11 @@ describe("LiveTableDisplay Cell Editing", () => {
 
     // Verify that handleCellChange was called with correct parameters
     expect(mockHandleCellChange).toHaveBeenCalledWith(0, "name", "New Name");
+
+    // Verify that the input is not focused after next selection
+    const nextCellInput = screen.getByDisplayValue("Jane Smith");
+    await user.click(nextCellInput);
+    expect(cellInput).not.toHaveFocus();
+    expect(mockHandleCellBlur).toHaveBeenCalled();
   });
 });

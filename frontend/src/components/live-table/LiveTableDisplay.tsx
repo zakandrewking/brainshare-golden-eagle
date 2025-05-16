@@ -213,6 +213,12 @@ const LiveTable: React.FC = () => {
 
     event.preventDefault();
 
+    if (editingCell) {
+      setEditingCell(null);
+    }
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     handleSelectionStart(rowIndex, colIndex);
   };
 
@@ -232,32 +238,9 @@ const LiveTable: React.FC = () => {
     if (cell) {
       const inputElement = cell.querySelector("input");
       if (inputElement) {
-        setTimeout(() => {
-          inputElement.focus();
-        }, 0);
+        inputElement.focus();
       }
     }
-  };
-
-  const handleInputMouseDown = (
-    event: React.MouseEvent<HTMLInputElement>,
-    rowIndex: number,
-    colIndex: number
-  ) => {
-    const isEditingThisCell =
-      editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
-
-    if (isEditingThisCell) {
-      return; // Allow default behavior when already editing the cell
-    }
-
-    // Prevent event bubbling to td element
-    event.stopPropagation();
-    // Prevent default focus behavior
-    event.preventDefault();
-
-    // Call both handlers directly since we're stopping propagation
-    handleSelectionStart(rowIndex, colIndex);
   };
 
   return (
@@ -368,9 +351,6 @@ const LiveTable: React.FC = () => {
                             setEditingCell(null);
                           }
                         }}
-                        onMouseDown={(e) =>
-                          handleInputMouseDown(e, rowIndex, colIndex)
-                        }
                         className={`w-full h-full p-2 border-none focus:outline-none ${
                           isEditing
                             ? "focus:ring-2 focus:ring-yellow-400"
