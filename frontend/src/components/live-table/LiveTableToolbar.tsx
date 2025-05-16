@@ -30,7 +30,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import generateNewColumn from "./actions/generateNewColumn";
 import generateNewColumns, {
   GeneratedColumn,
 } from "./actions/generateNewColumns";
@@ -351,36 +350,17 @@ const LiveTableToolbar: React.FC = () => {
       let operationError: string | undefined;
 
       try {
-        if (numColsToAdd === 1) {
-          const result = await generateNewColumn(
-            currentTableData,
-            initialYHeadersArray
-          );
-          if (result.error) {
-            operationError = result.error;
-          } else if (result.newHeader && result.newColumnData) {
-            aiResults.push({
-              headerName: result.newHeader,
-              columnData: result.newColumnData,
-            });
-          } else {
-            operationError =
-              "AI function for single column returned incomplete data.";
-          }
+        const result = await generateNewColumns(
+          currentTableData,
+          initialYHeadersArray,
+          numColsToAdd
+        );
+        if (result.error) {
+          operationError = result.error;
+        } else if (result.generatedColumns) {
+          aiResults = result.generatedColumns;
         } else {
-          const result = await generateNewColumns(
-            currentTableData,
-            initialYHeadersArray,
-            numColsToAdd
-          );
-          if (result.error) {
-            operationError = result.error;
-          } else if (result.generatedColumns) {
-            aiResults = result.generatedColumns;
-          } else {
-            operationError =
-              "AI function for multiple columns returned no data.";
-          }
+          operationError = "AI function for multiple columns returned no data.";
         }
 
         yDoc.transact(() => {

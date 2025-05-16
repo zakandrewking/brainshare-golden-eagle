@@ -16,8 +16,6 @@ import {
   screen,
 } from "@testing-library/react";
 
-import * as GenerateNewColumnModule
-  from "@/components/live-table/actions/generateNewColumn";
 import * as GenerateNewColumnsModule
   from "@/components/live-table/actions/generateNewColumns";
 // Import the action AFTER vi.mock to get a handle to the mocked function
@@ -32,12 +30,8 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
-vi.mock("@/components/live-table/actions/generateNewColumn", () => ({
-  default: vi.fn(),
-}));
-
 vi.mock("@/components/live-table/actions/generateNewRows", () => ({
-  default: vi.fn(), // Plain vi.fn() here
+  default: vi.fn(),
 }));
 
 vi.mock("@/components/live-table/actions/generateNewColumns", () => ({
@@ -115,9 +109,13 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
   });
 
   it("should call applyGeneratedColumnToYDoc when add left button is clicked and AI succeeds", async () => {
-    vi.mocked(GenerateNewColumnModule.default).mockResolvedValueOnce({
-      newHeader: "AI Column",
-      newColumnData: ["value1", "value2"],
+    vi.mocked(GenerateNewColumnsModule.default).mockResolvedValueOnce({
+      generatedColumns: [
+        {
+          headerName: "AI Column",
+          columnData: ["value1", "value2"],
+        },
+      ],
     });
 
     // Setup initial Yjs state: 1 row, 0 headers
@@ -177,11 +175,13 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalledWith(
-      // currentTableData is initially [{}] because of the one empty row added
-      [{}], // tableData passed to generateNewColumn if one empty row exists
-      [] // initialYHeadersArray is empty
+    expect(vi.mocked(GenerateNewColumnsModule.default)).toHaveBeenCalledTimes(
+      1
+    );
+    expect(vi.mocked(GenerateNewColumnsModule.default)).toHaveBeenCalledWith(
+      [{}],
+      [],
+      1
     );
 
     expect(
@@ -203,7 +203,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
   });
 
   it("should call applyDefaultColumnToYDocOnError when AI returns an error for add right button (single column)", async () => {
-    vi.mocked(GenerateNewColumnModule.default).mockResolvedValueOnce({
+    vi.mocked(GenerateNewColumnsModule.default).mockResolvedValueOnce({
       error: "AI Error",
     });
 
@@ -243,11 +243,14 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(GenerateNewColumnsModule.default)).toHaveBeenCalledTimes(
+      1
+    );
     // currentTableData is [{}], initialYHeadersArray is []
-    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalledWith(
+    expect(vi.mocked(GenerateNewColumnsModule.default)).toHaveBeenCalledWith(
       [{}],
-      []
+      [],
+      1
     );
 
     // Check that the default error handler was called
@@ -275,7 +278,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
   });
 
   it("should call applyDefaultColumnToYDocOnError when add left button is clicked and AI promise rejects", async () => {
-    vi.mocked(GenerateNewColumnModule.default).mockRejectedValueOnce(
+    vi.mocked(GenerateNewColumnsModule.default).mockRejectedValueOnce(
       new Error("Network Error")
     );
 
@@ -312,7 +315,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       await vi.runAllTimersAsync(); // Ensure all async operations complete
     });
 
-    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
+    expect(vi.mocked(GenerateNewColumnsModule.default)).toHaveBeenCalled();
 
     // Timers already run, so yjs operations should have been called if logic proceeded
     expect(
@@ -339,7 +342,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       newColumnData?: string[];
       error?: string;
     }>(() => {});
-    vi.mocked(GenerateNewColumnModule.default).mockReturnValueOnce(
+    vi.mocked(GenerateNewColumnsModule.default).mockReturnValueOnce(
       neverResolvedPromise
     );
 
@@ -380,7 +383,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(vi.mocked(GenerateNewColumnModule.default)).toHaveBeenCalled();
+    expect(vi.mocked(GenerateNewColumnsModule.default)).toHaveBeenCalled();
   });
 
   it("should pass isDisabled to AI fill buttons when rendering", async () => {
