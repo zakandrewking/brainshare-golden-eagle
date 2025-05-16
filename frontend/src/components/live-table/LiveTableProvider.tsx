@@ -303,41 +303,11 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     const newHeader = editingHeaderValue.trim();
 
     if (newHeader && newHeader !== oldHeader) {
-      yDoc.transact(() => {
-        // Update the header in the yHeaders array
-        yHeaders.delete(editingHeaderIndex, 1);
-        yHeaders.insert(editingHeaderIndex, [newHeader]);
-
-        // Update all rows to use the new header key
-        yTable.forEach((row: Y.Map<unknown>) => {
-          if (row.has(oldHeader)) {
-            const value = row.get(oldHeader);
-            row.delete(oldHeader);
-            row.set(newHeader, value);
-          }
-        });
-
-        // Update column width map if needed
-        if (yColWidths.has(oldHeader)) {
-          const width = yColWidths.get(oldHeader);
-          if (width !== undefined) {
-            yColWidths.delete(oldHeader);
-            yColWidths.set(newHeader, width);
-          }
-        }
-      });
+      liveTableDoc.editHeader(editingHeaderIndex, newHeader);
     }
 
     setEditingHeaderIndex(null);
-  }, [
-    editingHeaderIndex,
-    editingHeaderValue,
-    headers,
-    yHeaders,
-    yDoc,
-    yTable,
-    yColWidths,
-  ]);
+  }, [editingHeaderIndex, headers, yHeaders, editingHeaderValue, liveTableDoc]);
 
   const handleHeaderKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
