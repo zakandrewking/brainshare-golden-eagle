@@ -1,12 +1,15 @@
-# instructions
-
+---
+description: rules for frontend development
+globs:
+alwaysApply: true
+---
 - NEVER EVER add comments to code. The only exceptions are you can add a docstring
   to a function or module, or you can add a couple sentences describing a
   complex design decision. Otherwise, NO COMMENTS.
 - never use a check like process.env.NODE_ENV === "test" to get around failing tests
-- always run tests using the shell tool after implementing them
-- always use frontend components from /components/ui when possible
-- always use lucide-react for icons if possible
+- ALWAYS run tests using the shell tool after implementing them
+- ALWAYS use frontend components from /components/ui when possible
+- ALWAYS use lucide-react for icons if possible
 - use server actions instead of api routes in next.js
 - for toast messages, call sonner directly
 - create and modify sql schemas in /db/schema. Do not edit
