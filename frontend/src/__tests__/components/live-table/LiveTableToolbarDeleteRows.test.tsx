@@ -17,10 +17,11 @@ import {
   screen,
 } from "@testing-library/react";
 
+import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-import { mockUseLiveTable } from "./liveTableTestUtils";
+import { getLiveTableMockValues } from "./liveTableTestUtils";
 
 vi.mock("react", async () => {
   const actualReact = await vi.importActual<typeof import("react")>("react");
@@ -103,7 +104,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
     mockStartTransition = vi.fn((callback) => {
       if (callback) callback();
     });
-    // Now use the imported useTransition directly
     (useTransition as Mock).mockReturnValue([false, mockStartTransition]);
 
     ydoc = new Y.Doc();
@@ -121,16 +121,15 @@ describe("LiveTableToolbar - Delete Rows", () => {
     });
     yTable.insert(0, rowsToInsert);
 
-    // Base mock setup using the helper
-    mockUseLiveTable({
+    const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yTable: yTable,
       yHeaders: yHeaders,
       headers: initialHeaders,
       tableData: yTable.toArray().map((row) => row.toJSON()),
       isTableLoaded: true,
-      // selectedCell and selectedCells will be overridden in specific tests
     });
+    vi.mocked(useLiveTable).mockReturnValue(mockData);
   });
 
   afterEach(() => {
@@ -150,11 +149,9 @@ describe("LiveTableToolbar - Delete Rows", () => {
       redoStack: [],
     } as unknown as Y.UndoManager;
 
-    // Spy on yTable.delete
     const yTableDeleteSpy = vi.spyOn(yTable, "delete");
 
-    // Override mock for this specific test using the helper
-    mockUseLiveTable({
+    const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yTable: yTable,
       yHeaders: yHeaders,
@@ -167,7 +164,9 @@ describe("LiveTableToolbar - Delete Rows", () => {
       getSelectedCellsData: vi.fn(() => [
         [initialTableContent[selectedRowIndex].Header1],
       ]),
+      isTableLoaded: true,
     });
+    vi.mocked(useLiveTable).mockReturnValue(mockData);
 
     render(
       <TooltipProvider>
@@ -210,7 +209,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
   });
 
   it("should delete multiple selected rows and update aria-label", () => {
-    const rowIndicesToDelete = [0, 2]; // Delete R0 and R2
+    const rowIndicesToDelete = [0, 2];
     const selectedCellsForTest = rowIndicesToDelete.map((rowIndex) => ({
       rowIndex,
       colIndex: 0,
@@ -228,8 +227,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
 
     const yTableDeleteSpy = vi.spyOn(yTable, "delete");
 
-    // Override mock for this specific test using the helper
-    mockUseLiveTable({
+    const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yTable: yTable,
       yHeaders: yHeaders,
@@ -244,7 +242,9 @@ describe("LiveTableToolbar - Delete Rows", () => {
         )
       ),
       getSelectedCellsData: vi.fn(() => [["R0C1"], ["R2C1"]]),
+      isTableLoaded: true,
     });
+    vi.mocked(useLiveTable).mockReturnValue(mockData);
 
     render(
       <TooltipProvider>
@@ -261,19 +261,17 @@ describe("LiveTableToolbar - Delete Rows", () => {
 
     fireEvent.click(deleteButton!);
 
-    // Deletion happens in descending order of indices
     expect(yTableDeleteSpy).toHaveBeenCalledTimes(rowIndicesToDelete.length);
-    // R2 (index 2) is deleted first, then R0 (index 0)
-    expect(yTableDeleteSpy).toHaveBeenNthCalledWith(1, 2, 1); // Deletes initialTableContent[2]
-    expect(yTableDeleteSpy).toHaveBeenNthCalledWith(2, 0, 1); // Deletes initialTableContent[0]
+    expect(yTableDeleteSpy).toHaveBeenNthCalledWith(1, 2, 1);
+    expect(yTableDeleteSpy).toHaveBeenNthCalledWith(2, 0, 1);
 
     expect(yTable.length).toBe(
       initialTableContent.length - rowIndicesToDelete.length
     );
     const remainingRows = yTable.toArray().map((row) => row.toJSON());
     const expectedRemainingContent = [
-      initialTableContent[1], // R1 was not deleted
-      initialTableContent[3], // R3 was not deleted
+      initialTableContent[1],
+      initialTableContent[3],
     ];
     expect(remainingRows).toEqual(expectedRemainingContent);
   });
@@ -289,8 +287,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
       redoStack: [],
     } as unknown as Y.UndoManager;
 
-    // Override mock for this specific test using the helper
-    mockUseLiveTable({
+    const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yTable: yTable,
       yHeaders: yHeaders,
@@ -301,7 +298,9 @@ describe("LiveTableToolbar - Delete Rows", () => {
       tableData: yTable.toArray().map((row) => row.toJSON()),
       isCellSelected: vi.fn(() => false),
       getSelectedCellsData: vi.fn(() => []),
+      isTableLoaded: true,
     });
+    vi.mocked(useLiveTable).mockReturnValue(mockData);
 
     render(
       <TooltipProvider>

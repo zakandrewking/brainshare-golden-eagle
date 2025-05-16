@@ -1,18 +1,19 @@
 import { vi } from "vitest";
 import * as Y from "yjs";
 
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
+import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
 
 // Define a more specific type for overrides that allows yColWidths (Y.Map)
 // and other context properties.
 type LiveTableMockOverrides = Partial<
-  ReturnType<typeof LiveTableProviderModule.useLiveTable>
+  ReturnType<typeof LiveTableProvider.useLiveTable>
 > & {
   yColWidths?: Y.Map<number>; // Allow explicitly passing a Y.Map for yColWidths
 };
 
-export const mockUseLiveTable = (overrides: LiveTableMockOverrides = {}) => {
+export const getLiveTableMockValues = (
+  overrides: LiveTableMockOverrides = {}
+) => {
   const yDoc = overrides.yDoc || new Y.Doc();
   const yHeaders = overrides.yHeaders || yDoc.getArray<string>("tableHeaders");
   const yTable = overrides.yTable || yDoc.getArray<Y.Map<unknown>>("tableData");
@@ -31,9 +32,7 @@ export const mockUseLiveTable = (overrides: LiveTableMockOverrides = {}) => {
   const plainColumnWidthsSource =
     overrides.columnWidths || Object.fromEntries(yColWidthsMapSource.entries());
 
-  const defaultMockValue: ReturnType<
-    typeof LiveTableProviderModule.useLiveTable
-  > = {
+  const defaultMockValue: ReturnType<typeof LiveTableProvider.useLiveTable> = {
     // Start with all required Yjs instances and default values
     yDoc,
     yHeaders,
@@ -79,8 +78,5 @@ export const mockUseLiveTable = (overrides: LiveTableMockOverrides = {}) => {
   // If yColWidths was in overrides, defaultMockValue.yColWidths already has it from yColWidthsMapSource.
   // And defaultMockValue.columnWidths would be derived from it, unless overrides.columnWidths was also present.
 
-  vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-    defaultMockValue
-  );
   return defaultMockValue;
 };

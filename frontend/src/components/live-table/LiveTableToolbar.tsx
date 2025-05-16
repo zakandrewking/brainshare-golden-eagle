@@ -701,6 +701,7 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Undo"
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleUndo();
@@ -717,6 +718,7 @@ const LiveTableToolbar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Redo"
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleRedo();

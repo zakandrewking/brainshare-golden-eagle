@@ -17,12 +17,11 @@ import {
   screen,
 } from "@testing-library/react";
 
+import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-import {
-  mockUseLiveTable,
-} from "./liveTableTestUtils"; // Import the new helper
+import { getLiveTableMockValues } from "./liveTableTestUtils";
 
 vi.mock("react", async () => {
   const actualReact = await vi.importActual<typeof import("react")>("react");
@@ -139,19 +138,17 @@ describe("LiveTableToolbar - Delete Column", () => {
     });
     yTable.insert(0, rowsToInsert);
 
-    // Base mock setup for this describe block using the helper
-    // Specific tests can override parts of this as needed
-    mockUseLiveTable({
+    const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yTable: yTable,
       yHeaders: yHeaders,
-      yColWidths: yColWidthsMap, // Pass the Y.Map for yColWidths
+      yColWidths: yColWidthsMap,
       headers: yHeaders.toArray(),
       tableData: yTable.toArray().map((row) => row.toJSON()),
-      columnWidths: Object.fromEntries(yColWidthsMap.entries()), // Pass the plain object for columnWidths
+      columnWidths: Object.fromEntries(yColWidthsMap.entries()),
       isTableLoaded: true,
-      // Selected cell will be overridden in specific tests
     });
+    vi.mocked(useLiveTable).mockReturnValue(mockData);
   });
 
   afterEach(() => {
@@ -159,7 +156,7 @@ describe("LiveTableToolbar - Delete Column", () => {
   });
 
   it("should delete the selected column when a single column is selected and update aria-label", () => {
-    const colIndexToDelete = 1; // Delete "Header2"
+    const colIndexToDelete = 1;
     const headerToDelete = initialHeadersData[colIndexToDelete];
     const selectedCellForTest = { rowIndex: 0, colIndex: colIndexToDelete };
 
@@ -175,25 +172,26 @@ describe("LiveTableToolbar - Delete Column", () => {
 
     const yHeadersDeleteSpy = vi.spyOn(yHeaders, "delete");
 
-    // Override the mock for this specific test using the helper
-    mockUseLiveTable({
-      yDoc: ydoc, // ydoc, yHeaders, yTable are from beforeEach
+    const mockData = getLiveTableMockValues({
+      yDoc: ydoc,
       yHeaders: yHeaders,
       yTable: yTable,
       yColWidths: yColWidthsMap,
       selectedCell: selectedCellForTest,
       selectedCells: [selectedCellForTest],
       undoManager: mockUndoManager,
-      headers: yHeaders.toArray(), // from beforeEach after setup
-      tableData: yTable.toArray().map((row) => row.toJSON()), // from beforeEach
-      columnWidths: Object.fromEntries(yColWidthsMap.entries()), // from beforeEach
+      headers: yHeaders.toArray(),
+      tableData: yTable.toArray().map((row) => row.toJSON()),
+      columnWidths: Object.fromEntries(yColWidthsMap.entries()),
       isCellSelected: vi.fn(
         (rI, cI) =>
           rI === selectedCellForTest.rowIndex &&
           cI === selectedCellForTest.colIndex
       ),
       getSelectedCellsData: vi.fn(() => [["R1C2"]]),
+      isTableLoaded: true,
     });
+    vi.mocked(useLiveTable).mockReturnValue(mockData);
 
     render(
       <TooltipProvider>
@@ -220,23 +218,18 @@ describe("LiveTableToolbar - Delete Column", () => {
     expect(yHeaders.length).toBe(initialHeadersData.length - 1);
     expect(yHeaders.toArray()).toEqual(["Header1", "Header3", "Header4"]);
 
-    // Verify column is removed from each row in yTable
     yTable.forEach((row) => {
       expect(row.has(headerToDelete)).toBe(false);
     });
-    expect(yTable.get(0).get("Header1")).toBe("R1C1"); // Check remaining data integrity
+    expect(yTable.get(0).get("Header1")).toBe("R1C1");
 
-    // Check that yColWidthsMap (the Y.Map) itself has not been modified by this operation
-    // because handleDeleteColumn in the component does not touch it.
-    // The derived `columnWidths` in the context would be stale if not for a separate observer,
-    // but the underlying Y.Map for widths is what we check here.
     expect(Object.fromEntries(yColWidthsMap.entries())).toEqual(
       initialColWidthsData
     );
   });
 
   it("should delete multiple selected columns and update aria-label", () => {
-    const colIndicesToDelete = [0, 2]; // Delete "Header1" and "Header3"
+    const colIndicesToDelete = [0, 2];
     const headersToDelete = colIndicesToDelete.map(
       (idx) => initialHeadersData[idx]
     );
@@ -257,8 +250,7 @@ describe("LiveTableToolbar - Delete Column", () => {
 
     const yHeadersDeleteSpy = vi.spyOn(yHeaders, "delete");
 
-    // Override the mock for this specific test using the helper
-    mockUseLiveTable({
+    const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yHeaders: yHeaders,
       yTable: yTable,
@@ -275,7 +267,9 @@ describe("LiveTableToolbar - Delete Column", () => {
         )
       ),
       getSelectedCellsData: vi.fn(() => [["R1C1"], ["R1C3"]]),
+      isTableLoaded: true,
     });
+    vi.mocked(useLiveTable).mockReturnValue(mockData);
 
     render(
       <TooltipProvider>
@@ -298,11 +292,9 @@ describe("LiveTableToolbar - Delete Column", () => {
 
     fireEvent.click(deleteButton!);
 
-    // Deletion happens in descending order of indices
     expect(yHeadersDeleteSpy).toHaveBeenCalledTimes(colIndicesToDelete.length);
-    // Header3 (index 2) is deleted first, then Header1 (index 0)
-    expect(yHeadersDeleteSpy).toHaveBeenNthCalledWith(1, 2, 1); // Deletes initialHeadersData[2] ("Header3")
-    expect(yHeadersDeleteSpy).toHaveBeenNthCalledWith(2, 0, 1); // Deletes initialHeadersData[0] ("Header1") from the modified array
+    expect(yHeadersDeleteSpy).toHaveBeenNthCalledWith(1, 2, 1);
+    expect(yHeadersDeleteSpy).toHaveBeenNthCalledWith(2, 0, 1);
 
     expect(yHeaders.length).toBe(
       initialHeadersData.length - colIndicesToDelete.length
@@ -333,21 +325,22 @@ describe("LiveTableToolbar - Delete Column", () => {
       redoStack: [],
     } as unknown as Y.UndoManager;
 
-    // Override the mock for this specific test using the helper
-    mockUseLiveTable({
+    const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yHeaders: yHeaders,
       yTable: yTable,
       yColWidths: yColWidthsMap,
-      selectedCell: null, // No cell selected
-      selectedCells: [], // No cells selected
+      selectedCell: null,
+      selectedCells: [],
       undoManager: mockUndoManager,
       headers: yHeaders.toArray(),
       tableData: yTable.toArray().map((row) => row.toJSON()),
       columnWidths: Object.fromEntries(yColWidthsMap.entries()),
       isCellSelected: vi.fn(() => false),
       getSelectedCellsData: vi.fn(() => []),
+      isTableLoaded: true,
     });
+    vi.mocked(useLiveTable).mockReturnValue(mockData);
 
     render(
       <TooltipProvider>
@@ -358,7 +351,6 @@ describe("LiveTableToolbar - Delete Column", () => {
     const deleteButton = findDeleteColumnButton();
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).toBeDisabled();
-    // Corrected: When disabled due to no selection, it's singular
     expect(deleteButton).toHaveAttribute(
       "aria-label",
       "Delete selected column"
