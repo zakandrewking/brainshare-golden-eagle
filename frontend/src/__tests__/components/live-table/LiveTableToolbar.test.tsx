@@ -21,10 +21,12 @@ import * as GenerateNewColumnsModule
 // Import the action AFTER vi.mock to get a handle to the mocked function
 import generateNewRowsAction
   from "@/components/live-table/actions/generateNewRows";
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import * as YjsOperationsModule from "@/components/live-table/yjs-operations";
+
+import {
+  mockUseLiveTable,
+} from "./liveTableTestUtils"; // Import the new helper
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
@@ -51,57 +53,31 @@ vi.mock("@/components/live-table/yjs-operations", async (importOriginal) => ({
 const mockGenerateNewRowsCtrl = vi.mocked(generateNewRowsAction);
 
 describe("LiveTableToolbar - Add Column Buttons", () => {
-  const mockYDoc = new Y.Doc();
-  const mockYHeaders = mockYDoc.getArray<string>("headers");
-  const mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
-  const mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
+  let mockYDoc: Y.Doc;
+  let mockYHeaders: Y.Array<string>;
+  let mockYTable: Y.Array<Y.Map<unknown>>;
+  let mockUndoManager: Y.UndoManager;
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    // Reset the global mock for generateNewRows if it was used by a previous test/suite
-    // mockGenerateNewRowsGlobal.mockReset();
     mockGenerateNewRowsCtrl.mockReset();
 
-    const mockUseLiveTableReturnValue: ReturnType<
-      typeof LiveTableProviderModule.useLiveTable
-    > = {
+    // Initialize Yjs structures for this test suite block if needed
+    mockYDoc = new Y.Doc();
+    mockYHeaders = mockYDoc.getArray<string>("headers");
+    mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
+    mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
+
+    // Use the helper to set up the mock for useLiveTable
+    mockUseLiveTable({
       yDoc: mockYDoc,
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      isTableLoaded: true,
       selectedCell: { rowIndex: 0, colIndex: 0 },
-      tableId: "test-table",
-      tableData: [],
-      headers: [],
-      columnWidths: {},
-      handleCellChange: vi.fn(),
-      handleCellFocus: vi.fn(),
-      handleCellBlur: vi.fn(),
-      editingHeaderIndex: null,
-      editingHeaderValue: "",
-      handleHeaderDoubleClick: vi.fn(),
-      handleHeaderChange: vi.fn(),
-      handleHeaderBlur: vi.fn(),
-      handleHeaderKeyDown: vi.fn(),
-      handleColumnResize: vi.fn(),
-      selectionArea: { startCell: null, endCell: null },
-      isSelecting: false,
-      selectedCells: [],
-      handleSelectionStart: vi.fn(),
-      handleSelectionMove: vi.fn(),
-      handleSelectionEnd: vi.fn(),
-      isCellSelected: vi.fn().mockReturnValue(false),
-      clearSelection: vi.fn(),
-      getSelectedCellsData: vi.fn().mockReturnValue([]),
-      editingCell: null,
-      setEditingCell: vi.fn(),
-    };
-
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-      mockUseLiveTableReturnValue
-    );
+      // any other specific defaults for this describe block
+    });
   });
 
   afterEach(() => {
@@ -118,51 +94,23 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       ],
     });
 
-    // Setup initial Yjs state: 1 row, 0 headers
-    // This ensures that when a column is added, it affects the existing row.
-    mockYHeaders.delete(0, mockYHeaders.length); // Clear existing headers
-    mockYTable.delete(0, mockYTable.length); // Clear existing table data
+    // Setup initial Yjs state for this specific test
+    const testYDoc = new Y.Doc();
+    const testYHeaders = testYDoc.getArray<string>("headers");
+    const testYTable = testYDoc.getArray<Y.Map<unknown>>("table");
     const initialRow = new Y.Map<unknown>();
-    mockYTable.push([initialRow]);
+    testYTable.push([initialRow]);
 
-    // Mock useLiveTable to provide selectedCell and initial empty yHeaders and yTable
-    const mockLiveTableContext = {
-      yDoc: mockYDoc,
-      yHeaders: mockYHeaders,
-      yTable: mockYTable,
-      undoManager: mockUndoManager,
-      isTableLoaded: true,
-      selectedCell: { rowIndex: 0, colIndex: 0 }, // For initial column insertion point
-      tableId: "test-table",
-      tableData: [], // Initially empty or reflecting setup
-      headers: [], // Initially empty
-      selectedCells: [{ rowIndex: 0, colIndex: 0 }], // Ensure numColsToAdd is 1
-      // ... other necessary mocks from beforeEach, potentially adjusted
-      columnWidths: {},
-      handleCellChange: vi.fn(),
-      handleCellFocus: vi.fn(),
-      handleCellBlur: vi.fn(),
-      editingHeaderIndex: null,
-      editingHeaderValue: "",
-      handleHeaderDoubleClick: vi.fn(),
-      handleHeaderChange: vi.fn(),
-      handleHeaderBlur: vi.fn(),
-      handleHeaderKeyDown: vi.fn(),
-      handleColumnResize: vi.fn(),
-      selectionArea: { startCell: null, endCell: null },
-      isSelecting: false,
-      isCellSelected: vi.fn().mockReturnValue(false),
-      clearSelection: vi.fn(),
-      getSelectedCellsData: vi.fn().mockReturnValue([]),
-      editingCell: null,
-      setEditingCell: vi.fn(),
-      handleSelectionStart: vi.fn(),
-      handleSelectionMove: vi.fn(),
-      handleSelectionEnd: vi.fn(),
-    };
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-      mockLiveTableContext
-    );
+    // Override mock for this specific test if needed, or rely on beforeEach setup
+    mockUseLiveTable({
+      yDoc: testYDoc,
+      yHeaders: testYHeaders,
+      yTable: testYTable,
+      selectedCell: { rowIndex: 0, colIndex: 0 },
+      selectedCells: [{ rowIndex: 0, colIndex: 0 }],
+      headers: [], // Reflects empty initial headers for this test case
+      tableData: testYTable.toArray().map((r) => r.toJSON()), // Reflects initial table state
+    });
 
     render(<LiveTableToolbar />);
 
@@ -190,9 +138,9 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     expect(
       vi.mocked(YjsOperationsModule.applyGeneratedColumnToYDoc)
     ).toHaveBeenCalledWith(
-      mockYDoc,
-      mockYHeaders, // Corrected: yHeaders first
-      mockYTable, // Then yTable
+      testYDoc,
+      testYHeaders, // Corrected: yHeaders first
+      testYTable, // Then yTable
       "AI Column",
       ["value1", "value2"],
       0 // insertIndex
@@ -207,31 +155,21 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       error: "AI Error",
     });
 
-    const mockSelectedCell = { rowIndex: 0, colIndex: 0 };
-    // Get the base mock value from the outer scope's beforeEach
-    const originalMockLiveTableContext =
-      vi
-        .mocked(LiveTableProviderModule.useLiveTable)
-        .getMockImplementation()?.() || {};
+    const testYDoc = new Y.Doc();
+    const testYHeaders = testYDoc.getArray<string>("headers");
+    const testYTable = testYDoc.getArray<Y.Map<unknown>>("table");
+    testYTable.push([new Y.Map()]); // Ensure at least one row
 
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockImplementation(() => ({
-      ...(originalMockLiveTableContext as ReturnType<
-        typeof LiveTableProviderModule.useLiveTable
-      >),
-      yDoc: mockYDoc, // Ensure these are from the test's specific Yjs instances if they differ
-      yHeaders: mockYHeaders,
-      yTable: mockYTable,
-      undoManager: mockUndoManager,
-      isTableLoaded: true,
+    const mockSelectedCell = { rowIndex: 0, colIndex: 0 };
+    mockUseLiveTable({
+      yDoc: testYDoc,
+      yHeaders: testYHeaders,
+      yTable: testYTable,
       selectedCell: mockSelectedCell,
       selectedCells: [mockSelectedCell],
-      headers: mockYHeaders.toArray(),
-      tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()), // Ensure correct typing for map
-    }));
-
-    mockYHeaders.delete(0, mockYHeaders.length);
-    mockYTable.delete(0, mockYTable.length);
-    mockYTable.push([new Y.Map()]); // Ensure at least one row for consistent tableData for generateNewColumn
+      headers: testYHeaders.toArray(),
+      tableData: testYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
+    });
 
     render(<LiveTableToolbar />);
     const addRightButton = screen.getByRole("button", {
@@ -264,9 +202,9 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     expect(
       vi.mocked(YjsOperationsModule.applyDefaultColumnToYDocOnError)
     ).toHaveBeenCalledWith(
-      mockYDoc,
-      mockYHeaders, // Corrected order
-      mockYTable,
+      testYDoc,
+      testYHeaders, // Corrected order
+      testYTable,
       expectedDefaultHeader,
       expectedInsertIndex
     );
@@ -282,27 +220,20 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       new Error("Network Error")
     );
 
-    // Setup similar to other column tests for consistency
-    mockYHeaders.delete(0, mockYHeaders.length);
-    mockYTable.delete(0, mockYTable.length);
+    const testYDoc = new Y.Doc();
+    const testYHeaders = testYDoc.getArray<string>("headers");
+    const testYTable = testYDoc.getArray<Y.Map<unknown>>("table");
     const initialRow = new Y.Map<unknown>();
-    mockYTable.push([initialRow]);
+    testYTable.push([initialRow]);
 
-    const baseMock =
-      vi
-        .mocked(LiveTableProviderModule.useLiveTable)
-        .getMockImplementation()?.() || {};
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
-      ...(baseMock as ReturnType<typeof LiveTableProviderModule.useLiveTable>),
-      yDoc: mockYDoc, // these should be from the test block's scope
-      yHeaders: mockYHeaders,
-      yTable: mockYTable,
-      undoManager: mockUndoManager,
-      isTableLoaded: true,
+    mockUseLiveTable({
+      yDoc: testYDoc,
+      yHeaders: testYHeaders,
+      yTable: testYTable,
       selectedCell: { rowIndex: 0, colIndex: 0 },
-      selectedCells: [{ rowIndex: 0, colIndex: 0 }], // Explicit single selection
-      headers: mockYHeaders.toArray(),
-      tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
+      selectedCells: [{ rowIndex: 0, colIndex: 0 }],
+      headers: testYHeaders.toArray(),
+      tableData: testYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
     });
 
     render(<LiveTableToolbar />);
@@ -325,9 +256,9 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     expect(
       vi.mocked(YjsOperationsModule.applyDefaultColumnToYDocOnError)
     ).toHaveBeenCalledWith(
-      mockYDoc,
-      mockYHeaders,
-      mockYTable,
+      testYDoc,
+      testYHeaders,
+      testYTable,
       defaultHeaderName,
       0
     );
@@ -346,27 +277,20 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       neverResolvedPromise
     );
 
-    // Setup similar to other column tests for consistency
-    mockYHeaders.delete(0, mockYHeaders.length);
-    mockYTable.delete(0, mockYTable.length);
+    const testYDoc = new Y.Doc();
+    const testYHeaders = testYDoc.getArray<string>("headers");
+    const testYTable = testYDoc.getArray<Y.Map<unknown>>("table");
     const initialRow = new Y.Map<unknown>();
-    mockYTable.push([initialRow]);
+    testYTable.push([initialRow]);
 
-    const baseMock =
-      vi
-        .mocked(LiveTableProviderModule.useLiveTable)
-        .getMockImplementation()?.() || {};
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
-      ...(baseMock as ReturnType<typeof LiveTableProviderModule.useLiveTable>),
-      yDoc: mockYDoc,
-      yHeaders: mockYHeaders,
-      yTable: mockYTable,
-      undoManager: mockUndoManager,
-      isTableLoaded: true,
+    mockUseLiveTable({
+      yDoc: testYDoc,
+      yHeaders: testYHeaders,
+      yTable: testYTable,
       selectedCell: { rowIndex: 0, colIndex: 0 },
-      selectedCells: [{ rowIndex: 0, colIndex: 0 }], // Explicit single selection
-      headers: mockYHeaders.toArray(),
-      tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
+      selectedCells: [{ rowIndex: 0, colIndex: 0 }],
+      headers: testYHeaders.toArray(),
+      tableData: testYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
     });
 
     render(<LiveTableToolbar />);
@@ -409,7 +333,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
 });
 
 describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
-  const mockYDoc = new Y.Doc();
+  let mockYDoc: Y.Doc;
   let mockYHeaders: Y.Array<string>;
   let mockYTable: Y.Array<Y.Map<unknown>>;
   let mockUndoManager: Y.UndoManager;
@@ -427,10 +351,9 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
     headers: string[],
     tableContent: Array<Record<string, unknown>>
   ) => {
-    mockYHeaders = mockYDoc.getArray<string>("headers");
+    // Use the describe-scoped Yjs instances
     mockYHeaders.delete(0, mockYHeaders.length);
     mockYHeaders.push(headers);
-    mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
     mockYTable.delete(0, mockYTable.length);
     const rowsToInsert = tableContent.map((rowContent) => {
       const yRow = new Y.Map<unknown>();
@@ -442,60 +365,40 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
     mockYTable.insert(0, rowsToInsert);
   };
 
-  const getDefaultMockLiveTableReturnValue = (): ReturnType<
-    typeof LiveTableProviderModule.useLiveTable
-  > => ({
-    yDoc: mockYDoc,
-    yHeaders: mockYHeaders,
-    yTable: mockYTable,
-    undoManager: mockUndoManager,
-    isTableLoaded: true,
-    selectedCell: { rowIndex: 0, colIndex: 0 },
-    selectedCells: [{ rowIndex: 0, colIndex: 0 }],
-    tableId: "test-row-ops-table",
-    tableData: mockYTable.toArray().map((r) => r.toJSON()),
-    headers: mockYHeaders.toArray(),
-    columnWidths: {},
-    handleCellChange: vi.fn(),
-    handleCellFocus: vi.fn(),
-    handleCellBlur: vi.fn(),
-    editingHeaderIndex: null,
-    editingHeaderValue: "",
-    handleHeaderDoubleClick: vi.fn(),
-    handleHeaderChange: vi.fn(),
-    handleHeaderBlur: vi.fn(),
-    handleHeaderKeyDown: vi.fn(),
-    handleColumnResize: vi.fn(),
-    selectionArea: {
-      startCell: { rowIndex: 0, colIndex: 0 },
-      endCell: { rowIndex: 0, colIndex: 0 },
-    },
-    isSelecting: false,
-    isCellSelected: vi
-      .fn()
-      .mockImplementation((rI, cI) => rI === 0 && cI === 0),
-    clearSelection: vi.fn(),
-    getSelectedCellsData: vi.fn().mockReturnValue([["Alice"]]),
-    editingCell: null,
-    setEditingCell: vi.fn(),
-    handleSelectionStart: vi.fn(),
-    handleSelectionMove: vi.fn(),
-    handleSelectionEnd: vi.fn(),
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    mockGenerateNewRowsCtrl.mockReset(); // Ensure it's reset for this suite
-    const initialHeaders = ["Name", "Age"];
-    const initialTableData = [{ Name: "Alice", Age: 30 }];
-    setupYjsData(initialHeaders, initialTableData);
-    mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-      getDefaultMockLiveTableReturnValue()
-    );
+    mockGenerateNewRowsCtrl.mockReset();
 
-    // Ensure mockGenerateNewRowsGlobal is a fresh mock for each test that resolves to a base case
+    // Initialize Yjs structures for this describe block
+    mockYDoc = new Y.Doc();
+    mockYHeaders = mockYDoc.getArray<string>("headers");
+    mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
+    mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
+
+    const initialHeaders = ["Name", "Age"];
+    // const initialTableData = [{ Name: "Alice", Age: 30 }]; // Unused
+    // Setup Yjs data using the describe-scoped instances
+    mockYHeaders.push(initialHeaders);
+    const yRow = new Y.Map<unknown>();
+    yRow.set("Name", "Alice");
+    yRow.set("Age", 30);
+    mockYTable.push([yRow]);
+
+    // Use the helper
+    mockUseLiveTable({
+      yDoc: mockYDoc,
+      yHeaders: mockYHeaders,
+      yTable: mockYTable,
+      undoManager: mockUndoManager,
+      selectedCell: { rowIndex: 0, colIndex: 0 },
+      selectedCells: [{ rowIndex: 0, colIndex: 0 }],
+      tableData: mockYTable.toArray().map((r) => r.toJSON()),
+      headers: mockYHeaders.toArray(),
+      columnWidths: {},
+      getSelectedCellsData: vi.fn().mockReturnValue([["Alice"]]),
+    });
+
     mockGenerateNewRowsCtrl.mockResolvedValue({ newRows: [] });
 
     vi.mocked(YjsOperationsModule.applyGeneratedRowToYDoc).mockReset();
@@ -509,21 +412,17 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
   it("Add Row Above: 1 selected row, AI succeeds, adds 1 row", async () => {
     setupYjsData(["H1"], [{ H1: "R0" }, { H1: "R1" }]); // R0, R1
     const selectedCell = { rowIndex: 1, colIndex: 0 }; // Select R1 (index 1)
-    const testSpecificMockValue = {
-      ...getDefaultMockLiveTableReturnValue(),
-      selectedCell,
-      selectedCells: [selectedCell], // Simulate selection of 1 row
-      yDoc: mockYDoc,
+
+    mockUseLiveTable({
+      yDoc: mockYDoc, // ensure these are from the current scope
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      isTableLoaded: true,
+      selectedCell,
+      selectedCells: [selectedCell], // Simulate selection of 1 row
       headers: mockYHeaders.toArray(),
       tableData: mockYTable.toArray().map((r) => r.toJSON()),
-    };
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-      testSpecificMockValue
-    );
+    });
     mockGenerateNewRowsCtrl.mockResolvedValueOnce({
       newRows: [{ H1: "AI Row Above" }],
     });
@@ -550,21 +449,17 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
   it("Add Row Below: 1 selected row, AI fails, adds 1 default row", async () => {
     setupYjsData(["H1"], [{ H1: "R0" }]); // R0
     const selectedCell = { rowIndex: 0, colIndex: 0 }; // Select R0
-    const testSpecificMockValue = {
-      ...getDefaultMockLiveTableReturnValue(),
-      selectedCell,
-      selectedCells: [selectedCell],
-      yDoc: mockYDoc,
+
+    mockUseLiveTable({
+      yDoc: mockYDoc, // ensure these are from the current scope
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      isTableLoaded: true,
+      selectedCell,
+      selectedCells: [selectedCell],
       headers: mockYHeaders.toArray(),
       tableData: mockYTable.toArray().map((r) => r.toJSON()),
-    };
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-      testSpecificMockValue
-    );
+    });
     mockGenerateNewRowsCtrl.mockResolvedValueOnce({ error: "AI Error" });
 
     const yTableInsert = vi.spyOn(mockYTable, "insert");
@@ -587,21 +482,17 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       { rowIndex: 0, colIndex: 0 },
       { rowIndex: 2, colIndex: 0 },
     ]; // Select R0 and R2
-    const testSpecificMockValue = {
-      ...getDefaultMockLiveTableReturnValue(),
-      selectedCell: primarySelectedCell,
-      selectedCells: selectedCellsData,
-      yDoc: mockYDoc,
+
+    mockUseLiveTable({
+      yDoc: mockYDoc, // ensure these are from the current scope
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      isTableLoaded: true,
+      selectedCell: primarySelectedCell,
+      selectedCells: selectedCellsData,
       headers: mockYHeaders.toArray(),
       tableData: mockYTable.toArray().map((r) => r.toJSON()),
-    };
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-      testSpecificMockValue
-    );
+    });
     mockGenerateNewRowsCtrl.mockResolvedValueOnce({
       newRows: [{ H1: "AI Row 1" }, { H1: "AI Row 2" }],
     });
@@ -645,21 +536,17 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
       { rowIndex: 2, colIndex: 0 }, // R2
       { rowIndex: 3, colIndex: 0 }, // R3 (3 unique rows, max index 3)
     ];
-    const testSpecificMockValue = {
-      ...getDefaultMockLiveTableReturnValue(),
-      selectedCell: primarySelectedCell,
-      selectedCells: selectedCellsData,
-      yDoc: mockYDoc,
+
+    mockUseLiveTable({
+      yDoc: mockYDoc, // ensure these are from the current scope
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      isTableLoaded: true,
+      selectedCell: primarySelectedCell,
+      selectedCells: selectedCellsData,
       headers: mockYHeaders.toArray(),
       tableData: mockYTable.toArray().map((r) => r.toJSON()),
-    };
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-      testSpecificMockValue
-    );
+    });
     mockGenerateNewRowsCtrl.mockResolvedValueOnce({
       newRows: [{ H1: "AI Row A" }, { H1: "AI Row B" }], // AI returns only 2 rows
     });
@@ -697,21 +584,17 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
   it("Add Row Above: selectedCell is set but selectedCells is empty, adds 1 AI row", async () => {
     setupYjsData(["H1"], [{ H1: "R0" }]);
     const selectedCell = { rowIndex: 0, colIndex: 0 };
-    const testSpecificMockValue = {
-      ...getDefaultMockLiveTableReturnValue(),
-      selectedCell,
-      selectedCells: [], // selectedCells is empty
-      yDoc: mockYDoc,
+
+    mockUseLiveTable({
+      yDoc: mockYDoc, // ensure these are from the current scope
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      isTableLoaded: true,
+      selectedCell,
+      selectedCells: [], // selectedCells is empty
       headers: mockYHeaders.toArray(),
       tableData: mockYTable.toArray().map((r) => r.toJSON()),
-    };
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-      testSpecificMockValue
-    );
+    });
     mockGenerateNewRowsCtrl.mockResolvedValueOnce({
       newRows: [{ H1: "AI Row Single" }],
     });
@@ -743,7 +626,7 @@ describe("LiveTableToolbar - Add Row Buttons (using generateNewRows)", () => {
 });
 
 describe("LiveTableToolbar - Add Multiple Columns", () => {
-  const mockYDoc = new Y.Doc();
+  let mockYDoc: Y.Doc;
   let mockYHeaders: Y.Array<string>;
   let mockYTable: Y.Array<Y.Map<unknown>>;
   let mockUndoManager: Y.UndoManager;
@@ -754,11 +637,10 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
     initialTableData: Record<string, unknown>[],
     rowsPerInitialDataEntry = 1
   ) => {
-    mockYHeaders = mockYDoc.getArray<string>("headers");
+    // Use the describe-scoped Yjs instances
     mockYHeaders.delete(0, mockYHeaders.length);
     if (initialHeaders.length > 0) mockYHeaders.push(initialHeaders);
 
-    mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
     mockYTable.delete(0, mockYTable.length);
     if (initialTableData.length > 0) {
       const rowsToInsert: Y.Map<unknown>[] = [];
@@ -789,47 +671,29 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
     mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
   };
 
-  const getDefaultLiveTableMock = () => ({
-    yDoc: mockYDoc,
-    yHeaders: mockYHeaders,
-    yTable: mockYTable,
-    undoManager: mockUndoManager,
-    isTableLoaded: true,
-    selectedCell: { rowIndex: 0, colIndex: 0 },
-    selectedCells: [{ rowIndex: 0, colIndex: 0 }],
-    tableId: "multi-col-test",
-    headers: mockYHeaders.toArray(),
-    tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
-    columnWidths: {},
-    handleCellChange: vi.fn(),
-    handleCellFocus: vi.fn(),
-    handleCellBlur: vi.fn(),
-    editingHeaderIndex: null,
-    editingHeaderValue: "",
-    handleHeaderDoubleClick: vi.fn(),
-    handleHeaderChange: vi.fn(),
-    handleHeaderBlur: vi.fn(),
-    handleHeaderKeyDown: vi.fn(),
-    handleColumnResize: vi.fn(),
-    selectionArea: { startCell: null, endCell: null },
-    isSelecting: false,
-    isCellSelected: vi.fn().mockReturnValue(false),
-    clearSelection: vi.fn(),
-    getSelectedCellsData: vi.fn().mockReturnValue([]),
-    editingCell: null,
-    setEditingCell: vi.fn(),
-    handleSelectionStart: vi.fn(),
-    handleSelectionMove: vi.fn(),
-    handleSelectionEnd: vi.fn(),
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+
+    // Initialize Yjs structures for this describe block
+    mockYDoc = new Y.Doc();
+    mockYHeaders = mockYDoc.getArray<string>("headers");
+    mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
+    mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
+
     setupYjsBaseDoc(["H1", "H2"], [{ H1: "r1v1", H2: "r1v2" }]);
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-      getDefaultLiveTableMock()
-    );
+
+    mockUseLiveTable({
+      yDoc: mockYDoc,
+      yHeaders: mockYHeaders,
+      yTable: mockYTable,
+      undoManager: mockUndoManager,
+      selectedCell: { rowIndex: 0, colIndex: 0 },
+      selectedCells: [{ rowIndex: 0, colIndex: 0 }],
+      headers: mockYHeaders.toArray(),
+      tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
+    });
+
     vi.mocked(GenerateNewColumnsModule.default).mockReset();
     vi.mocked(YjsOperationsModule.applyGeneratedColumnToYDoc).mockReset();
     vi.mocked(YjsOperationsModule.applyDefaultColumnToYDocOnError).mockReset();
@@ -847,8 +711,11 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       .map((r: Y.Map<unknown>) => r.toJSON());
     const currentHeadersArray = mockYHeaders.toArray();
 
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
-      ...getDefaultLiveTableMock(),
+    mockUseLiveTable({
+      // Use the helper, spread default and override specifics
+      yDoc: mockYDoc,
+      yHeaders: mockYHeaders,
+      yTable: mockYTable,
       selectedCell: { rowIndex: 0, colIndex: 0 },
       selectedCells: [
         { rowIndex: 0, colIndex: 0 },
@@ -920,8 +787,10 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       .map((r: Y.Map<unknown>) => r.toJSON());
     const currentHeadersArray = mockYHeaders.toArray();
 
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
-      ...getDefaultLiveTableMock(),
+    mockUseLiveTable({
+      yDoc: mockYDoc,
+      yHeaders: mockYHeaders,
+      yTable: mockYTable,
       selectedCell: { rowIndex: 0, colIndex: 1 }, // Adding right of ExCol2
       selectedCells: [
         { rowIndex: 0, colIndex: 0 }, // Cell in ExCol1

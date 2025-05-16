@@ -17,9 +17,10 @@ import {
   screen,
 } from "@testing-library/react";
 
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+
+import { mockUseLiveTable } from "./liveTableTestUtils";
 
 vi.mock("react", async () => {
   const actualReact = await vi.importActual<typeof import("react")>("react");
@@ -71,8 +72,6 @@ vi.mock("lucide-react", async () => {
   };
 });
 
-const mockedUseLiveTable = vi.mocked(useLiveTable);
-
 describe("LiveTableToolbar - Delete Rows", () => {
   let ydoc: Y.Doc;
   let yTable: Y.Array<Y.Map<unknown>>;
@@ -121,6 +120,17 @@ describe("LiveTableToolbar - Delete Rows", () => {
       return yRow;
     });
     yTable.insert(0, rowsToInsert);
+
+    // Base mock setup using the helper
+    mockUseLiveTable({
+      yDoc: ydoc,
+      yTable: yTable,
+      yHeaders: yHeaders,
+      headers: initialHeaders,
+      tableData: yTable.toArray().map((row) => row.toJSON()),
+      isTableLoaded: true,
+      // selectedCell and selectedCells will be overridden in specific tests
+    });
   });
 
   afterEach(() => {
@@ -143,40 +153,17 @@ describe("LiveTableToolbar - Delete Rows", () => {
     // Spy on yTable.delete
     const yTableDeleteSpy = vi.spyOn(yTable, "delete");
 
-    mockedUseLiveTable.mockReturnValue({
+    // Override mock for this specific test using the helper
+    mockUseLiveTable({
       yDoc: ydoc,
-      yTable,
-      yHeaders,
+      yTable: yTable,
+      yHeaders: yHeaders,
       selectedCell: selectedCellForTest,
       selectedCells: [selectedCellForTest],
       undoManager: mockUndoManager,
-      isTableLoaded: true,
       headers: initialHeaders,
       tableData: yTable.toArray().map((row) => row.toJSON()),
-      columnWidths: {},
-      handleCellChange: vi.fn(),
-      handleCellFocus: vi.fn(),
-      handleCellBlur: vi.fn(),
-      editingHeaderIndex: null,
-      editingHeaderValue: "",
-      handleHeaderDoubleClick: vi.fn(),
-      handleHeaderChange: vi.fn(),
-      handleHeaderBlur: vi.fn(),
-      handleHeaderKeyDown: vi.fn(),
-      handleColumnResize: vi.fn(),
-      selectionArea: {
-        startCell: selectedCellForTest,
-        endCell: selectedCellForTest,
-      },
-      handleSelectionStart: vi.fn(),
-      handleSelectionMove: vi.fn(),
-      handleSelectionEnd: vi.fn(),
-      isSelecting: false,
       isCellSelected: vi.fn((rI) => rI === selectedRowIndex),
-      editingCell: null,
-      setEditingCell: vi.fn(),
-      clearSelection: vi.fn(),
-      tableId: "test-delete-table",
       getSelectedCellsData: vi.fn(() => [
         [initialTableContent[selectedRowIndex].Header1],
       ]),
@@ -241,45 +228,22 @@ describe("LiveTableToolbar - Delete Rows", () => {
 
     const yTableDeleteSpy = vi.spyOn(yTable, "delete");
 
-    mockedUseLiveTable.mockReturnValue({
+    // Override mock for this specific test using the helper
+    mockUseLiveTable({
       yDoc: ydoc,
-      yTable,
-      yHeaders,
-      selectedCell: selectedCellsForTest[0], // e.g., primary selected cell
+      yTable: yTable,
+      yHeaders: yHeaders,
+      selectedCell: selectedCellsForTest[0],
       selectedCells: selectedCellsForTest,
       undoManager: mockUndoManager,
-      isTableLoaded: true,
       headers: initialHeaders,
       tableData: yTable.toArray().map((row) => row.toJSON()),
-      columnWidths: {},
-      handleCellChange: vi.fn(),
-      handleCellFocus: vi.fn(),
-      handleCellBlur: vi.fn(),
-      editingHeaderIndex: null,
-      editingHeaderValue: "",
-      handleHeaderDoubleClick: vi.fn(),
-      handleHeaderChange: vi.fn(),
-      handleHeaderBlur: vi.fn(),
-      handleHeaderKeyDown: vi.fn(),
-      handleColumnResize: vi.fn(),
-      selectionArea: {
-        startCell: selectedCellsForTest[0],
-        endCell: selectedCellsForTest[selectedCellsForTest.length - 1],
-      },
-      handleSelectionStart: vi.fn(),
-      handleSelectionMove: vi.fn(),
-      handleSelectionEnd: vi.fn(),
-      isSelecting: false,
       isCellSelected: vi.fn((rI, cI) =>
         selectedCellsForTest.some(
           (cell) => cell.rowIndex === rI && cell.colIndex === cI
         )
       ),
-      editingCell: null,
-      setEditingCell: vi.fn(),
-      clearSelection: vi.fn(),
-      tableId: "test-delete-multi-row-table",
-      getSelectedCellsData: vi.fn(() => [["R0C1"], ["R2C1"]]), // Example data
+      getSelectedCellsData: vi.fn(() => [["R0C1"], ["R2C1"]]),
     });
 
     render(
@@ -325,37 +289,17 @@ describe("LiveTableToolbar - Delete Rows", () => {
       redoStack: [],
     } as unknown as Y.UndoManager;
 
-    mockedUseLiveTable.mockReturnValue({
+    // Override mock for this specific test using the helper
+    mockUseLiveTable({
       yDoc: ydoc,
-      yTable,
-      yHeaders,
+      yTable: yTable,
+      yHeaders: yHeaders,
       selectedCell: null,
       selectedCells: [],
       undoManager: mockUndoManager,
-      isTableLoaded: true,
       headers: initialHeaders,
       tableData: yTable.toArray().map((row) => row.toJSON()),
-      columnWidths: {},
-      handleCellChange: vi.fn(),
-      handleCellFocus: vi.fn(),
-      handleCellBlur: vi.fn(),
-      editingHeaderIndex: null,
-      editingHeaderValue: "",
-      handleHeaderDoubleClick: vi.fn(),
-      handleHeaderChange: vi.fn(),
-      handleHeaderBlur: vi.fn(),
-      handleHeaderKeyDown: vi.fn(),
-      handleColumnResize: vi.fn(),
-      selectionArea: { startCell: null, endCell: null },
-      handleSelectionStart: vi.fn(),
-      handleSelectionMove: vi.fn(),
-      handleSelectionEnd: vi.fn(),
-      isSelecting: false,
       isCellSelected: vi.fn(() => false),
-      editingCell: null,
-      setEditingCell: vi.fn(),
-      clearSelection: vi.fn(),
-      tableId: "test-no-delete-table",
       getSelectedCellsData: vi.fn(() => []),
     });
 
