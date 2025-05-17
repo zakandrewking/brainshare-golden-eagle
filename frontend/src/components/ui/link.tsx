@@ -41,12 +41,14 @@ export function InternalLink({
   className,
   disabled,
   variant = "link",
+  size = "default",
 }: {
   href: string;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
   variant?: VariantProps<typeof buttonVariants>["variant"];
+  size?: VariantProps<typeof buttonVariants>["size"];
 }) {
   if (disabled) {
     return (
@@ -56,7 +58,7 @@ export function InternalLink({
     );
   }
   return (
-    <Button variant={variant} asChild className={className}>
+    <Button variant={variant} size={size} asChild className={className}>
       <Link href={href}>{children}</Link>
     </Button>
   );

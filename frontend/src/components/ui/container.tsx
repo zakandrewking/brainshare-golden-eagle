@@ -20,7 +20,7 @@ export default function Container({
     <Stack
       direction="col"
       alignItems="start"
-      className={cn("p-6 sm:p-10 w-full", className)}
+      className={cn("p-4 w-full", className)}
       gap={gap}
     >
       {children}

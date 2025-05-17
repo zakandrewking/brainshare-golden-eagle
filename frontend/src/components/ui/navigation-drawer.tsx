@@ -1,12 +1,8 @@
 "use client";
 
-import {
-  ReactNode,
-  useEffect,
-  useState,
-} from "react";
+import { ReactNode, useEffect, useState } from "react";
 
-import { Menu, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -81,19 +77,12 @@ function NavigationButtonWithDrawer() {
     );
   }
 
-  const smIconButtonClasses =
-    "inline-flex items-center justify-center flex-shrink-0 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8";
-
   return (
     <Drawer direction="left" open={open} onOpenChange={setWillOpen}>
-      <DrawerTrigger
-        className={smIconButtonClasses}
-        //   size="icon-sm"
-        // TODO bring back when we have a responsive drawer
-        // className="md:hidden"
-        //   variant="ghost"
-      >
-        <Menu />
+      <DrawerTrigger>
+        <Button variant="outline" className="pr-3 pl-2 w-[80px]" size="sm">
+          <ChevronRight className="mr-1" size={16} /> Menu
+        </Button>
       </DrawerTrigger>
       <DrawerContent
         className="p-2 items-start z-[1000] fixed inset-y-0 left-0 top-0 bottom-0 mr-24"
@@ -110,8 +99,14 @@ function NavigationButtonWithDrawer() {
               <DrawerDescription>Navigation links</DrawerDescription>
             </VisuallyHidden>
             <DrawerHeader className="p-2 w-full flex flex-row justify-end">
-              <DrawerClose className={smIconButtonClasses}>
-                <X />
+              <DrawerClose asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="justify-start text-left"
+                >
+                  <ChevronLeft className="mr-1" size={16} /> Close
+                </Button>
               </DrawerClose>
             </DrawerHeader>
             <Stack direction="col" gap={1} className="w-full">
