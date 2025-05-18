@@ -8,7 +8,7 @@ const LiveTableContainer: React.FC<LiveTableContainerProps> = ({
   children,
 }) => {
   return (
-    <div className="fixed flex flex-col bottom-0 left-0 right-0 h-[calc(100vh-160px)] p-1 z-10 bg-background">
+    <div className="fixed flex flex-col bottom-0 left-0 right-0 h-[calc(100vh-110px)] p-1 z-10 bg-background">
       {children}
     </div>
   );
