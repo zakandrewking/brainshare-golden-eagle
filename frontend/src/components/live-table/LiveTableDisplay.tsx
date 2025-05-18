@@ -2,6 +2,15 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
+import { ArrowDown, ArrowUp, MoreHorizontal } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
 import { useLiveTable } from "./LiveTableProvider";
@@ -44,6 +53,8 @@ const LiveTable: React.FC = () => {
     editingCell,
     setEditingCell,
     clearSelection,
+    sortConfig,
+    handleSort,
   } = useLiveTable();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
@@ -285,12 +296,41 @@ const LiveTable: React.FC = () => {
                         />
                       ) : (
                         <div
-                          className="p-2 cursor-text flex-grow break-words"
+                          className="p-2 cursor-text flex-grow break-words flex items-center"
                           onDoubleClick={() => handleHeaderDoubleClick(index)}
                         >
                           {header}
+                          {sortConfig?.key === header && (
+                            <span className="ml-2">
+                              {sortConfig.direction === "asc" ? (
+                                <ArrowUp className="h-4 w-4" />
+                              ) : (
+                                <ArrowDown className="h-4 w-4" />
+                              )}
+                            </span>
+                          )}
                         </div>
                       )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-50 hover:opacity-100 focus:opacity-100 flex-shrink-0"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Header options</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem disabled>
+                            Sort Ascending
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled>
+                            Sort Descending
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <div
                         className={`absolute top-0 right-0 bottom-0 w-2 cursor-col-resize bg-transparent group-hover:bg-blue-200 ${
                           resizingHeader === header ? "bg-blue-400" : ""
