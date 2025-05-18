@@ -1,11 +1,6 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 
@@ -23,6 +18,7 @@ export interface CursorDataForCell {
 
 const DEFAULT_COL_WIDTH = 150;
 const MIN_COL_WIDTH = 50;
+const ROW_NUMBER_COL_WIDTH = 50;
 
 const LiveTable: React.FC = () => {
   const {
@@ -253,6 +249,15 @@ const LiveTable: React.FC = () => {
         >
           <thead>
             <tr>
+              <th
+                className="border border-slate-300 p-0 text-center"
+                style={{
+                  width: `${ROW_NUMBER_COL_WIDTH}px`,
+                  minWidth: `${ROW_NUMBER_COL_WIDTH}px`,
+                  maxWidth: `${ROW_NUMBER_COL_WIDTH}px`,
+                  verticalAlign: "top",
+                }}
+              ></th>
               {headers?.map((header, index) => {
                 const width = columnWidths?.[header] ?? DEFAULT_COL_WIDTH;
                 return (
@@ -302,6 +307,18 @@ const LiveTable: React.FC = () => {
           <tbody>
             {tableData?.map((row, rowIndex) => (
               <tr key={rowIndex}>
+                <td
+                  className="border border-slate-300 p-0 text-center"
+                  style={{
+                    width: `${ROW_NUMBER_COL_WIDTH}px`,
+                    minWidth: `${ROW_NUMBER_COL_WIDTH}px`,
+                    maxWidth: `${ROW_NUMBER_COL_WIDTH}px`,
+                  }}
+                >
+                  <div className="p-2 h-full flex items-center justify-center">
+                    {rowIndex + 1}
+                  </div>
+                </td>
                 {headers?.map((header, colIndex) => {
                   const cellKey = `${rowIndex}-${colIndex}`;
                   const isSelected =
