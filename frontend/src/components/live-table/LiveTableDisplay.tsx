@@ -240,7 +240,7 @@ const LiveTable: React.FC = () => {
   };
 
   return (
-    <div className="overflow-x-auto h-full">
+    <div className="overflow-x-auto overscroll-none h-full">
       <div className="w-max min-w-full">
         <table
           ref={tableRef}
