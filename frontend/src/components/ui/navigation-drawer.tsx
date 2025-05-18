@@ -79,10 +79,8 @@ function NavigationButtonWithDrawer() {
 
   return (
     <Drawer direction="left" open={open} onOpenChange={setWillOpen}>
-      <DrawerTrigger>
-        <Button variant="outline" className="pr-3 pl-2 w-[80px]" size="sm">
-          <ChevronRight className="mr-1" size={16} /> Menu
-        </Button>
+      <DrawerTrigger className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 rounded-md px-3 pr-3 pl-2 w-[80px]">
+        <ChevronRight className="mr-1" size={16} /> Menu
       </DrawerTrigger>
       <DrawerContent
         className="p-2 items-start z-[1000] fixed inset-y-0 left-0 top-0 bottom-0 mr-24"
