@@ -11,19 +11,11 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
-import {
-  LiveTableDoc as ActualLiveTableDoc,
-} from "@/components/live-table/LiveTableDoc";
+import { LiveTableDoc as ActualLiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import {
   type LiveTableContextType,
   useLiveTable,
@@ -265,11 +257,11 @@ describe("LiveTableDisplay Header Editing", () => {
     await user.dblClick(headerCellDiv!);
     rerender(<LiveTableDisplay />);
 
-    const headerCellTh = screen.getAllByRole("columnheader")[headerIndexToEdit];
-    const input = within(headerCellTh).getByRole("textbox") as HTMLInputElement;
+    const input = screen.getByTestId(
+      `${initialHeaders[headerIndexToEdit]}-editing`
+    ) as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: newHeaderText } });
-    rerender(<LiveTableDisplay />);
 
     await user.keyboard("{Enter}");
 
@@ -280,7 +272,6 @@ describe("LiveTableDisplay Header Editing", () => {
       newHeaderText
     );
 
-    rerender(<LiveTableDisplay />);
     const updatedHeaderCellTh =
       screen.getAllByRole("columnheader")[headerIndexToEdit];
     expect(

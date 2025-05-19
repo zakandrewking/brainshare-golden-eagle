@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
-import { ArrowDown, ArrowUp, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -53,8 +53,6 @@ const LiveTable: React.FC = () => {
     editingCell,
     setEditingCell,
     clearSelection,
-    sortConfig,
-    handleSort,
   } = useLiveTable();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
@@ -271,6 +269,7 @@ const LiveTable: React.FC = () => {
               ></th>
               {headers?.map((header, index) => {
                 const width = columnWidths?.[header] ?? DEFAULT_COL_WIDTH;
+                const isEditing = editingHeaderIndex === index;
                 return (
                   <th
                     key={`${header}-${index}`}
@@ -284,7 +283,7 @@ const LiveTable: React.FC = () => {
                     }}
                   >
                     <div className="flex items-start justify-between">
-                      {editingHeaderIndex === index ? (
+                      {isEditing ? (
                         <Input
                           type="text"
                           value={editingHeaderValue}
@@ -293,6 +292,7 @@ const LiveTable: React.FC = () => {
                           onKeyDown={handleHeaderKeyDown}
                           autoFocus
                           className="flex-grow h-full p-2 border-none focus:outline-none m-0 block bg-transparent"
+                          data-testid={`${header}-editing`}
                         />
                       ) : (
                         <div
@@ -300,7 +300,7 @@ const LiveTable: React.FC = () => {
                           onDoubleClick={() => handleHeaderDoubleClick(index)}
                         >
                           {header}
-                          {sortConfig?.key === header && (
+                          {/* {sortConfig?.key === header && (
                             <span className="ml-2">
                               {sortConfig.direction === "asc" ? (
                                 <ArrowUp className="h-4 w-4" />
@@ -308,7 +308,7 @@ const LiveTable: React.FC = () => {
                                 <ArrowDown className="h-4 w-4" />
                               )}
                             </span>
-                          )}
+                          )} */}
                         </div>
                       )}
                       <DropdownMenu>

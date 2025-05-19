@@ -1,21 +1,9 @@
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
+import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
