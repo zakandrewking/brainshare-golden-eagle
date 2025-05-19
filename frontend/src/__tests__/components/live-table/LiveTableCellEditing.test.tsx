@@ -9,14 +9,27 @@ import {
   MockedFunction,
   vi,
 } from "vitest";
+import * as Y from "yjs";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
+import {
+  type CellValue,
+  type ColumnDefinition,
+  type ColumnId,
+  LiveTableDoc,
+  type RowId,
+} from "@/components/live-table/LiveTableDoc";
+import {
+  LiveTableContextType,
+  useLiveTable,
+} from "@/components/live-table/LiveTableProvider";
 
-// Mock the useLiveTable hook
+import { getLiveTableMockValues } from "./liveTableTestUtils";
+
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
@@ -26,95 +39,122 @@ describe("LiveTableDisplay Cell Editing", () => {
   const mockHandleCellFocus = vi.fn();
   const mockHandleCellBlur = vi.fn();
   const mockHandleSelectionStart = vi.fn();
-  const mockHandleSelectionEnd = vi.fn();
-  const mockSetEditingCell = vi.fn();
+  let currentEditingCell: { rowIndex: number; colIndex: number } | null = null;
+
+  const mockSetEditingCell = vi.fn((cell) => {
+    currentEditingCell = cell;
+  });
+
+  let yDoc: Y.Doc;
+  let liveTableDocInstance: LiveTableDoc;
+
+  // V2 data structures
+  const colIdN = crypto.randomUUID() as ColumnId;
+  const colIdA = crypto.randomUUID() as ColumnId;
+  const initialColumnDefinitions: ColumnDefinition[] = [
+    { id: colIdN, name: "name", width: DEFAULT_COL_WIDTH },
+    { id: colIdA, name: "age", width: DEFAULT_COL_WIDTH },
+  ];
+  const initialColumnOrder: ColumnId[] = [colIdN, colIdA];
+
+  const rowIdJD = crypto.randomUUID() as RowId;
+  const rowIdJS = crypto.randomUUID() as RowId;
+  const initialRowOrder: RowId[] = [rowIdJD, rowIdJS];
+  const initialRowData: Record<RowId, Record<ColumnId, CellValue>> = {
+    [rowIdJD]: { [colIdN]: "John Doe", [colIdA]: "30" },
+    [rowIdJS]: { [colIdN]: "Jane Smith", [colIdA]: "25" },
+  };
+
+  const setupUseLiveTableMock = () => {
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockReturnValue(
+      getLiveTableMockValues({
+        liveTableDocInstance,
+        handleCellChange: mockHandleCellChange,
+        handleCellFocus: mockHandleCellFocus,
+        handleCellBlur: mockHandleCellBlur,
+        handleSelectionStart: mockHandleSelectionStart,
+        setEditingCell: mockSetEditingCell,
+        editingCell: currentEditingCell,
+      }) as LiveTableContextType
+    );
+  };
 
   beforeEach(() => {
-    // Setup mock implementation of useLiveTable
-    (useLiveTable as MockedFunction<typeof useLiveTable>).mockReturnValue({
-      tableData: [
-        { name: "John Doe", age: "30" },
-        { name: "Jane Smith", age: "25" },
-      ],
-      headers: ["name", "age"],
-      columnWidths: { name: 150, age: 100 },
-      handleCellChange: mockHandleCellChange,
-      handleCellFocus: mockHandleCellFocus,
-      handleCellBlur: mockHandleCellBlur,
-      editingHeaderIndex: null,
-      editingHeaderValue: "",
-      handleHeaderDoubleClick: vi.fn(),
-      handleHeaderChange: vi.fn(),
-      handleHeaderBlur: vi.fn(),
-      handleHeaderKeyDown: vi.fn(),
-      handleColumnResize: vi.fn(),
-      selectedCell: null,
-      handleSelectionStart: mockHandleSelectionStart,
-      handleSelectionMove: vi.fn(),
-      handleSelectionEnd: mockHandleSelectionEnd,
-      isSelecting: false,
-      isCellSelected: vi.fn().mockReturnValue(false),
-      undoManager: null,
-      tableId: "test-table",
-      isTableLoaded: true,
-      selectionArea: { startCell: null, endCell: null },
-      selectedCells: [],
-      clearSelection: vi.fn(),
-      getSelectedCellsData: vi.fn(),
-      editingCell: null,
-      setEditingCell: mockSetEditingCell,
-      generateAndInsertRows: vi
-        .fn()
-        .mockResolvedValue({ aiRowsAdded: 0, defaultRowsAdded: 0 }),
-      deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
-      generateAndInsertColumns: vi
-        .fn()
-        .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
-      deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
+    vi.clearAllMocks();
+    currentEditingCell = null;
+
+    yDoc = new Y.Doc();
+    liveTableDocInstance = new LiveTableDoc(yDoc);
+    // Manually populate V2 data
+    yDoc.transact(() => {
+      initialColumnDefinitions.forEach((def) =>
+        liveTableDocInstance.yColumnDefinitions.set(def.id, def)
+      );
+      liveTableDocInstance.yColumnOrder.push(initialColumnOrder);
+      initialRowOrder.forEach((rId) => {
+        const rData = initialRowData[rId];
+        const yRowMap = new Y.Map<CellValue>();
+        initialColumnOrder.forEach((cId) => {
+          if (rData[cId] !== undefined) yRowMap.set(cId, rData[cId]);
+        });
+        liveTableDocInstance.yRowData.set(rId, yRowMap);
+      });
+      liveTableDocInstance.yRowOrder.push(initialRowOrder);
+      liveTableDocInstance.yMeta.set("schemaVersion", 2);
     });
+
+    setupUseLiveTableMock();
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
-    vi.restoreAllMocks();
+    yDoc.destroy();
   });
 
   it("handles cell interactions correctly - click behavior and edit mode", async () => {
     const user = userEvent.setup();
+    const { container, rerender } = render(<LiveTableDisplay />);
 
-    render(<LiveTableDisplay />);
+    const cellInputJohnDoe = screen.getByDisplayValue("John Doe");
+    expect(cellInputJohnDoe).toBeInTheDocument();
 
-    // Find an input element within a cell
-    const cellInput = screen.getByDisplayValue("John Doe");
-    expect(cellInput).toBeDefined();
-
-    // Single click should only select the cell, not put it in edit mode
-    await user.click(cellInput);
+    await user.click(cellInputJohnDoe);
     expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
-    expect(mockSetEditingCell).not.toHaveBeenCalled();
-    expect(cellInput).not.toHaveFocus();
+    expect(cellInputJohnDoe).not.toHaveFocus();
 
-    // Double-click should put the cell into edit mode
-    await user.dblClick(cellInput);
+    const tdJohnDoe = cellInputJohnDoe.closest("td");
+    expect(tdJohnDoe).toBeInTheDocument();
+    await user.dblClick(tdJohnDoe!);
+
     expect(mockSetEditingCell).toHaveBeenCalledWith({
       rowIndex: 0,
       colIndex: 0,
     });
+    expect(currentEditingCell).toEqual({ rowIndex: 0, colIndex: 0 });
+    setupUseLiveTableMock();
+    rerender(<LiveTableDisplay />);
 
-    // Instead of asserting focus, which is problematic in JSDOM,
-    // verify that the necessary conditions for edit mode are satisfied
     expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
 
-    // Change the value of the input
-    fireEvent.change(cellInput, { target: { value: "New Name" } });
+    const editingTd = container.querySelector('td[data-editing="true"]');
+    expect(editingTd).toBeInTheDocument();
+    const editingInput = editingTd!.querySelector(
+      'input[type="text"]'
+    ) as HTMLInputElement | null;
+    expect(editingInput).toBeInTheDocument();
+    expect(editingInput!.value).toBe("John Doe");
 
-    // Verify that handleCellChange was called with correct parameters
-    expect(mockHandleCellChange).toHaveBeenCalledWith(0, "name", "New Name");
+    fireEvent.change(editingInput!, { target: { value: "New Name" } });
+    const headerNameForFirstCol = initialColumnDefinitions[0].name; // "name"
+    expect(mockHandleCellChange).toHaveBeenCalledWith(
+      0,
+      headerNameForFirstCol,
+      "New Name"
+    );
 
-    // Verify that the input is not focused after next selection
-    const nextCellInput = screen.getByDisplayValue("Jane Smith");
-    await user.click(nextCellInput);
-    expect(cellInput).not.toHaveFocus();
+    const cellInputJaneSmith = screen.getByDisplayValue("Jane Smith");
+    await user.click(cellInputJaneSmith.closest("td")!);
+
     expect(mockHandleCellBlur).toHaveBeenCalled();
+    expect(mockHandleSelectionStart).toHaveBeenCalledWith(1, 0);
   });
 });

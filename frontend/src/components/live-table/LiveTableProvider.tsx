@@ -437,7 +437,16 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         }
 
         if (rowsToInsertPlain.length > 0) {
-          liveTableDoc.insertRows(initialInsertIndex, rowsToInsertPlain);
+          const stringifiedRowsToInsert = rowsToInsertPlain.map((row) => {
+            const stringifiedRow: Record<string, string> = {};
+            for (const key in row) {
+              if (Object.prototype.hasOwnProperty.call(row, key)) {
+                stringifiedRow[key] = String(row[key] ?? "");
+              }
+            }
+            return stringifiedRow;
+          });
+          liveTableDoc.insertRows(initialInsertIndex, stringifiedRowsToInsert);
         }
 
         if (result.error) {
@@ -466,7 +475,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         // This catch is for errors during Yjs operations or other unexpected issues within the try block
         console.error(`Critical error in generateAndInsertRows:`, error);
         // Fallback: attempt to insert default rows directly into Yjs
-        const fallbackRowsPlain: Record<string, unknown>[] = [];
+        const fallbackRowsPlain: Record<string, string>[] = [];
         for (let i = 0; i < numRowsToAdd; i++) {
           const defaultRow: Record<string, string> = {};
           currentHeadersForAi.forEach((header) => {

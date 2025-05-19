@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
+import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
+import {
+  type CellValue,
+  type ColumnDefinition,
+  type ColumnId,
+  LiveTableDoc,
+  type RowId,
+} from "@/components/live-table/LiveTableDoc";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -11,265 +18,235 @@ vi.mock("sonner", () => ({
   },
 }));
 
-describe("LiveTableDoc - insertRows", () => {
+describe("LiveTableDoc - V1 Migration and Basic V2 State", () => {
   let yDoc: Y.Doc;
   let liveTableDoc: LiveTableDoc;
-  let yTable: Y.Array<Y.Map<unknown>>;
-  let yHeaders: Y.Array<string>;
-
-  const initialHeaders = ["ColA", "ColB"];
 
   beforeEach(() => {
     vi.clearAllMocks();
     yDoc = new Y.Doc();
-    liveTableDoc = new LiveTableDoc(yDoc);
-    yTable = liveTableDoc.yTable;
-    yHeaders = liveTableDoc.yHeaders;
+    const yOldHeaders = yDoc.getArray<string>("tableHeaders");
+    yOldHeaders.push(["V1HeaderA", "V1HeaderB"]);
+    const yOldColWidths = yDoc.getMap<number>("colWidths");
+    yOldColWidths.set("V1HeaderA", 100);
+    yOldColWidths.set("V1HeaderB", 120);
+    const yOldTable = yDoc.getArray<Y.Map<unknown>>("tableData");
+    const v1Row1 = new Y.Map<unknown>();
+    v1Row1.set("V1HeaderA", "v1r1a");
+    v1Row1.set("V1HeaderB", "v1r1b");
+    const v1Row2 = new Y.Map<unknown>();
+    v1Row2.set("V1HeaderA", "v1r2a");
+    // Deliberately missing V1HeaderB in v1Row2 to test default empty string on migration
+    yOldTable.push([v1Row1, v1Row2]);
 
-    yHeaders.push(initialHeaders);
+    liveTableDoc = new LiveTableDoc(yDoc); // Migration to V2 happens here
   });
 
-  it("should insert provided Y.Map rows into yTable and return inserted count", () => {
-    const insertIndex = 0;
-    const row1Data = { ColA: "new1a", ColB: "new1b" };
-    const row2Data = { ColA: "new2a", ColB: "new2b" };
-    const rowsToInsert = [row1Data, row2Data];
+  it("should migrate V1 data to V2 schema correctly", () => {
+    expect(liveTableDoc.yMeta.get("schemaVersion")).toBe(2);
+    expect(liveTableDoc.yColumnOrder.length).toBe(2);
+    expect(liveTableDoc.yRowOrder.length).toBe(2);
 
-    const yTableInsertSpy = vi.spyOn(yTable, "insert");
+    const colIdA = liveTableDoc.yColumnOrder.get(0);
+    const colDefA = liveTableDoc.yColumnDefinitions.get(colIdA);
+    expect(colDefA?.name).toBe("V1HeaderA");
+    expect(colDefA?.width).toBe(100);
 
-    const result = liveTableDoc.insertRows(insertIndex, rowsToInsert);
+    const colIdB = liveTableDoc.yColumnOrder.get(1);
+    const colDefB = liveTableDoc.yColumnDefinitions.get(colIdB);
+    expect(colDefB?.name).toBe("V1HeaderB");
+    expect(colDefB?.width).toBe(120);
 
-    expect(yTableInsertSpy).toHaveBeenCalledTimes(1);
-    expect(yTable.length).toBe(rowsToInsert.length);
-    expect(yTable.get(0).toJSON()).toEqual(row1Data);
-    expect(yTable.get(1).toJSON()).toEqual(row2Data);
-    expect(result).toBe(rowsToInsert.length);
+    const rowId1 = liveTableDoc.yRowOrder.get(0);
+    const row1Data = liveTableDoc.yRowData.get(rowId1);
+    expect(row1Data?.get(colIdA)).toBe("v1r1a");
+    expect(row1Data?.get(colIdB)).toBe("v1r1b");
+
+    const rowId2 = liveTableDoc.yRowOrder.get(1);
+    const row2Data = liveTableDoc.yRowData.get(rowId2);
+    expect(row2Data?.get(colIdA)).toBe("v1r2a");
+    expect(row2Data?.get(colIdB)).toBe(""); // Should be default empty string
   });
 
-  it("should throw an error if Yjs transaction fails", () => {
-    const insertIndex = 0;
-    const rowData = { ColA: "fail" };
-    const rowsToInsert = [rowData];
-
-    const yTableInsertSpy = vi
-      .spyOn(yTable, "insert")
-      .mockImplementationOnce(() => {
-        throw new Error("Yjs fail");
-      });
-
-    expect(() => liveTableDoc.insertRows(insertIndex, rowsToInsert)).toThrow(
-      "Yjs fail"
-    );
-    expect(yTableInsertSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it("should do nothing and return 0 if rowsToInsert is empty", () => {
-    const yTableInsertSpy = vi.spyOn(yTable, "insert");
-    const result = liveTableDoc.insertRows(0, []);
-
-    expect(yTableInsertSpy).not.toHaveBeenCalled();
-    expect(result).toBe(0);
+  it("should clear V1 data after migration if clearV1Data is called", () => {
+    liveTableDoc.clearV1Data();
+    expect(liveTableDoc.yTable.length).toBe(0);
+    expect(liveTableDoc.yHeaders.length).toBe(0);
+    expect(liveTableDoc.yColWidths.size).toBe(0);
+    // V2 data should persist
+    expect(liveTableDoc.yMeta.get("schemaVersion")).toBe(2);
+    expect(liveTableDoc.yColumnOrder.length).toBe(2);
   });
 });
 
-describe("LiveTableDoc - deleteRows", () => {
+describe("LiveTableDoc - V2 Operations on Clean V2 State", () => {
   let yDoc: Y.Doc;
   let liveTableDoc: LiveTableDoc;
-  let yTable: Y.Array<Y.Map<unknown>>;
-  let yHeaders: Y.Array<string>;
-
-  const initialHeaders = ["ColA", "ColB"];
-  const initialTableData = [
-    { ColA: "r0a", ColB: "r0b" },
-    { ColA: "r1a", ColB: "r1b" },
-    { ColA: "r2a", ColB: "r2b" },
-    { ColA: "r3a", ColB: "r3b" },
-  ];
+  let colId1: ColumnId, colId2: ColumnId;
+  let rowId1: RowId;
 
   beforeEach(() => {
     vi.clearAllMocks();
     yDoc = new Y.Doc();
-    liveTableDoc = new LiveTableDoc(yDoc);
-    yTable = liveTableDoc.yTable;
-    yHeaders = liveTableDoc.yHeaders;
 
-    yHeaders.push(initialHeaders);
-    initialTableData.forEach((data) => {
-      const rowMap = new Y.Map<unknown>();
-      Object.entries(data).forEach(([key, value]) => rowMap.set(key, value));
-      yTable.push([rowMap]);
+    // Initialize V2 shared types on yDoc FIRST
+    const yColumnDefinitions =
+      yDoc.getMap<ColumnDefinition>("columnDefinitions");
+    const yColumnOrder = yDoc.getArray<ColumnId>("columnOrder");
+    const yRowData = yDoc.getMap<Y.Map<CellValue>>("rowData");
+    const yRowOrder = yDoc.getArray<RowId>("rowOrder");
+    const yMeta = yDoc.getMap<unknown>("metaData");
+
+    colId1 = crypto.randomUUID() as ColumnId;
+    colId2 = crypto.randomUUID() as ColumnId;
+    rowId1 = crypto.randomUUID() as RowId;
+
+    yDoc.transact(() => {
+      yColumnDefinitions.set(colId1, {
+        id: colId1,
+        name: "ColA",
+        width: DEFAULT_COL_WIDTH,
+      });
+      yColumnDefinitions.set(colId2, {
+        id: colId2,
+        name: "ColB",
+        width: DEFAULT_COL_WIDTH,
+      });
+      yColumnOrder.push([colId1, colId2]);
+
+      const r1Map = new Y.Map<CellValue>();
+      r1Map.set(colId1, "r1a");
+      r1Map.set(colId2, "r1b");
+      yRowData.set(rowId1, r1Map);
+      yRowOrder.push([rowId1]);
+      yMeta.set("schemaVersion", 2); // Mark as V2
+    });
+
+    // Now instantiate LiveTableDoc. It should pick up existing V2 data.
+    liveTableDoc = new LiveTableDoc(yDoc);
+  });
+
+  describe("insertRows (V2)", () => {
+    it("should insert rows into yRowData and yRowOrder", () => {
+      const initialRowCount = liveTableDoc.yRowOrder.length; // Should be 1
+      const rowsToInsert = [
+        { ColA: "newR2A", ColB: "newR2B" },
+        { ColA: "newR3A", ColB: "newR3B" },
+      ];
+
+      const result = liveTableDoc.insertRows(1, rowsToInsert);
+      expect(result).toBe(rowsToInsert.length);
+      expect(liveTableDoc.yRowOrder.length).toBe(
+        initialRowCount + rowsToInsert.length
+      );
+
+      const insertedRowId2 = liveTableDoc.yRowOrder.get(1);
+      const insertedRowData2 = liveTableDoc.yRowData.get(insertedRowId2);
+      expect(insertedRowData2?.get(colId1)).toBe("newR2A");
+      expect(insertedRowData2?.get(colId2)).toBe("newR2B");
+
+      const insertedRowId3 = liveTableDoc.yRowOrder.get(2);
+      const insertedRowData3 = liveTableDoc.yRowData.get(insertedRowId3);
+      expect(insertedRowData3?.get(colId1)).toBe("newR3A");
+      expect(insertedRowData3?.get(colId2)).toBe("newR3B");
+    });
+
+    it("should return 0 if rowsData is empty", () => {
+      const result = liveTableDoc.insertRows(0, []);
+      expect(result).toBe(0);
     });
   });
 
-  it("should delete specified rows and return the count of deleted rows", () => {
-    const indicesToDelete = [2, 0]; // Sorted descending by caller
-    const yTableDeleteSpy = vi.spyOn(yTable, "delete");
-
-    const deletedCount = liveTableDoc.deleteRows(indicesToDelete);
-
-    expect(yTableDeleteSpy).toHaveBeenCalledTimes(indicesToDelete.length);
-    expect(yTableDeleteSpy).toHaveBeenNthCalledWith(1, 2, 1);
-    expect(yTableDeleteSpy).toHaveBeenNthCalledWith(2, 0, 1);
-
-    expect(yTable.length).toBe(
-      initialTableData.length - indicesToDelete.length
-    );
-    expect(yTable.get(0).toJSON()).toEqual(initialTableData[1]);
-    expect(yTable.get(1).toJSON()).toEqual(initialTableData[3]);
-    expect(deletedCount).toBe(indicesToDelete.length);
-  });
-
-  it("should handle deletion of a single row and return 1", () => {
-    const indexToDelete = [1];
-    const deletedCount = liveTableDoc.deleteRows(indexToDelete);
-    expect(yTable.length).toBe(initialTableData.length - 1);
-    expect(deletedCount).toBe(1);
-  });
-
-  it("should return 0 if rowIndices is empty", () => {
-    const deletedCount = liveTableDoc.deleteRows([]);
-    expect(yTable.length).toBe(initialTableData.length);
-    expect(deletedCount).toBe(0);
-  });
-
-  it("should throw an error if Yjs transaction fails", () => {
-    const indicesToDelete = [0];
-    const yTableDeleteSpy = vi
-      .spyOn(yTable, "delete")
-      .mockImplementationOnce(() => {
-        throw new Error("Yjs delete fail");
+  describe("deleteRows (V2)", () => {
+    it("should delete rows from yRowData and yRowOrder", () => {
+      const rowId2 = crypto.randomUUID() as RowId;
+      const r2Map = new Y.Map<CellValue>();
+      r2Map.set(colId1, "r2a");
+      r2Map.set(colId2, "r2b");
+      yDoc.transact(() => {
+        liveTableDoc.yRowData.set(rowId2, r2Map); // Use liveTableDoc instance properties
+        liveTableDoc.yRowOrder.push([rowId2]);
       });
-    expect(() => liveTableDoc.deleteRows(indicesToDelete)).toThrow(
-      "Yjs delete fail"
-    );
-    expect(yTableDeleteSpy).toHaveBeenCalledTimes(1);
+      const initialRowCount = liveTableDoc.yRowOrder.length;
+
+      const result = liveTableDoc.deleteRows([0]);
+      expect(result).toBe(1);
+      expect(liveTableDoc.yRowOrder.length).toBe(initialRowCount - 1);
+      expect(liveTableDoc.yRowData.has(rowId1)).toBe(false);
+      expect(liveTableDoc.yRowOrder.get(0)).toBe(rowId2);
+    });
   });
 
-  it("should return count of successfully deleted rows and warn for out-of-bounds indices", () => {
-    const indicesToDelete = [5, 0]; // 5 is out of bounds
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
+  describe("editHeader (V2)", () => {
+    it("should update column name in yColumnDefinitions", () => {
+      const colIndexToEdit = 0;
+      const originalColId = liveTableDoc.yColumnOrder.get(colIndexToEdit);
+      const newHeaderName = "UpdatedColA";
 
-    const deletedCount = liveTableDoc.deleteRows(indicesToDelete);
+      liveTableDoc.editHeader(colIndexToEdit, newHeaderName);
 
-    expect(yTable.length).toBe(initialTableData.length - 1); // Only one row should be deleted
-    expect(deletedCount).toBe(1);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Attempted to delete non-existent row at index 5")
-    );
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Attempted to delete 2 rows, but only 1 were valid"
-      )
-    );
-    consoleWarnSpy.mockRestore();
+      const definition = liveTableDoc.yColumnDefinitions.get(originalColId);
+      expect(definition?.name).toBe(newHeaderName);
+    });
   });
 
-  it("should return 0 and warn for all out-of-bounds indices", () => {
-    const indicesToDelete = [10, 20]; // All are out of bounds
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
+  describe("insertColumns (V2)", () => {
+    it("should insert columns and update existing rows", () => {
+      const initialColCount = liveTableDoc.yColumnOrder.length;
+      const columnsToInsert = [
+        { headerName: "NewColX", columnData: ["xValForRow1"] },
+      ];
 
-    const deletedCount = liveTableDoc.deleteRows(indicesToDelete);
+      const result = liveTableDoc.insertColumns(1, columnsToInsert);
+      expect(result).toBe(columnsToInsert.length);
+      expect(liveTableDoc.yColumnOrder.length).toBe(initialColCount + 1);
 
-    expect(yTable.length).toBe(initialTableData.length); // No rows should be deleted
-    expect(deletedCount).toBe(0);
-    // Check for individual warnings
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Attempted to delete non-existent row at index 10"
-      )
-    );
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Attempted to delete non-existent row at index 20"
-      )
-    );
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Attempted to delete 2 rows, but only 0 were valid"
-      )
-    );
-    consoleWarnSpy.mockRestore();
-  });
-});
+      const newColId = liveTableDoc.yColumnOrder.get(1);
+      const newColDef = liveTableDoc.yColumnDefinitions.get(newColId);
+      expect(newColDef?.name).toBe("NewColX");
 
-describe("LiveTableDoc - updateColumnWidth", () => {
-  let yDoc: Y.Doc;
-  let liveTableDoc: LiveTableDoc;
-  let yColWidths: Y.Map<number>;
-
-  beforeEach(() => {
-    yDoc = new Y.Doc();
-    liveTableDoc = new LiveTableDoc(yDoc);
-    yColWidths = liveTableDoc.yColWidths; // Access the map for spying/checking
-    vi.spyOn(yDoc, "transact");
+      const existingRowData = liveTableDoc.yRowData.get(rowId1);
+      expect(existingRowData?.get(newColId)).toBe("xValForRow1");
+    });
   });
 
-  it("should update column width in yColWidths within a transaction", () => {
-    const header = "TestCol";
-    const newWidth = 200;
+  describe("deleteColumns (V2)", () => {
+    it("should delete columns and update rows", () => {
+      const initialColCount = liveTableDoc.yColumnOrder.length;
+      const colIdToDelete = liveTableDoc.yColumnOrder.get(0);
 
-    liveTableDoc.updateColumnWidth(header, newWidth);
+      const result = liveTableDoc.deleteColumns([0]);
+      expect(result).toBe(1);
+      expect(liveTableDoc.yColumnOrder.length).toBe(initialColCount - 1);
+      expect(liveTableDoc.yColumnDefinitions.has(colIdToDelete)).toBe(false);
 
-    expect(yDoc.transact).toHaveBeenCalledTimes(1);
-    expect(yColWidths.get(header)).toBe(newWidth);
-  });
-});
-
-describe("LiveTableDoc - updateCell", () => {
-  let yDoc: Y.Doc;
-  let liveTableDoc: LiveTableDoc;
-  let yTable: Y.Array<Y.Map<unknown>>;
-  let yHeaders: Y.Array<string>;
-
-  beforeEach(() => {
-    yDoc = new Y.Doc();
-    liveTableDoc = new LiveTableDoc(yDoc);
-    yTable = liveTableDoc.yTable;
-    yHeaders = liveTableDoc.yHeaders;
-    yHeaders.push(["Header1", "Header2"]); // Setup some headers
-    vi.spyOn(yDoc, "transact");
+      const existingRowData = liveTableDoc.yRowData.get(rowId1);
+      expect(existingRowData?.has(colIdToDelete)).toBe(false);
+      expect(liveTableDoc.yColumnOrder.get(0)).toBe(colId2);
+    });
   });
 
-  it("should update cell value in yTable within a transaction", () => {
-    const rowMap = new Y.Map<unknown>();
-    rowMap.set("Header1", "val1");
-    rowMap.set("Header2", "val2");
-    yTable.push([rowMap]);
+  describe("updateColumnWidth (V2)", () => {
+    it("should update column width in yColumnDefinitions", () => {
+      const colNameToUpdate = "ColA";
+      const newWidth = 250;
 
-    const rowIndex = 0;
-    const header = "Header1";
-    const newValue = "newVal1";
-
-    liveTableDoc.updateCell(rowIndex, header, newValue);
-
-    expect(yDoc.transact).toHaveBeenCalledTimes(1);
-    const updatedRow = yTable.get(rowIndex);
-    expect(updatedRow.get(header)).toBe(newValue);
+      liveTableDoc.updateColumnWidth(colNameToUpdate, newWidth);
+      const definition = liveTableDoc.yColumnDefinitions.get(colId1);
+      expect(definition?.width).toBe(newWidth);
+    });
   });
 
-  it("should delete cell value if newValue is empty string", () => {
-    const rowMap = new Y.Map<unknown>();
-    rowMap.set("Header1", "val1");
-    yTable.push([rowMap]);
+  describe("updateCell (V2)", () => {
+    it("should update cell value in yRowData", () => {
+      const rowIndex = 0;
+      const colName = "ColA";
+      const newValue = "updatedNewValue";
 
-    const rowIndex = 0;
-    const header = "Header1";
-    const newValue = "";
+      liveTableDoc.updateCell(rowIndex, colName, newValue);
 
-    liveTableDoc.updateCell(rowIndex, header, newValue);
-
-    expect(yDoc.transact).toHaveBeenCalledTimes(1);
-    const updatedRow = yTable.get(rowIndex);
-    expect(updatedRow.has(header)).toBe(false);
-  });
-
-  it("should do nothing if row does not exist", () => {
-    liveTableDoc.updateCell(0, "Header1", "value");
-    expect(yDoc.transact).toHaveBeenCalledTimes(1); // Transact is still called
-    expect(yTable.length).toBe(0); // No row added or modified
+      const rowData = liveTableDoc.yRowData.get(rowId1);
+      expect(rowData?.get(colId1)).toBe(newValue);
+    });
   });
 });

@@ -7,8 +7,18 @@ import * as Y from "yjs";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
+import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
+import {
+  type CellValue,
+  type ColumnDefinition,
+  type ColumnId,
+  LiveTableDoc,
+  type RowId,
+} from "@/components/live-table/LiveTableDoc";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
+
+import { getLiveTableMockValues } from "./liveTableTestUtils";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
@@ -18,120 +28,73 @@ const mockedUseLiveTable = vi.mocked(useLiveTable);
 
 describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
   const mockClearSelection = vi.fn();
-  const mockSetSelectedCell = vi.fn();
-  const mockSetEditingCell = vi.fn();
-  const mockResizeColumn = vi.fn();
-  const mockHandleCellChange = vi.fn();
 
-  let ydoc: Y.Doc;
-  let yTableForMock: Y.Array<Y.Map<unknown>>;
-  let yHeadersForMock: Y.Array<string>;
-  let yColWidthsForMock: Y.Map<number>;
+  let yDoc: Y.Doc;
+  let liveTableDocInstance: LiveTableDoc;
 
-  const initialTableData = {
-    headers: [{ id: "col1", width: 100, label: "Column 1" }],
-    rows: [
-      { id: "row1", cells: [{ id: "cell1", value: "R1C1" }] },
-      { id: "row2", cells: [{ id: "cell2", value: "R2C1" }] },
-    ],
+  // V2 data structures
+  const colId1 = crypto.randomUUID() as ColumnId;
+  const initialColumnDefinitions: ColumnDefinition[] = [
+    { id: colId1, name: "Column 1", width: DEFAULT_COL_WIDTH },
+  ];
+  const initialColumnOrder: ColumnId[] = [colId1];
+
+  const rowId1 = crypto.randomUUID() as RowId;
+  const rowId2 = crypto.randomUUID() as RowId;
+  const initialRowOrder: RowId[] = [rowId1, rowId2];
+  const initialRowData: Record<RowId, Record<ColumnId, CellValue>> = {
+    [rowId1]: { [colId1]: "R1C1" },
+    [rowId2]: { [colId1]: "R2C1" },
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
 
-    ydoc = new Y.Doc();
-    yTableForMock = ydoc.getArray<Y.Map<unknown>>("tableData");
-    yHeadersForMock = ydoc.getArray<string>("tableHeaders");
-    yColWidthsForMock = ydoc.getMap<number>("colWidths");
-
-    const headerConfig = initialTableData.headers[0];
-    yHeadersForMock.insert(0, [headerConfig.label]);
-    yColWidthsForMock.set(headerConfig.label, headerConfig.width);
-
-    const rowsToInsert = initialTableData.rows.map((rowDef) => {
-      const yRow = new Y.Map<unknown>();
-      rowDef.cells.forEach((cell) => {
-        yRow.set(headerConfig.label, cell.value);
+    yDoc = new Y.Doc();
+    liveTableDocInstance = new LiveTableDoc(yDoc);
+    // Manually populate V2 data
+    yDoc.transact(() => {
+      initialColumnDefinitions.forEach((def) =>
+        liveTableDocInstance.yColumnDefinitions.set(def.id, def)
+      );
+      liveTableDocInstance.yColumnOrder.push(initialColumnOrder);
+      initialRowOrder.forEach((rId) => {
+        const rData = initialRowData[rId];
+        const yRowMap = new Y.Map<CellValue>();
+        initialColumnOrder.forEach((cId) => {
+          if (rData[cId] !== undefined) yRowMap.set(cId, rData[cId]);
+        });
+        liveTableDocInstance.yRowData.set(rId, yRowMap);
       });
-      return yRow;
+      liveTableDocInstance.yRowOrder.push(initialRowOrder);
+      liveTableDocInstance.yMeta.set("schemaVersion", 2);
     });
-    yTableForMock.insert(0, rowsToInsert);
 
-    const jsHeaders = yHeadersForMock.toArray();
-    const jsTableData = yTableForMock.toArray().map((yrow) => {
-      const rowObj: Record<string, unknown> = {};
-      yrow.forEach((value, key) => {
-        rowObj[key] = value;
-      });
-      return rowObj;
-    });
-    const jsColumnWidths = Object.fromEntries(yColWidthsForMock.entries());
-
-    mockedUseLiveTable.mockReturnValue({
-      headers: jsHeaders,
-      tableData: jsTableData,
-      columnWidths: jsColumnWidths,
-      handleCellChange: mockHandleCellChange,
-      handleCellFocus: mockSetSelectedCell,
-      handleCellBlur: vi.fn(),
-      editingHeaderIndex: null,
-      editingHeaderValue: "",
-      handleHeaderDoubleClick: vi.fn(),
-      handleHeaderChange: vi.fn(),
-      handleHeaderBlur: vi.fn(),
-      handleHeaderKeyDown: vi.fn(),
-      handleColumnResize: mockResizeColumn,
-      selectedCell: null,
-      handleSelectionStart: vi.fn(),
-      handleSelectionMove: vi.fn(),
-      handleSelectionEnd: vi.fn(),
-      isSelecting: false,
-      isCellSelected: vi.fn((_rowIndex, _colIndex) => {
-        if (typeof _rowIndex === "number" && typeof _colIndex === "number") {
-          return false;
-        }
-        return false;
-      }),
-      editingCell: null,
-      setEditingCell: mockSetEditingCell,
-      clearSelection: mockClearSelection,
-      tableId: "test-table",
-      isTableLoaded: true,
-      undoManager: null,
-      selectedCells: [],
-      getSelectedCellsData: vi.fn(() => []),
-      provider: { awareness: new Map() },
-      selectedHeader: null,
-      setSelectedHeader: vi.fn(),
-      isHeaderSelected: vi.fn(() => false),
-      isUndoPossible: false,
-      isRedoPossible: false,
-      generateAndInsertRows: vi
-        .fn()
-        .mockResolvedValue({ aiRowsAdded: 0, defaultRowsAdded: 0 }),
-      deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
-      generateAndInsertColumns: vi
-        .fn()
-        .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
-      deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
-    } as unknown as ReturnType<typeof useLiveTable>);
+    mockedUseLiveTable.mockReturnValue(
+      getLiveTableMockValues({
+        liveTableDocInstance,
+        clearSelection: mockClearSelection,
+      })
+    );
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    yDoc.destroy();
   });
 
   it("should clear selection when clicking outside the table", async () => {
-    const baseMockValues = mockedUseLiveTable();
-
-    mockedUseLiveTable.mockReturnValueOnce({
-      ...(baseMockValues as object),
-      selectedCell: { rowIndex: 0, colIndex: 0 },
-      isCellSelected: vi.fn(
-        (rowIndex, colIndex) => rowIndex === 0 && colIndex === 0
-      ),
-    } as unknown as ReturnType<typeof useLiveTable>);
+    mockedUseLiveTable.mockReturnValueOnce(
+      getLiveTableMockValues({
+        liveTableDocInstance,
+        selectedCell: { rowIndex: 0, colIndex: 0 },
+        isCellSelected: vi.fn(
+          (rowIndex, colIndex) => rowIndex === 0 && colIndex === 0
+        ),
+        clearSelection: mockClearSelection,
+      })
+    );
 
     const captureClick = vi.fn();
 
@@ -146,22 +109,22 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
 
     const outsideElement = screen.getByTestId("outside-element");
     fireEvent.click(outsideElement);
-    // external elements should also receive the click event
     await vi.runAllTimersAsync();
     expect(mockClearSelection).toHaveBeenCalledTimes(1);
     expect(captureClick).toHaveBeenCalledTimes(1);
   });
 
   it("should not clear selection when clicking inside the table", () => {
-    const baseMockValues = mockedUseLiveTable();
-
-    mockedUseLiveTable.mockReturnValueOnce({
-      ...(baseMockValues as object),
-      selectedCell: { rowIndex: 0, colIndex: 0 },
-      isCellSelected: vi.fn(
-        (rowIndex, colIndex) => rowIndex === 0 && colIndex === 0
-      ),
-    } as unknown as ReturnType<typeof useLiveTable>);
+    mockedUseLiveTable.mockReturnValueOnce(
+      getLiveTableMockValues({
+        liveTableDocInstance,
+        selectedCell: { rowIndex: 0, colIndex: 0 },
+        isCellSelected: vi.fn(
+          (rowIndex, colIndex) => rowIndex === 0 && colIndex === 0
+        ),
+        clearSelection: mockClearSelection,
+      })
+    );
 
     render(<LiveTableDisplay />);
     const inputElement = screen.getByDisplayValue("R1C1");

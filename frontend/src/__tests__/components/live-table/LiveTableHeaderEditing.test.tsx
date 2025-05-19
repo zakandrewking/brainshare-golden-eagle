@@ -14,33 +14,26 @@ import * as Y from "yjs";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
-import { LiveTableDoc as ActualLiveTableDoc } from "@/components/live-table/LiveTableDoc";
+import {
+  type CellValue,
+  type ColumnDefinition,
+  type ColumnId,
+  LiveTableDoc,
+  type RowId,
+} from "@/components/live-table/LiveTableDoc";
 import {
   type LiveTableContextType,
   useLiveTable,
 } from "@/components/live-table/LiveTableProvider";
 
+import { getLiveTableMockValues } from "./liveTableTestUtils";
+
 // Mock the useLiveTable hook
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
-
-// Mock LiveTableDoc to spy on editHeader
-const mockEditHeader = vi.fn();
-vi.mock("@/components/live-table/LiveTableDoc", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/components/live-table/LiveTableDoc")
-  >("@/components/live-table/LiveTableDoc");
-  return {
-    ...actual,
-    LiveTableDoc: vi.fn().mockImplementation((yDoc) => {
-      const instance = new actual.LiveTableDoc(yDoc);
-      instance.editHeader = mockEditHeader; // Augment the real instance
-      return instance;
-    }),
-  };
-});
 
 describe("LiveTableDisplay Header Editing", () => {
   let mockHandleHeaderDoubleClick: ReturnType<typeof vi.fn>;
@@ -48,36 +41,54 @@ describe("LiveTableDisplay Header Editing", () => {
   let mockHandleHeaderBlur: ReturnType<typeof vi.fn>;
   let mockHandleHeaderKeyDown: ReturnType<typeof vi.fn>;
 
-  // To store the state that LiveTableDisplay would get from the provider
   let currentEditingHeaderIndex: number | null = null;
   let currentEditingHeaderValue: string = "";
 
-  const initialHeaders = ["Name", "Age"];
-  const initialTableData = [
-    { Name: "Alice", Age: "30" },
-    { Name: "Bob", Age: "24" },
+  // V2 data structures
+  const colIdN = crypto.randomUUID() as ColumnId;
+  const colIdA = crypto.randomUUID() as ColumnId;
+  const initialColumnDefinitions: ColumnDefinition[] = [
+    { id: colIdN, name: "Name", width: DEFAULT_COL_WIDTH },
+    { id: colIdA, name: "Age", width: DEFAULT_COL_WIDTH },
   ];
+  const initialColumnOrder: ColumnId[] = [colIdN, colIdA];
+
+  const rowId1 = crypto.randomUUID() as RowId;
+  const rowId2 = crypto.randomUUID() as RowId;
+  const initialRowOrder: RowId[] = [rowId1, rowId2];
+  const initialRowData: Record<RowId, Record<ColumnId, CellValue>> = {
+    [rowId1]: { [colIdN]: "Alice", [colIdA]: "30" },
+    [rowId2]: { [colIdN]: "Bob", [colIdA]: "24" },
+  };
+
   let yDoc: Y.Doc;
-  let liveTableDocInstance: ActualLiveTableDoc; // Use the actual type now
+  let liveTableDocInstance: LiveTableDoc;
+  let editHeaderSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
     yDoc = new Y.Doc();
-    // The mock factory for LiveTableDoc will be used here
-    liveTableDocInstance = new (vi.mocked(ActualLiveTableDoc))(yDoc);
-
-    // Initialize Yjs state for consistency if needed by underlying logic called by editHeader
-    const yHeaders = yDoc.getArray<string>("tableHeaders");
-    yHeaders.insert(0, initialHeaders);
-    const yTable = yDoc.getArray<Y.Map<unknown>>("tableData");
-    initialTableData.forEach((rowData) => {
-      const yRow = new Y.Map<unknown>();
-      Object.entries(rowData).forEach(([key, value]) => {
-        yRow.set(key, value);
+    liveTableDocInstance = new LiveTableDoc(yDoc);
+    // Manually populate V2 data for the instance
+    yDoc.transact(() => {
+      initialColumnDefinitions.forEach((def) =>
+        liveTableDocInstance.yColumnDefinitions.set(def.id, def)
+      );
+      liveTableDocInstance.yColumnOrder.push(initialColumnOrder);
+      initialRowOrder.forEach((rId) => {
+        const rData = initialRowData[rId];
+        const yRowMap = new Y.Map<CellValue>();
+        initialColumnOrder.forEach((cId) => {
+          if (rData[cId] !== undefined) yRowMap.set(cId, rData[cId]);
+        });
+        liveTableDocInstance.yRowData.set(rId, yRowMap);
       });
-      yTable.push([yRow]);
+      liveTableDocInstance.yRowOrder.push(initialRowOrder);
+      liveTableDocInstance.yMeta.set("schemaVersion", 2);
     });
+
+    editHeaderSpy = vi.spyOn(liveTableDocInstance, "editHeader");
 
     currentEditingHeaderIndex = null;
     currentEditingHeaderValue = "";
@@ -85,12 +96,13 @@ describe("LiveTableDisplay Header Editing", () => {
     mockHandleHeaderDoubleClick = vi.fn((index) => {
       act(() => {
         currentEditingHeaderIndex = index;
-        currentEditingHeaderValue = initialHeaders[index];
+        const colId = liveTableDocInstance.yColumnOrder.get(index);
+        currentEditingHeaderValue =
+          liveTableDocInstance.yColumnDefinitions.get(colId!)?.name || "";
       });
     });
     mockHandleHeaderChange = vi.fn(
       (event: React.ChangeEvent<HTMLInputElement>) => {
-        // Added type
         act(() => {
           currentEditingHeaderValue = event.target.value;
         });
@@ -101,14 +113,20 @@ describe("LiveTableDisplay Header Editing", () => {
       act(() => {
         if (
           currentEditingHeaderIndex !== null &&
-          currentEditingHeaderValue.trim() &&
-          currentEditingHeaderValue.trim() !==
-            initialHeaders[currentEditingHeaderIndex!]
+          currentEditingHeaderValue.trim()
         ) {
-          liveTableDocInstance.editHeader(
-            currentEditingHeaderIndex!,
-            currentEditingHeaderValue.trim()
+          const colId = liveTableDocInstance.yColumnOrder.get(
+            currentEditingHeaderIndex as number
           );
+          const currentNameInDoc = liveTableDocInstance.yColumnDefinitions.get(
+            colId as ColumnId
+          )?.name;
+          if (currentEditingHeaderValue.trim() !== currentNameInDoc) {
+            liveTableDocInstance.editHeader(
+              currentEditingHeaderIndex as number,
+              currentEditingHeaderValue.trim()
+            );
+          }
         }
         currentEditingHeaderIndex = null;
       });
@@ -116,7 +134,6 @@ describe("LiveTableDisplay Header Editing", () => {
 
     mockHandleHeaderKeyDown = vi.fn(
       (event: React.KeyboardEvent<HTMLInputElement>) => {
-        // Added type
         if (event.key === "Enter") {
           event.preventDefault();
           mockHandleHeaderBlur();
@@ -129,112 +146,161 @@ describe("LiveTableDisplay Header Editing", () => {
       }
     );
 
+    const baseMock = getLiveTableMockValues({
+      liveTableDocInstance,
+    });
+
     (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
       () =>
         ({
-          tableData: initialTableData,
-          headers: initialHeaders,
-          columnWidths: { Name: 150, Age: 100 },
-          handleCellChange: vi.fn(),
-          handleCellFocus: vi.fn(),
-          handleCellBlur: vi.fn(),
+          ...baseMock,
           editingHeaderIndex: currentEditingHeaderIndex,
           editingHeaderValue: currentEditingHeaderValue,
           handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
           handleHeaderChange: mockHandleHeaderChange,
           handleHeaderBlur: mockHandleHeaderBlur,
           handleHeaderKeyDown: mockHandleHeaderKeyDown,
-          handleColumnResize: vi.fn(),
-          selectedCell: null,
-          handleSelectionStart: vi.fn(),
-          handleSelectionMove: vi.fn(),
-          handleSelectionEnd: vi.fn(),
-          isSelecting: false,
-          isCellSelected: vi.fn().mockReturnValue(false),
-          undoManager: new Y.UndoManager([yDoc.getArray("tableData")]),
-          tableId: "test-table",
-          isTableLoaded: true,
-          selectionArea: { startCell: null, endCell: null },
-          selectedCells: [],
-          clearSelection: vi.fn(),
-          getSelectedCellsData: vi.fn().mockReturnValue([]),
-          editingCell: null,
-          setEditingCell: vi.fn(),
-          liveTableDoc: liveTableDocInstance,
-          generateAndInsertRows: vi
-            .fn()
-            .mockResolvedValue({ aiRowsAdded: 0, defaultRowsAdded: 0 }),
-          deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
-          generateAndInsertColumns: vi
-            .fn()
-            .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
-          deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
         } as LiveTableContextType)
     );
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    if (editHeaderSpy) editHeaderSpy.mockRestore();
+    yDoc.destroy();
   });
 
   it("should enter edit mode on header double-click and display input", async () => {
     const user = userEvent.setup();
     const { rerender } = render(<LiveTableDisplay />);
 
-    const headerCellDiv = screen.getByText(initialHeaders[0]).closest("div"); // Get the div inside th
+    const headerNameForTest = initialColumnDefinitions[0].name; // "Name"
+
+    const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
     expect(headerCellDiv).toBeInTheDocument();
     await user.dblClick(headerCellDiv!);
 
     expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0);
 
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: currentEditingHeaderIndex,
+          editingHeaderValue: currentEditingHeaderValue,
+        } as LiveTableContextType)
+    );
     rerender(<LiveTableDisplay />);
 
     const input = screen.getByTestId(
-      `${initialHeaders[0]}-editing`
+      `${headerNameForTest}-editing`
     ) as HTMLInputElement;
     expect(input).toBeInTheDocument();
-    expect(input.value).toBe(initialHeaders[0]);
+    expect(input.value).toBe(headerNameForTest);
   });
 
   it("should update header value on input change", async () => {
     const user = userEvent.setup();
     const { rerender } = render(<LiveTableDisplay />);
+    const headerNameForTest = initialColumnDefinitions[0].name; // "Name"
 
-    const headerCellDiv = screen.getByText(initialHeaders[0]).closest("div");
+    const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
     expect(headerCellDiv).toBeInTheDocument();
     await user.dblClick(headerCellDiv!);
+
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: currentEditingHeaderIndex,
+          editingHeaderValue: currentEditingHeaderValue,
+        } as LiveTableContextType)
+    );
     rerender(<LiveTableDisplay />);
 
     const input = screen.getByTestId(
-      `${initialHeaders[0]}-editing`
+      `${headerNameForTest}-editing`
     ) as HTMLInputElement;
     const newHeaderText = "New Header Name";
 
     fireEvent.change(input, { target: { value: newHeaderText } });
-
     expect(mockHandleHeaderChange).toHaveBeenCalled();
+
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: currentEditingHeaderIndex,
+          editingHeaderValue: currentEditingHeaderValue,
+        } as LiveTableContextType)
+    );
     rerender(<LiveTableDisplay />);
     expect(input.value).toBe(newHeaderText);
   });
 
-  it("should save header changes on blur", async () => {
+  it("should save header changes on blur by calling liveTableDoc.editHeader", async () => {
     const user = userEvent.setup();
     const { rerender } = render(<LiveTableDisplay />);
     const headerIndexToEdit = 0;
+    const headerNameForTest = initialColumnDefinitions[headerIndexToEdit].name;
     const newHeaderText = "Updated Name";
 
-    const headerCellDiv = screen
-      .getByText(initialHeaders[headerIndexToEdit])
-      .closest("div");
+    const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
     expect(headerCellDiv).toBeInTheDocument();
     await user.dblClick(headerCellDiv!);
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: currentEditingHeaderIndex,
+          editingHeaderValue: currentEditingHeaderValue,
+        } as LiveTableContextType)
+    );
     rerender(<LiveTableDisplay />);
 
     const input = screen.getByTestId(
-      `${initialHeaders[headerIndexToEdit]}-editing`
+      `${headerNameForTest}-editing`
     ) as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: newHeaderText } });
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: currentEditingHeaderIndex,
+          editingHeaderValue: currentEditingHeaderValue,
+        } as LiveTableContextType)
+    );
     rerender(<LiveTableDisplay />);
 
     await act(async () => {
@@ -242,42 +308,85 @@ describe("LiveTableDisplay Header Editing", () => {
     });
 
     expect(mockHandleHeaderBlur).toHaveBeenCalled();
-    expect(mockEditHeader).toHaveBeenCalledWith(
+    expect(editHeaderSpy).toHaveBeenCalledWith(
       headerIndexToEdit,
       newHeaderText
     );
   });
 
-  it("should save header changes on Enter key press", async () => {
+  it("should save header changes on Enter key press by calling liveTableDoc.editHeader", async () => {
     const user = userEvent.setup();
     const { rerender } = render(<LiveTableDisplay />);
     const headerIndexToEdit = 0;
+    const headerNameForTest = initialColumnDefinitions[headerIndexToEdit].name;
     const newHeaderText = "Confirmed Name";
 
-    const headerCellDiv = screen
-      .getByText(initialHeaders[headerIndexToEdit])
-      .closest("div");
+    const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
     expect(headerCellDiv).toBeInTheDocument();
     await user.dblClick(headerCellDiv!);
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: currentEditingHeaderIndex,
+          editingHeaderValue: currentEditingHeaderValue,
+        } as LiveTableContextType)
+    );
     rerender(<LiveTableDisplay />);
 
     const input = screen.getByTestId(
-      `${initialHeaders[headerIndexToEdit]}-editing`
+      `${headerNameForTest}-editing`
     ) as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: newHeaderText } });
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: currentEditingHeaderIndex,
+          editingHeaderValue: currentEditingHeaderValue,
+        } as LiveTableContextType)
+    );
+    rerender(<LiveTableDisplay />);
 
     await user.keyboard("{Enter}");
 
     expect(mockHandleHeaderKeyDown).toHaveBeenCalled();
     expect(mockHandleHeaderBlur).toHaveBeenCalled();
-    expect(mockEditHeader).toHaveBeenCalledWith(
+    expect(editHeaderSpy).toHaveBeenCalledWith(
       headerIndexToEdit,
       newHeaderText
     );
 
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: null,
+          editingHeaderValue: "",
+        } as LiveTableContextType)
+    );
+    rerender(<LiveTableDisplay />);
     const updatedHeaderCellTh =
-      screen.getAllByRole("columnheader")[headerIndexToEdit];
+      screen.getAllByRole("columnheader")[headerIndexToEdit + 1];
     expect(
       within(updatedHeaderCellTh).queryByRole("textbox")
     ).not.toBeInTheDocument();
@@ -287,30 +396,74 @@ describe("LiveTableDisplay Header Editing", () => {
     const user = userEvent.setup();
     const { rerender } = render(<LiveTableDisplay />);
     const headerIndexToEdit = 0;
-    const originalHeaderText = initialHeaders[headerIndexToEdit];
+    const headerNameForTest = initialColumnDefinitions[headerIndexToEdit].name;
 
-    const headerCellDiv = screen.getByText(originalHeaderText).closest("div");
+    const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
     expect(headerCellDiv).toBeInTheDocument();
     await user.dblClick(headerCellDiv!);
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: currentEditingHeaderIndex,
+          editingHeaderValue: currentEditingHeaderValue,
+        } as LiveTableContextType)
+    );
     rerender(<LiveTableDisplay />);
 
     const input = screen.getByTestId(
-      `${originalHeaderText}-editing`
+      `${headerNameForTest}-editing`
     ) as HTMLInputElement;
+    const originalValue = currentEditingHeaderValue;
 
     fireEvent.change(input, { target: { value: "Temporary Change" } });
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: currentEditingHeaderIndex,
+          editingHeaderValue: currentEditingHeaderValue,
+        } as LiveTableContextType)
+    );
     rerender(<LiveTableDisplay />);
 
     await user.keyboard("{Escape}");
 
     expect(mockHandleHeaderKeyDown).toHaveBeenCalled();
-    expect(mockEditHeader).not.toHaveBeenCalled();
+    expect(editHeaderSpy).not.toHaveBeenCalled();
 
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockImplementation(
+      () =>
+        ({
+          ...getLiveTableMockValues({
+            liveTableDocInstance,
+            handleHeaderDoubleClick: mockHandleHeaderDoubleClick,
+            handleHeaderChange: mockHandleHeaderChange,
+            handleHeaderBlur: mockHandleHeaderBlur,
+            handleHeaderKeyDown: mockHandleHeaderKeyDown,
+          }),
+          editingHeaderIndex: null,
+          editingHeaderValue: originalValue,
+        } as LiveTableContextType)
+    );
     rerender(<LiveTableDisplay />);
     const updatedHeaderCellTh =
-      screen.getAllByRole("columnheader")[headerIndexToEdit];
+      screen.getAllByRole("columnheader")[headerIndexToEdit + 1];
     expect(
       within(updatedHeaderCellTh).queryByRole("textbox")
     ).not.toBeInTheDocument();
+    expect(screen.getByText(headerNameForTest)).toBeInTheDocument();
   });
 });
