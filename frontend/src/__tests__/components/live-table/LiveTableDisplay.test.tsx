@@ -2,21 +2,10 @@ import "@testing-library/jest-dom";
 
 import React from "react";
 
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
@@ -83,10 +72,6 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
       headers: jsHeaders,
       tableData: jsTableData,
       columnWidths: jsColumnWidths,
-      yDoc: ydoc,
-      yTable: yTableForMock,
-      yHeaders: yHeadersForMock,
-      yColWidths: yColWidthsForMock,
       handleCellChange: mockHandleCellChange,
       handleCellFocus: mockSetSelectedCell,
       handleCellBlur: vi.fn(),
@@ -122,6 +107,14 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
       isHeaderSelected: vi.fn(() => false),
       isUndoPossible: false,
       isRedoPossible: false,
+      generateAndInsertRows: vi
+        .fn()
+        .mockResolvedValue({ aiRowsAdded: 0, defaultRowsAdded: 0 }),
+      deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
+      generateAndInsertColumns: vi
+        .fn()
+        .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
+      deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     } as unknown as ReturnType<typeof useLiveTable>);
   });
 

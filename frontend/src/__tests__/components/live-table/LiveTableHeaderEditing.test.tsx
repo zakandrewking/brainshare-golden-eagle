@@ -151,10 +151,6 @@ describe("LiveTableDisplay Header Editing", () => {
           handleSelectionEnd: vi.fn(),
           isSelecting: false,
           isCellSelected: vi.fn().mockReturnValue(false),
-          yDoc: yDoc,
-          yTable: yDoc.getArray("tableData"),
-          yHeaders: yDoc.getArray("tableHeaders"),
-          yColWidths: yDoc.getMap("colWidths"),
           undoManager: new Y.UndoManager([yDoc.getArray("tableData")]),
           tableId: "test-table",
           isTableLoaded: true,
@@ -165,6 +161,14 @@ describe("LiveTableDisplay Header Editing", () => {
           editingCell: null,
           setEditingCell: vi.fn(),
           liveTableDoc: liveTableDocInstance,
+          generateAndInsertRows: vi
+            .fn()
+            .mockResolvedValue({ aiRowsAdded: 0, defaultRowsAdded: 0 }),
+          deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
+          generateAndInsertColumns: vi
+            .fn()
+            .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
+          deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
         } as LiveTableContextType)
     );
   });

@@ -39,9 +39,6 @@ export interface LiveTableContextType {
   columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
   // liveblocks
-  yDoc: Y.Doc;
-  yTable: Y.Array<Y.Map<unknown>>;
-  yHeaders: Y.Array<string>;
   // undo
   undoManager: UndoManager | null;
   // mouse & keyboard events
@@ -744,9 +741,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         columnWidths,
         isTableLoaded,
         handleCellChange,
-        yDoc,
-        yTable,
-        yHeaders,
         selectedCell,
         undoManager,
         handleCellFocus,

@@ -8,7 +8,10 @@ import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
 type LiveTableMockOverrides = Partial<
   ReturnType<typeof LiveTableProvider.useLiveTable>
 > & {
-  yColWidths?: Y.Map<number>; // Allow explicitly passing a Y.Map for yColWidths
+  yDoc?: Y.Doc;
+  yHeaders?: Y.Array<string>;
+  yTable?: Y.Array<Y.Map<unknown>>;
+  yColWidths?: Y.Map<number>;
 };
 
 export const getLiveTableMockValues = (
@@ -34,10 +37,6 @@ export const getLiveTableMockValues = (
 
   const defaultMockValue: ReturnType<typeof LiveTableProvider.useLiveTable> = {
     // Start with all required Yjs instances and default values
-    yDoc,
-    yHeaders,
-    yTable,
-    yColWidths: yColWidthsMapSource, // This is the Y.Map instance for the context
     undoManager,
     isTableLoaded: true,
     selectedCell: null,

@@ -9,13 +9,8 @@ import {
   MockedFunction,
   vi,
 } from "vitest";
-import * as Y from "yjs";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
@@ -59,9 +54,6 @@ describe("LiveTableDisplay Cell Editing", () => {
       handleSelectionEnd: mockHandleSelectionEnd,
       isSelecting: false,
       isCellSelected: vi.fn().mockReturnValue(false),
-      yDoc: new Y.Doc(),
-      yTable: new Y.Doc().getArray<Y.Map<unknown>>("table"),
-      yHeaders: new Y.Doc().getArray<string>("headers"),
       undoManager: null,
       tableId: "test-table",
       isTableLoaded: true,
@@ -71,6 +63,14 @@ describe("LiveTableDisplay Cell Editing", () => {
       getSelectedCellsData: vi.fn(),
       editingCell: null,
       setEditingCell: mockSetEditingCell,
+      generateAndInsertRows: vi
+        .fn()
+        .mockResolvedValue({ aiRowsAdded: 0, defaultRowsAdded: 0 }),
+      deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
+      generateAndInsertColumns: vi
+        .fn()
+        .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
+      deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     });
   });
 
