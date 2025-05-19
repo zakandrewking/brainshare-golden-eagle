@@ -31,31 +31,25 @@ describe("LiveTableDoc - insertRows", () => {
 
   it("should insert provided Y.Map rows into yTable and return inserted count", () => {
     const insertIndex = 0;
-    const row1Map = new Y.Map<unknown>();
-    row1Map.set("ColA", "new1a");
-    row1Map.set("ColB", "new1b");
-    const row2Map = new Y.Map<unknown>();
-    row2Map.set("ColA", "new2a");
-    row2Map.set("ColB", "new2b");
-    const rowsToInsert = [row1Map, row2Map];
+    const row1Data = { ColA: "new1a", ColB: "new1b" };
+    const row2Data = { ColA: "new2a", ColB: "new2b" };
+    const rowsToInsert = [row1Data, row2Data];
 
     const yTableInsertSpy = vi.spyOn(yTable, "insert");
 
     const result = liveTableDoc.insertRows(insertIndex, rowsToInsert);
 
     expect(yTableInsertSpy).toHaveBeenCalledTimes(1);
-    expect(yTableInsertSpy).toHaveBeenCalledWith(insertIndex, rowsToInsert);
     expect(yTable.length).toBe(rowsToInsert.length);
-    expect(yTable.get(0).toJSON()).toEqual({ ColA: "new1a", ColB: "new1b" });
-    expect(yTable.get(1).toJSON()).toEqual({ ColA: "new2a", ColB: "new2b" });
+    expect(yTable.get(0).toJSON()).toEqual(row1Data);
+    expect(yTable.get(1).toJSON()).toEqual(row2Data);
     expect(result).toBe(rowsToInsert.length);
   });
 
   it("should throw an error if Yjs transaction fails", () => {
     const insertIndex = 0;
-    const rowMap = new Y.Map<unknown>();
-    rowMap.set("ColA", "fail");
-    const rowsToInsert = [rowMap];
+    const rowData = { ColA: "fail" };
+    const rowsToInsert = [rowData];
 
     const yTableInsertSpy = vi
       .spyOn(yTable, "insert")
@@ -199,5 +193,83 @@ describe("LiveTableDoc - deleteRows", () => {
       )
     );
     consoleWarnSpy.mockRestore();
+  });
+});
+
+describe("LiveTableDoc - updateColumnWidth", () => {
+  let yDoc: Y.Doc;
+  let liveTableDoc: LiveTableDoc;
+  let yColWidths: Y.Map<number>;
+
+  beforeEach(() => {
+    yDoc = new Y.Doc();
+    liveTableDoc = new LiveTableDoc(yDoc);
+    yColWidths = liveTableDoc.yColWidths; // Access the map for spying/checking
+    vi.spyOn(yDoc, "transact");
+  });
+
+  it("should update column width in yColWidths within a transaction", () => {
+    const header = "TestCol";
+    const newWidth = 200;
+
+    liveTableDoc.updateColumnWidth(header, newWidth);
+
+    expect(yDoc.transact).toHaveBeenCalledTimes(1);
+    expect(yColWidths.get(header)).toBe(newWidth);
+  });
+});
+
+describe("LiveTableDoc - updateCell", () => {
+  let yDoc: Y.Doc;
+  let liveTableDoc: LiveTableDoc;
+  let yTable: Y.Array<Y.Map<unknown>>;
+  let yHeaders: Y.Array<string>;
+
+  beforeEach(() => {
+    yDoc = new Y.Doc();
+    liveTableDoc = new LiveTableDoc(yDoc);
+    yTable = liveTableDoc.yTable;
+    yHeaders = liveTableDoc.yHeaders;
+    yHeaders.push(["Header1", "Header2"]); // Setup some headers
+    vi.spyOn(yDoc, "transact");
+  });
+
+  it("should update cell value in yTable within a transaction", () => {
+    const rowMap = new Y.Map<unknown>();
+    rowMap.set("Header1", "val1");
+    rowMap.set("Header2", "val2");
+    yTable.push([rowMap]);
+
+    const rowIndex = 0;
+    const header = "Header1";
+    const newValue = "newVal1";
+
+    liveTableDoc.updateCell(rowIndex, header, newValue);
+
+    expect(yDoc.transact).toHaveBeenCalledTimes(1);
+    const updatedRow = yTable.get(rowIndex);
+    expect(updatedRow.get(header)).toBe(newValue);
+  });
+
+  it("should delete cell value if newValue is empty string", () => {
+    const rowMap = new Y.Map<unknown>();
+    rowMap.set("Header1", "val1");
+    yTable.push([rowMap]);
+
+    const rowIndex = 0;
+    const header = "Header1";
+    const newValue = "";
+
+    liveTableDoc.updateCell(rowIndex, header, newValue);
+
+    expect(yDoc.transact).toHaveBeenCalledTimes(1);
+    const updatedRow = yTable.get(rowIndex);
+    expect(updatedRow.has(header)).toBe(false);
+  });
+
+  it("should do nothing if row does not exist", () => {
+    liveTableDoc.updateCell(0, "Header1", "value");
+    expect(yDoc.transact).toHaveBeenCalledTimes(1); // Transact is still called
+    expect(yTable.length).toBe(0); // No row added or modified
   });
 });

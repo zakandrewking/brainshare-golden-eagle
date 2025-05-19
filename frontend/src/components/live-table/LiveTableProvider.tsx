@@ -8,7 +8,6 @@ import React, {
 } from "react";
 
 import { toast } from "sonner";
-import * as Y from "yjs";
 import { UndoManager } from "yjs";
 
 import { useRoom } from "@liveblocks/react/suspense";
@@ -19,7 +18,6 @@ import generateNewColumns, {
 import generateNewRows from "./actions/generateNewRows";
 import { initializeLiveblocksRoom } from "./LiveTableDoc";
 import { useUpdatedSelf } from "./useUpdatedSelf";
-import { createDefaultYMapForRow, createYMapFromData } from "./yjs-operations";
 
 interface CellPosition {
   rowIndex: number;
@@ -38,9 +36,8 @@ export interface LiveTableContextType {
   headers: string[] | undefined;
   columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
-  // liveblocks
   // undo
-  undoManager: UndoManager | null;
+  undoManager: UndoManager;
   // mouse & keyboard events
   handleCellFocus: (rowIndex: number, colIndex: number) => void;
   handleCellBlur: () => void;
@@ -145,10 +142,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   liveTableDoc.tableDataUpdateCallback = setTableData;
   liveTableDoc.headersUpdateCallback = setHeaders;
   liveTableDoc.columnWidthsUpdateCallback = setColumnWidths;
-  const yDoc = useMemo(() => liveTableDoc.yDoc, [liveTableDoc]);
-  const yHeaders = useMemo(() => liveTableDoc.yHeaders, [liveTableDoc]);
-  const yTable = useMemo(() => liveTableDoc.yTable, [liveTableDoc]);
-  const yColWidths = useMemo(() => liveTableDoc.yColWidths, [liveTableDoc]);
   const undoManager = useMemo(() => liveTableDoc.undoManager, [liveTableDoc]);
 
   // update self info in awareness
@@ -287,7 +280,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       );
       setIsTableLoaded(true);
     }
-  }, [tableData, headers, isTableLoaded, yTable.length, columnWidths]);
+  }, [tableData, headers, isTableLoaded, columnWidths]);
 
   // --- Awareness & Focus ---
 
@@ -326,7 +319,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   );
 
   const handleHeaderBlur = useCallback(() => {
-    if (editingHeaderIndex === null || !headers || !yHeaders) return;
+    if (editingHeaderIndex === null || !headers) return;
 
     const oldHeader = headers[editingHeaderIndex];
     const newHeader = editingHeaderValue.trim();
@@ -336,7 +329,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     }
 
     setEditingHeaderIndex(null);
-  }, [editingHeaderIndex, headers, yHeaders, editingHeaderValue, liveTableDoc]);
+  }, [editingHeaderIndex, headers, editingHeaderValue, liveTableDoc]);
 
   const handleHeaderKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -353,13 +346,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   const handleColumnResize = useCallback(
     (header: string, newWidth: number) => {
-      if (!yColWidths) return;
-
-      yDoc.transact(() => {
-        yColWidths.set(header, newWidth);
-      });
+      liveTableDoc.updateColumnWidth(header, newWidth);
     },
-    [yDoc, yColWidths]
+    [liveTableDoc]
   );
 
   // wire up yjs observers
@@ -373,18 +362,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // Function to handle cell changes
   const handleCellChange = useCallback(
     (rowIndex: number, header: string, newValue: string) => {
-      yDoc.transact(() => {
-        const yRow = yTable.get(rowIndex);
-        if (yRow) {
-          if (newValue === "") {
-            yRow.delete(header);
-          } else {
-            yRow.set(header, newValue);
-          }
-        }
-      });
+      liveTableDoc.updateCell(rowIndex, header, newValue);
     },
-    [yDoc, yTable]
+    [liveTableDoc]
   );
 
   const generateAndInsertRows = useCallback(
@@ -400,7 +380,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       const currentTableDataForAi = tableData.map((row) => ({ ...row }));
       const currentHeadersForAi = [...headers];
 
-      const rowsToInsertInYjs: Y.Map<unknown>[] = [];
+      const rowsToInsertPlain: Record<string, unknown>[] = [];
       let aiRowsAddedCount = 0;
       let defaultRowsAddedCount = 0;
 
@@ -416,44 +396,48 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
             `AI generation failed: ${result.error}. Falling back to default rows.`
           );
           for (let i = 0; i < numRowsToAdd; i++) {
-            rowsToInsertInYjs.push(
-              createDefaultYMapForRow(currentHeadersForAi)
-            );
+            const defaultRow: Record<string, string> = {};
+            currentHeadersForAi.forEach((header) => {
+              defaultRow[header] = "";
+            });
+            rowsToInsertPlain.push(defaultRow);
             defaultRowsAddedCount++;
           }
         } else if (!result.newRows || result.newRows.length === 0) {
           console.warn(`No AI rows returned, falling back to default rows.`);
           for (let i = 0; i < numRowsToAdd; i++) {
-            rowsToInsertInYjs.push(
-              createDefaultYMapForRow(currentHeadersForAi)
-            );
+            const defaultRow: Record<string, string> = {};
+            currentHeadersForAi.forEach((header) => {
+              defaultRow[header] = "";
+            });
+            rowsToInsertPlain.push(defaultRow);
             defaultRowsAddedCount++;
           }
         } else {
           result.newRows.forEach((rowData: Record<string, string>) => {
-            if (rowsToInsertInYjs.length < numRowsToAdd) {
-              rowsToInsertInYjs.push(
-                createYMapFromData(rowData, currentHeadersForAi)
-              );
+            if (rowsToInsertPlain.length < numRowsToAdd) {
+              rowsToInsertPlain.push(rowData);
               aiRowsAddedCount++;
             }
           });
           const remainingRowsToFill = numRowsToAdd - aiRowsAddedCount;
           for (let i = 0; i < remainingRowsToFill; i++) {
-            rowsToInsertInYjs.push(
-              createDefaultYMapForRow(currentHeadersForAi)
-            );
+            const defaultRow: Record<string, string> = {};
+            currentHeadersForAi.forEach((header) => {
+              defaultRow[header] = "";
+            });
+            rowsToInsertPlain.push(defaultRow);
             defaultRowsAddedCount++;
           }
         }
 
-        if (rowsToInsertInYjs.length === 0 && numRowsToAdd > 0) {
+        if (rowsToInsertPlain.length === 0 && numRowsToAdd > 0) {
           toast.info("Attempted to add rows, but no rows were prepared.");
           return { aiRowsAdded: 0, defaultRowsAdded: 0 };
         }
 
-        if (rowsToInsertInYjs.length > 0) {
-          liveTableDoc.insertRows(initialInsertIndex, rowsToInsertInYjs);
+        if (rowsToInsertPlain.length > 0) {
+          liveTableDoc.insertRows(initialInsertIndex, rowsToInsertPlain);
         }
 
         if (result.error) {
@@ -482,14 +466,18 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         // This catch is for errors during Yjs operations or other unexpected issues within the try block
         console.error(`Critical error in generateAndInsertRows:`, error);
         // Fallback: attempt to insert default rows directly into Yjs
-        const fallbackYMaps: Y.Map<unknown>[] = [];
+        const fallbackRowsPlain: Record<string, unknown>[] = [];
         for (let i = 0; i < numRowsToAdd; i++) {
-          fallbackYMaps.push(createDefaultYMapForRow(currentHeadersForAi));
+          const defaultRow: Record<string, string> = {};
+          currentHeadersForAi.forEach((header) => {
+            defaultRow[header] = "";
+          });
+          fallbackRowsPlain.push(defaultRow);
         }
 
-        if (fallbackYMaps.length > 0) {
+        if (fallbackRowsPlain.length > 0) {
           try {
-            liveTableDoc.insertRows(initialInsertIndex, fallbackYMaps);
+            liveTableDoc.insertRows(initialInsertIndex, fallbackRowsPlain);
           } catch (yjsError) {
             console.error("Failed to insert fallback rows into Yjs:", yjsError);
             // If even fallback fails, we throw the original error that led to this catch block.

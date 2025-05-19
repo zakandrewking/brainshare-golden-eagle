@@ -64,6 +64,24 @@ export class LiveTableDoc {
     );
   }
 
+  private _createYMapFromObject(
+    data: Record<string, unknown>,
+    currentDocHeaders: string[]
+  ): Y.Map<unknown> {
+    const yMap = new Y.Map<unknown>();
+    // Set values for known headers
+    currentDocHeaders.forEach((header) => {
+      yMap.set(header, data[header] ?? ""); // Use data if present, else empty string
+    });
+    // Add any keys from data that are not in currentDocHeaders
+    Object.keys(data).forEach((key) => {
+      if (!currentDocHeaders.includes(key)) {
+        yMap.set(key, data[key]);
+      }
+    });
+    return yMap;
+  }
+
   updateTableState() {
     const currentData = this.yTable.toArray().map((yMap) => {
       return Object.fromEntries(yMap.entries());
@@ -154,16 +172,21 @@ export class LiveTableDoc {
   /**
    * insert rows into the table
    * @param initialInsertIndex - the index to insert the rows at
-   * @param rowsToInsertInYjs - the rows to insert
+   * @param rowsData - the rows to insert
    * @returns the number of rows inserted
    */
   insertRows(
     initialInsertIndex: number,
-    rowsToInsertInYjs: Y.Map<unknown>[]
+    rowsData: Record<string, unknown>[]
   ): number {
-    if (rowsToInsertInYjs.length === 0) {
+    if (rowsData.length === 0) {
       return 0;
     }
+    const currentDocHeaders = this.yHeaders.toArray();
+    const rowsToInsertInYjs = rowsData.map((rowData) =>
+      this._createYMapFromObject(rowData, currentDocHeaders)
+    );
+
     this.yTable.insert(initialInsertIndex, rowsToInsertInYjs);
     return rowsToInsertInYjs.length;
   }
@@ -287,6 +310,36 @@ export class LiveTableDoc {
       );
     }
     return deletedCount;
+  }
+
+  /**
+   * Updates the width of a specific column.
+   * @param header - The header of the column to update.
+   * @param newWidth - The new width for the column.
+   */
+  updateColumnWidth(header: string, newWidth: number): void {
+    this.yDoc.transact(() => {
+      this.yColWidths.set(header, newWidth);
+    });
+  }
+
+  /**
+   * Updates the value of a specific cell in the table.
+   * @param rowIndex - The index of the row to update.
+   * @param header - The header of the column to update.
+   * @param newValue - The new value for the cell.
+   */
+  updateCell(rowIndex: number, header: string, newValue: string): void {
+    this.yDoc.transact(() => {
+      const yRow = this.yTable.get(rowIndex);
+      if (yRow) {
+        if (newValue === "") {
+          yRow.delete(header);
+        } else {
+          yRow.set(header, newValue);
+        }
+      }
+    });
   }
 }
 
