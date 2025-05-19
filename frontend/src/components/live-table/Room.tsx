@@ -21,6 +21,7 @@ export default function Room({ children, roomId }: RoomProps) {
   return (
     <LiveblocksProvider publicApiKey={publicApiKey}>
       <RoomProvider id={roomId} initialPresence={{ cursor: null }}>
+        {/* NOTE: DelayedLoadingSpinner throws a hydration error here */}
         <ClientSideSuspense fallback={<LoadingSpinner />}>
           {() => children}
         </ClientSideSuspense>

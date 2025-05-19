@@ -1,6 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { MoreHorizontal } from "lucide-react";
 
@@ -13,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
+import { DelayedLoadingSpinner } from "../ui/loading";
 import { useLiveTable } from "./LiveTableProvider";
 
 export interface CursorInfo {
@@ -31,6 +37,7 @@ const ROW_NUMBER_COL_WIDTH = 50;
 
 const LiveTable: React.FC = () => {
   const {
+    isTableLoaded,
     tableData,
     headers,
     columnWidths,
@@ -247,6 +254,10 @@ const LiveTable: React.FC = () => {
       }
     }
   };
+
+  if (!isTableLoaded) {
+    return <DelayedLoadingSpinner />;
+  }
 
   return (
     <div className="overflow-x-auto overscroll-none h-full">
