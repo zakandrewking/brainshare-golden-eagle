@@ -11,6 +11,7 @@ celerybeat-schedule.db
 
 next-env.d.ts
 .next/
+.next-prod/
 
 npm-debug.log*
 node_modules/

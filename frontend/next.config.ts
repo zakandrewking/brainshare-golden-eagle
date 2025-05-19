@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_GIT_SHA: gitSha.slice(0, 7),
   },
+  distDir: process.env.NODE_ENV === "production" ? ".next-prod" : ".next",
 };
 
 export default nextConfig;

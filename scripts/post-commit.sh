@@ -29,8 +29,8 @@ echo "Running tests..."
 npm test &
 test_pid=$!
 
-echo "Running build..."
-npm run build &
+echo "Running build in production environment to .next-hook-build directory..."
+NODE_ENV=production npm run build &
 build_pid=$!
 
 test_status=0
