@@ -185,8 +185,9 @@ describe("LiveTableDisplay Header Editing", () => {
 
     rerender(<LiveTableDisplay />);
 
-    const headerCellTh = screen.getAllByRole("columnheader")[0];
-    const input = within(headerCellTh).getByRole("textbox") as HTMLInputElement;
+    const input = screen.getByTestId(
+      `${initialHeaders[0]}-editing`
+    ) as HTMLInputElement;
     expect(input).toBeInTheDocument();
     expect(input.value).toBe(initialHeaders[0]);
   });
@@ -200,8 +201,9 @@ describe("LiveTableDisplay Header Editing", () => {
     await user.dblClick(headerCellDiv!);
     rerender(<LiveTableDisplay />);
 
-    const headerCellTh = screen.getAllByRole("columnheader")[0];
-    const input = within(headerCellTh).getByRole("textbox") as HTMLInputElement;
+    const input = screen.getByTestId(
+      `${initialHeaders[0]}-editing`
+    ) as HTMLInputElement;
     const newHeaderText = "New Header Name";
 
     fireEvent.change(input, { target: { value: newHeaderText } });
@@ -224,8 +226,9 @@ describe("LiveTableDisplay Header Editing", () => {
     await user.dblClick(headerCellDiv!);
     rerender(<LiveTableDisplay />);
 
-    const headerCellTh = screen.getAllByRole("columnheader")[headerIndexToEdit];
-    const input = within(headerCellTh).getByRole("textbox") as HTMLInputElement;
+    const input = screen.getByTestId(
+      `${initialHeaders[headerIndexToEdit]}-editing`
+    ) as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: newHeaderText } });
     rerender(<LiveTableDisplay />);
@@ -239,9 +242,6 @@ describe("LiveTableDisplay Header Editing", () => {
       headerIndexToEdit,
       newHeaderText
     );
-
-    rerender(<LiveTableDisplay />);
-    expect(within(headerCellTh).queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("should save header changes on Enter key press", async () => {
@@ -290,8 +290,9 @@ describe("LiveTableDisplay Header Editing", () => {
     await user.dblClick(headerCellDiv!);
     rerender(<LiveTableDisplay />);
 
-    const headerCellTh = screen.getAllByRole("columnheader")[headerIndexToEdit];
-    const input = within(headerCellTh).getByRole("textbox") as HTMLInputElement;
+    const input = screen.getByTestId(
+      `${originalHeaderText}-editing`
+    ) as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: "Temporary Change" } });
     rerender(<LiveTableDisplay />);

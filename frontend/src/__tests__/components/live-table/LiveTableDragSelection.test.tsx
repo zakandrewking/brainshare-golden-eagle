@@ -95,7 +95,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     render(<LiveTableDisplay />);
 
     // Find and trigger mousedown on a cell
-    const cell = screen.getAllByRole("cell")[0]; // First cell
+    const cell = screen.getAllByTestId("table-cell")[0]; // First cell
     fireEvent.mouseDown(cell);
 
     // Verify handleSelectionStart was called with correct row and column indices
@@ -142,7 +142,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     render(<LiveTableDisplay />);
 
     // Find a cell and trigger mousedown
-    const cell = screen.getAllByRole("cell")[4]; // Middle cell
+    const cell = screen.getAllByTestId("table-cell")[4]; // Middle cell
     fireEvent.mouseDown(cell);
 
     // Verify handleSelectionStart was called
@@ -192,7 +192,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     render(<LiveTableDisplay />);
 
     // Get all cells
-    const cells = screen.getAllByRole("cell");
+    const cells = screen.getAllByTestId("table-cell");
 
     // Check that each cell has the expected selection style attribute
     cells.forEach((cell) => {

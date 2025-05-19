@@ -354,6 +354,7 @@ const LiveTable: React.FC = () => {
                     minWidth: `${ROW_NUMBER_COL_WIDTH}px`,
                     maxWidth: `${ROW_NUMBER_COL_WIDTH}px`,
                   }}
+                  data-testid="row-number"
                 >
                   <div className="p-2 h-full flex items-center justify-center">
                     {rowIndex + 1}
@@ -377,6 +378,7 @@ const LiveTable: React.FC = () => {
                       data-col-index={colIndex}
                       data-selected={isInSelection ? "true" : "false"}
                       data-editing={isEditing ? "true" : "false"}
+                      data-testid="table-cell"
                       style={{
                         boxShadow: isSelected
                           ? "inset 0 0 0 2px blue"
