@@ -150,6 +150,23 @@ export class LiveTableDoc {
       }
     });
   }
+
+  /**
+   * insert rows into the table
+   * @param initialInsertIndex - the index to insert the rows at
+   * @param rowsToInsertInYjs - the rows to insert
+   * @returns the number of rows inserted
+   */
+  insertRows(
+    initialInsertIndex: number,
+    rowsToInsertInYjs: Y.Map<unknown>[]
+  ): number {
+    if (rowsToInsertInYjs.length === 0) {
+      return 0;
+    }
+    this.yTable.insert(initialInsertIndex, rowsToInsertInYjs);
+    return rowsToInsertInYjs.length;
+  }
 }
 
 export function initializeLiveblocksRoom(

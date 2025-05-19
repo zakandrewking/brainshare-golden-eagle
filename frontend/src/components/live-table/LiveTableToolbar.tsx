@@ -16,7 +16,6 @@ import {
 import { toast } from "sonner";
 import * as Y from "yjs";
 
-import generateNewRows from "@/components/live-table/actions/generateNewRows";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -34,8 +33,6 @@ import { useLiveTable } from "./LiveTableProvider";
 import {
   applyDefaultColumnToYDocOnError,
   applyGeneratedColumnToYDoc,
-  createDefaultYMapForRow,
-  createYMapFromData,
 } from "./yjs-operations";
 
 // Define the possible pending operations
@@ -55,6 +52,7 @@ const LiveTableToolbar: React.FC = () => {
     undoManager,
     isTableLoaded,
     selectedCells,
+    generateAndInsertRows,
   } = useLiveTable();
 
   const [isPending, startTransition] = useTransition();
@@ -88,16 +86,15 @@ const LiveTableToolbar: React.FC = () => {
   };
 
   const handleAddRowRelative = (direction: "above" | "below") => {
-    const currentSelectedCell = selectedCell;
-    const currentSelectedCells = selectedCells;
-
-    if (!yDoc || !yTable || !currentSelectedCell || !yHeaders) return;
+    if (!isTableLoaded) return;
+    if (!selectedCell) return;
+    if (!selectedCells) return;
 
     let numRowsToAdd = 1;
     const uniqueSelectedRowIndices: number[] = [];
 
-    if (currentSelectedCells && currentSelectedCells.length > 0) {
-      const indices = currentSelectedCells.map((cell) => cell.rowIndex);
+    if (selectedCells && selectedCells.length > 0) {
+      const indices = selectedCells.map((cell) => cell.rowIndex);
       const uniqueSet = new Set(indices);
       uniqueSelectedRowIndices.push(...uniqueSet);
       uniqueSelectedRowIndices.sort((a, b) => a - b);
@@ -105,8 +102,8 @@ const LiveTableToolbar: React.FC = () => {
         uniqueSelectedRowIndices.length > 0
           ? uniqueSelectedRowIndices.length
           : 1;
-    } else if (currentSelectedCell) {
-      uniqueSelectedRowIndices.push(currentSelectedCell.rowIndex);
+    } else if (selectedCell) {
+      uniqueSelectedRowIndices.push(selectedCell.rowIndex);
       numRowsToAdd = 1;
     } else {
       console.error(
@@ -135,97 +132,28 @@ const LiveTableToolbar: React.FC = () => {
       );
       calculatedInitialInsertIndex =
         direction === "above"
-          ? currentSelectedCell.rowIndex
-          : currentSelectedCell.rowIndex + 1;
+          ? selectedCell.rowIndex
+          : selectedCell.rowIndex + 1;
     }
 
     const initialInsertIndex = calculatedInitialInsertIndex;
-    const yHeadersArray = yHeaders.toArray(); // Get headers once
 
     setPendingOperation(
       direction === "above" ? "add-row-above" : "add-row-below"
     );
 
     startTransition(async () => {
-      let aiRowsAddedCount = 0;
-      let defaultRowsAddedCount = 0;
-      const rowsToInsertInYjs: Y.Map<unknown>[] = [];
-
       try {
-        const result = await generateNewRows(
-          yTable.toArray().map((row) => row.toJSON()),
-          yHeadersArray,
-          numRowsToAdd
-        );
-
-        if (result.error || !result.newRows || result.newRows.length === 0) {
-          console.warn(
-            `Failed to generate AI rows or no rows returned, falling back to default rows. Error: ${result.error}`
-          );
-          for (let i = 0; i < numRowsToAdd; i++) {
-            rowsToInsertInYjs.push(createDefaultYMapForRow(yHeadersArray));
-            defaultRowsAddedCount++;
-          }
-        } else {
-          result.newRows.forEach((rowData: Record<string, string>) => {
-            if (rowsToInsertInYjs.length < numRowsToAdd) {
-              rowsToInsertInYjs.push(
-                createYMapFromData(rowData, yHeadersArray)
-              );
-              aiRowsAddedCount++;
-            }
-          });
-          const remainingRowsToFill = numRowsToAdd - aiRowsAddedCount;
-          for (let i = 0; i < remainingRowsToFill; i++) {
-            rowsToInsertInYjs.push(createDefaultYMapForRow(yHeadersArray));
-            defaultRowsAddedCount++;
-          }
-        }
-
-        if (rowsToInsertInYjs.length > 0) {
-          yDoc.transact(() => {
-            yTable.insert(initialInsertIndex, rowsToInsertInYjs);
-          });
-        }
-
-        // Consolidated Toast Message Logic
-        if (aiRowsAddedCount > 0 && defaultRowsAddedCount === 0) {
-          toast.success(
-            `Successfully added ${aiRowsAddedCount} AI-suggested row(s).`
-          );
-        } else if (aiRowsAddedCount > 0 && defaultRowsAddedCount > 0) {
-          toast.info(
-            `Added ${numRowsToAdd} row(s): ${aiRowsAddedCount} AI-suggested, ${defaultRowsAddedCount} default.`
-          );
-        } else if (defaultRowsAddedCount > 0) {
-          // This implies aiRowsAddedCount is 0
-          toast.info(
-            `Added ${defaultRowsAddedCount} default row(s) as AI suggestions were not available or failed.`
-          );
-        } else if (numRowsToAdd > 0 && rowsToInsertInYjs.length === 0) {
-          // This case should ideally not be hit if logic is correct, but acts as a fallback.
-          toast.info("Attempted to add rows, but no rows were prepared.");
-        }
-        // If numRowsToAdd was 0, a toast might have already been shown.
-        // If rowsToInsertInYjs.length is 0 and numRowsToAdd > 0, something went wrong.
+        await generateAndInsertRows(initialInsertIndex, numRowsToAdd);
       } catch (error) {
-        console.error(`Error during add row operation:`, error);
-        // Fallback: add default empty rows on catastrophic failure
-        const fallbackRows: Y.Map<unknown>[] = [];
-        for (let i = 0; i < numRowsToAdd; i++) {
-          fallbackRows.push(createDefaultYMapForRow(yHeadersArray));
-        }
-        if (fallbackRows.length > 0) {
-          yDoc.transact(() => {
-            yTable.insert(initialInsertIndex, fallbackRows);
-          });
-        }
+        // This catch block might be redundant because generateAndInsertRows
+        // handles errors and toasting
+        console.error(
+          `Critical error in handleAddRowRelative transition:`,
+          error
+        );
         toast.error(
-          `Failed to add ${numRowsToAdd} row(s). ${
-            fallbackRows.length > 0
-              ? `${fallbackRows.length} default row(s) added as fallback.`
-              : "No rows were added."
-          }`
+          "A critical error occurred while preparing to add rows. Please try again."
         );
       } finally {
         setPendingOperation(null);
