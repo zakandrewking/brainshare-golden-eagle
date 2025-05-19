@@ -73,6 +73,7 @@ export const getLiveTableMockValues = (
     generateAndInsertColumns: vi
       .fn()
       .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
+    deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     // Apply all overrides last to ensure they take precedence
     ...overrides,
   };

@@ -250,6 +250,44 @@ export class LiveTableDoc {
       throw error instanceof Error ? error : new Error(String(error));
     }
   }
+
+  /**
+   * Deletes columns from the table.
+   * Assumes colIndices are sorted in descending order by the caller to prevent index shifting issues.
+   * @param colIndices - An array of column indices to delete (sorted descending).
+   * @returns number of columns deleted.
+   */
+  deleteColumns(colIndices: number[]): number {
+    if (colIndices.length === 0) {
+      return 0;
+    }
+    let deletedCount = 0;
+    this.yDoc.transact(() => {
+      colIndices.forEach((colIndex) => {
+        if (colIndex < this.yHeaders.length) {
+          const headerToDelete = this.yHeaders.get(colIndex);
+          this.yHeaders.delete(colIndex, 1);
+          this.yTable.forEach((row: Y.Map<unknown>) => {
+            row.delete(headerToDelete);
+          });
+          if (this.yColWidths.has(headerToDelete)) {
+            this.yColWidths.delete(headerToDelete);
+          }
+          deletedCount++;
+        } else {
+          console.warn(
+            `LiveTableDoc.deleteColumns: Attempted to delete non-existent column at index ${colIndex}. Headers length: ${this.yHeaders.length}`
+          );
+        }
+      });
+    });
+    if (deletedCount < colIndices.length) {
+      console.warn(
+        `LiveTableDoc.deleteColumns: Attempted to delete ${colIndices.length} columns, but only ${deletedCount} were valid and deleted.`
+      );
+    }
+    return deletedCount;
+  }
 }
 
 export function initializeLiveblocksRoom(

@@ -77,6 +77,7 @@ describe("LiveTableToolbar - Delete Column", () => {
   let yHeaders: Y.Array<string>;
   let yColWidthsMap: Y.Map<number>;
   let mockStartTransition: React.TransitionStartFunction;
+  let mockDeleteColumns: Mock;
 
   const initialHeadersData = ["Header1", "Header2", "Header3", "Header4"];
   const initialColWidthsData = {
@@ -143,8 +144,10 @@ describe("LiveTableToolbar - Delete Column", () => {
       tableData: yTable.toArray().map((row) => row.toJSON()),
       columnWidths: Object.fromEntries(yColWidthsMap.entries()),
       isTableLoaded: true,
+      deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    mockDeleteColumns = mockData.deleteColumns as Mock;
   });
 
   afterEach(() => {
@@ -166,8 +169,6 @@ describe("LiveTableToolbar - Delete Column", () => {
       redoStack: [],
     } as unknown as Y.UndoManager;
 
-    const yHeadersDeleteSpy = vi.spyOn(yHeaders, "delete");
-
     const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yHeaders: yHeaders,
@@ -186,6 +187,7 @@ describe("LiveTableToolbar - Delete Column", () => {
       ),
       getSelectedCellsData: vi.fn(() => [["R1C2"]]),
       isTableLoaded: true,
+      deleteColumns: mockDeleteColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
 
@@ -208,20 +210,8 @@ describe("LiveTableToolbar - Delete Column", () => {
 
     fireEvent.click(deleteButton!);
 
-    expect(yHeadersDeleteSpy).toHaveBeenCalledTimes(1);
-    expect(yHeadersDeleteSpy).toHaveBeenCalledWith(colIndexToDelete, 1);
-
-    expect(yHeaders.length).toBe(initialHeadersData.length - 1);
-    expect(yHeaders.toArray()).toEqual(["Header1", "Header3", "Header4"]);
-
-    yTable.forEach((row) => {
-      expect(row.has(headerToDelete)).toBe(false);
-    });
-    expect(yTable.get(0).get("Header1")).toBe("R1C1");
-
-    expect(Object.fromEntries(yColWidthsMap.entries())).toEqual(
-      initialColWidthsData
-    );
+    expect(mockDeleteColumns).toHaveBeenCalledTimes(1);
+    expect(mockDeleteColumns).toHaveBeenCalledWith([colIndexToDelete]);
   });
 
   it("should delete multiple selected columns and update aria-label", () => {
@@ -244,8 +234,6 @@ describe("LiveTableToolbar - Delete Column", () => {
       redoStack: [],
     } as unknown as Y.UndoManager;
 
-    const yHeadersDeleteSpy = vi.spyOn(yHeaders, "delete");
-
     const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yHeaders: yHeaders,
@@ -264,6 +252,7 @@ describe("LiveTableToolbar - Delete Column", () => {
       ),
       getSelectedCellsData: vi.fn(() => [["R1C1"], ["R1C3"]]),
       isTableLoaded: true,
+      deleteColumns: mockDeleteColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
 
@@ -288,25 +277,9 @@ describe("LiveTableToolbar - Delete Column", () => {
 
     fireEvent.click(deleteButton!);
 
-    expect(yHeadersDeleteSpy).toHaveBeenCalledTimes(colIndicesToDelete.length);
-    expect(yHeadersDeleteSpy).toHaveBeenNthCalledWith(1, 2, 1);
-    expect(yHeadersDeleteSpy).toHaveBeenNthCalledWith(2, 0, 1);
-
-    expect(yHeaders.length).toBe(
-      initialHeadersData.length - colIndicesToDelete.length
-    );
-    expect(yHeaders.toArray()).toEqual(["Header2", "Header4"]);
-
-    yTable.forEach((row) => {
-      headersToDelete.forEach((header) => {
-        expect(row.has(header)).toBe(false);
-      });
-    });
-    expect(yTable.get(0).get("Header2")).toBe("R1C2");
-    expect(yTable.get(0).get("Header4")).toBe("R1C4");
-
-    expect(Object.fromEntries(yColWidthsMap.entries())).toEqual(
-      initialColWidthsData
+    expect(mockDeleteColumns).toHaveBeenCalledTimes(1);
+    expect(mockDeleteColumns).toHaveBeenCalledWith(
+      colIndicesToDelete.sort((a, b) => b - a)
     );
   });
 

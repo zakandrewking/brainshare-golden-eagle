@@ -14,7 +14,6 @@ import {
   Undo,
 } from "lucide-react";
 import { toast } from "sonner";
-import * as Y from "yjs";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -38,9 +37,6 @@ type PendingOperation =
 
 const LiveTableToolbar: React.FC = () => {
   const {
-    yDoc,
-    yTable,
-    yHeaders,
     selectedCell,
     undoManager,
     isTableLoaded,
@@ -48,6 +44,9 @@ const LiveTableToolbar: React.FC = () => {
     generateAndInsertRows,
     deleteRows,
     generateAndInsertColumns,
+    deleteColumns,
+    headers,
+    tableData,
   } = useLiveTable();
 
   const [isPending, startTransition] = useTransition();
@@ -270,42 +269,29 @@ const LiveTableToolbar: React.FC = () => {
       (a, b) => b - a
     );
 
-    if (
-      uniqueColIndicesToDelete.length === 0 ||
-      !yDoc ||
-      !yHeaders ||
-      !yTable
-    ) {
+    if (uniqueColIndicesToDelete.length === 0) {
+      // This case is already handled by deleteColumns in the provider (toast.info)
       return;
     }
 
-    yDoc.transact(() => {
+    startTransition(async () => {
       try {
-        uniqueColIndicesToDelete.forEach((colIndex) => {
-          const headerToDelete = yHeaders.get(colIndex);
-          if (headerToDelete !== undefined) {
-            console.log(
-              `Deleting header: "${headerToDelete}" at index ${colIndex}`
-            );
-            yHeaders.delete(colIndex, 1);
-            yTable.forEach((row: Y.Map<unknown>) => {
-              row.delete(headerToDelete);
-            });
-          } else {
-            console.warn(
-              `Header at index ${colIndex} not found during deletion.`
-            );
-          }
-        });
+        await deleteColumns(uniqueColIndicesToDelete);
       } catch (error) {
-        console.error("Error during column deletion transaction:", error);
+        console.error(
+          "Critical error in handleDeleteColumns transition:",
+          error
+        );
+        toast.error(
+          "A critical error occurred while preparing to delete columns. Please try again."
+        );
       }
     });
   };
 
   // --- CSV Download Handler ---
   const handleDownloadCsv = () => {
-    if (!yTable || yHeaders.length === 0) {
+    if (!isTableLoaded || !headers || headers.length === 0 || !tableData) {
       console.warn("CSV Download aborted: No headers or table data.");
       return;
     }
@@ -327,15 +313,13 @@ const LiveTableToolbar: React.FC = () => {
     };
 
     // Create Header Row
-    const csvHeader = yHeaders.toArray().map(escapeCsvCell).join(",");
+    const csvHeader = headers.map(escapeCsvCell).join(",");
 
     // Create Data Rows
-    const tableRows = yTable.toArray();
-    const csvRows = tableRows.map((rowMap: Y.Map<unknown>) => {
-      return yHeaders
-        .toArray()
+    const csvRows = tableData.map((row) => {
+      return headers
         .map((header) => {
-          const cellValue = rowMap.get(header); // Get value using the current header
+          const cellValue = row[header];
           return escapeCsvCell(cellValue);
         })
         .join(",");
@@ -375,9 +359,9 @@ const LiveTableToolbar: React.FC = () => {
   const selectedRowIndices = getSelectedRowIndices();
   const numSelectedRows = selectedRowIndices.length;
 
-  const canDeleteRow = numSelectedRows > 0 && isTableLoaded && !!yTable;
+  const canDeleteRow = numSelectedRows > 0 && isTableLoaded;
 
-  const canDownload = isTableLoaded && yHeaders && yHeaders.length > 0;
+  const canDownload = isTableLoaded && headers && headers.length > 0;
 
   // For disabling buttons, check for any pending operations
   const isAnyOperationPending = isPending && pendingOperation !== null;

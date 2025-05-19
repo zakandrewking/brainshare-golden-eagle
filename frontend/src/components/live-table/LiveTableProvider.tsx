@@ -32,30 +32,28 @@ interface SelectionArea {
 }
 
 export interface LiveTableContextType {
+  // data
   tableId: string;
   tableData: Record<string, unknown>[] | undefined;
   headers: string[] | undefined;
   columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
-  handleCellChange: (
-    rowIndex: number,
-    header: string,
-    newValue: string
-  ) => void;
+  // liveblocks
   yDoc: Y.Doc;
   yTable: Y.Array<Y.Map<unknown>>;
   yHeaders: Y.Array<string>;
-  selectedCell: { rowIndex: number; colIndex: number } | null;
+  // undo
   undoManager: UndoManager | null;
+  // mouse & keyboard events
   handleCellFocus: (rowIndex: number, colIndex: number) => void;
   handleCellBlur: () => void;
-  editingHeaderIndex: number | null;
-  editingHeaderValue: string;
   handleHeaderDoubleClick: (colIndex: number) => void;
   handleHeaderChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleHeaderBlur: () => void;
   handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   handleColumnResize: (header: string, newWidth: number) => void;
+  // selection
+  selectedCell: { rowIndex: number; colIndex: number } | null;
   selectionArea: SelectionArea;
   isSelecting: boolean;
   selectedCells: CellPosition[];
@@ -65,8 +63,17 @@ export interface LiveTableContextType {
   isCellSelected: (rowIndex: number, colIndex: number) => boolean;
   clearSelection: () => void;
   getSelectedCellsData: () => string[][];
+  // editing
+  handleCellChange: (
+    rowIndex: number,
+    header: string,
+    newValue: string
+  ) => void;
+  editingHeaderIndex: number | null;
+  editingHeaderValue: string;
   editingCell: { rowIndex: number; colIndex: number } | null;
   setEditingCell: (cell: { rowIndex: number; colIndex: number } | null) => void;
+  // row operations
   generateAndInsertRows: (
     initialInsertIndex: number,
     numRowsToAdd: number
@@ -77,6 +84,7 @@ export interface LiveTableContextType {
   deleteRows: (rowIndices: number[]) => Promise<{
     deletedCount: number;
   }>;
+  // column operations
   generateAndInsertColumns: (
     initialInsertIndex: number,
     numColsToAdd: number
@@ -84,6 +92,7 @@ export interface LiveTableContextType {
     aiColsAdded: number;
     defaultColsAdded: number;
   }>;
+  deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
 }
 
 interface LiveTableProviderProps {
@@ -672,6 +681,41 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [liveTableDoc, headers, tableData]
   );
 
+  const deleteColumns = useCallback(
+    async (colIndices: number[]) => {
+      if (!liveTableDoc) {
+        throw new Error("Table document not available. Cannot delete columns.");
+      }
+      if (colIndices.length === 0) {
+        toast.info("No columns selected for deletion.");
+        return { deletedCount: 0 };
+      }
+      let deletedCount = 0;
+      try {
+        deletedCount = liveTableDoc.deleteColumns(colIndices);
+        if (deletedCount > 0) {
+          toast.success(`Successfully deleted ${deletedCount} column(s).`);
+          if (colIndices.length > deletedCount) {
+            toast.info(
+              `${
+                colIndices.length - deletedCount
+              } column(s) could not be deleted (possibly out of bounds). Check console for details.`
+            );
+          }
+        } else if (colIndices.length > 0 && deletedCount === 0) {
+          toast.info(
+            "No columns were deleted. They might have been out of bounds. Check console for details."
+          );
+        }
+      } catch (error) {
+        console.error("Error during Yjs column deletion in Provider:", error);
+        throw error instanceof Error ? error : new Error(String(error));
+      }
+      return { deletedCount };
+    },
+    [liveTableDoc]
+  );
+
   // Helper for unique default header names
   function generateUniqueDefaultHeader(
     base: string,
@@ -728,6 +772,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         generateAndInsertRows,
         deleteRows,
         generateAndInsertColumns,
+        deleteColumns,
       }}
     >
       {children}
