@@ -11,19 +11,11 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
-import {
-  LiveTableDoc as ActualLiveTableDoc,
-} from "@/components/live-table/LiveTableDoc";
+import { LiveTableDoc as ActualLiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import {
   type LiveTableContextType,
   useLiveTable,
@@ -193,7 +185,10 @@ describe("LiveTableDisplay Header Editing", () => {
 
     rerender(<LiveTableDisplay />);
 
-    const headerCellTh = screen.getAllByRole("columnheader")[0];
+    // The mocked useLiveTable will now return editingHeaderIndex = 0.
+    // The component should render the <Input />.
+    // Adjust index: +1 because screen.getAllByRole("columnheader")[0] is the row number header.
+    const headerCellTh = screen.getAllByRole("columnheader")[0 + 1];
     const input = within(headerCellTh).getByRole("textbox") as HTMLInputElement;
     expect(input).toBeInTheDocument();
     expect(input.value).toBe(initialHeaders[0]);
@@ -208,7 +203,8 @@ describe("LiveTableDisplay Header Editing", () => {
     await user.dblClick(headerCellDiv!);
     rerender(<LiveTableDisplay />);
 
-    const headerCellTh = screen.getAllByRole("columnheader")[0];
+    // Adjust index: +1
+    const headerCellTh = screen.getAllByRole("columnheader")[0 + 1];
     const input = within(headerCellTh).getByRole("textbox") as HTMLInputElement;
     const newHeaderText = "New Header Name";
 
@@ -232,7 +228,9 @@ describe("LiveTableDisplay Header Editing", () => {
     await user.dblClick(headerCellDiv!);
     rerender(<LiveTableDisplay />);
 
-    const headerCellTh = screen.getAllByRole("columnheader")[headerIndexToEdit];
+    // Adjust index: +1
+    const headerCellTh =
+      screen.getAllByRole("columnheader")[headerIndexToEdit + 1];
     const input = within(headerCellTh).getByRole("textbox") as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: newHeaderText } });
@@ -265,7 +263,9 @@ describe("LiveTableDisplay Header Editing", () => {
     await user.dblClick(headerCellDiv!);
     rerender(<LiveTableDisplay />);
 
-    const headerCellTh = screen.getAllByRole("columnheader")[headerIndexToEdit];
+    // Adjust index: +1
+    const headerCellTh =
+      screen.getAllByRole("columnheader")[headerIndexToEdit + 1];
     const input = within(headerCellTh).getByRole("textbox") as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: newHeaderText } });
@@ -282,7 +282,7 @@ describe("LiveTableDisplay Header Editing", () => {
 
     rerender(<LiveTableDisplay />);
     const updatedHeaderCellTh =
-      screen.getAllByRole("columnheader")[headerIndexToEdit];
+      screen.getAllByRole("columnheader")[headerIndexToEdit + 1];
     expect(
       within(updatedHeaderCellTh).queryByRole("textbox")
     ).not.toBeInTheDocument();
@@ -299,7 +299,9 @@ describe("LiveTableDisplay Header Editing", () => {
     await user.dblClick(headerCellDiv!);
     rerender(<LiveTableDisplay />);
 
-    const headerCellTh = screen.getAllByRole("columnheader")[headerIndexToEdit];
+    // Adjust index: +1
+    const headerCellTh =
+      screen.getAllByRole("columnheader")[headerIndexToEdit + 1];
     const input = within(headerCellTh).getByRole("textbox") as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: "Temporary Change" } });
@@ -312,7 +314,7 @@ describe("LiveTableDisplay Header Editing", () => {
 
     rerender(<LiveTableDisplay />);
     const updatedHeaderCellTh =
-      screen.getAllByRole("columnheader")[headerIndexToEdit];
+      screen.getAllByRole("columnheader")[headerIndexToEdit + 1];
     expect(
       within(updatedHeaderCellTh).queryByRole("textbox")
     ).not.toBeInTheDocument();

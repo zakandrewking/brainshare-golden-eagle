@@ -1,21 +1,9 @@
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
+import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
@@ -107,14 +95,22 @@ describe("LiveTableDisplay - Drag Selection", () => {
     render(<LiveTableDisplay />);
 
     // Find and trigger mousedown on a cell
-    const cell = screen.getAllByRole("cell")[0]; // First cell
-    fireEvent.mouseDown(cell);
+    // Ensure we are selecting a data cell, not a row number cell
+    const dataCell = screen
+      .getAllByRole("cell")
+      .find(
+        (c) =>
+          c.getAttribute("data-row-index") === "0" &&
+          c.getAttribute("data-col-index") === "0"
+      );
+    expect(dataCell).toBeInTheDocument(); // Make sure we found the cell
+    fireEvent.mouseDown(dataCell!);
 
     // Verify handleSelectionStart was called with correct row and column indices
-    const mockHandleSelectionStart = vi.mocked(
-      LiveTableProviderModule.useLiveTable
-    )().handleSelectionStart;
-    expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
+    // Use the mock function instance provided by the mocked hook
+    expect(
+      vi.mocked(LiveTableProviderModule.useLiveTable)().handleSelectionStart
+    ).toHaveBeenCalledWith(0, 0);
   });
 
   it("should not start selection when mousedown on a cell in edit mode", () => {
@@ -143,22 +139,30 @@ describe("LiveTableDisplay - Drag Selection", () => {
     // and verify our component is wired up correctly
 
     // Mock the functions
-    const mockHandleSelectionStart = vi.fn();
+    const mockHandleSelectionStartLocal = vi.fn(); // Local mock for this test
 
     // Override the default mock
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValueOnce({
       ...vi.mocked(LiveTableProviderModule.useLiveTable)(),
-      handleSelectionStart: mockHandleSelectionStart,
+      handleSelectionStart: mockHandleSelectionStartLocal, // Use the local mock
     } as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
 
     render(<LiveTableDisplay />);
 
-    // Find a cell and trigger mousedown
-    const cell = screen.getAllByRole("cell")[4]; // Middle cell
-    fireEvent.mouseDown(cell);
+    // Find a data cell and trigger mousedown
+    // e.g., cell at (1,1) which is mockTableData[1]["Column2"]
+    const dataCell = screen
+      .getAllByRole("cell")
+      .find(
+        (c) =>
+          c.getAttribute("data-row-index") === "1" &&
+          c.getAttribute("data-col-index") === "1"
+      );
+    expect(dataCell).toBeInTheDocument(); // Make sure we found the cell
+    fireEvent.mouseDown(dataCell!);
 
-    // Verify handleSelectionStart was called
-    expect(mockHandleSelectionStart).toHaveBeenCalled();
+    // Verify handleSelectionStart was called (using the local mock)
+    expect(mockHandleSelectionStartLocal).toHaveBeenCalled();
   });
 
   it("should end selection when mouseup", () => {
@@ -204,10 +208,18 @@ describe("LiveTableDisplay - Drag Selection", () => {
     render(<LiveTableDisplay />);
 
     // Get all cells
-    const cells = screen.getAllByRole("cell");
+    const allCells = screen.getAllByRole("cell");
+    // Filter for actual data cells which should have data-row-index and data-col-index
+    const dataCells = allCells.filter(
+      (cell) =>
+        cell.hasAttribute("data-row-index") &&
+        cell.hasAttribute("data-col-index")
+    );
 
-    // Check that each cell has the expected selection style attribute
-    cells.forEach((cell) => {
+    expect(dataCells.length).toBeGreaterThan(0); // Make sure we are testing actual data cells
+
+    // Check that each data cell has the expected selection style attribute
+    dataCells.forEach((cell) => {
       expect(cell.getAttribute("data-selected")).toBe("true");
     });
   });

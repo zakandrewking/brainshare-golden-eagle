@@ -11,11 +11,7 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
@@ -60,7 +56,6 @@ describe("LiveTableDisplay Cell Editing", () => {
       isSelecting: false,
       isCellSelected: vi.fn().mockReturnValue(false),
       yDoc: new Y.Doc(),
-      yTable: new Y.Doc().getArray<Y.Map<unknown>>("table"),
       yHeaders: new Y.Doc().getArray<string>("headers"),
       undoManager: null,
       tableId: "test-table",

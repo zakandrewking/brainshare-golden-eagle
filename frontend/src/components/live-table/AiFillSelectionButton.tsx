@@ -5,8 +5,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 
-import generateSelectedCellsSuggestions
-  from "./actions/generateSelectedCellsSuggestions";
+import generateSelectedCellsSuggestions from "./actions/generateSelectedCellsSuggestions";
 import { useLiveTable } from "./LiveTableProvider";
 
 export function AiFillSelectionButton() {
@@ -50,11 +49,9 @@ export function AiFillSelectionButton() {
             result.suggestions.forEach((suggestion) => {
               const { rowIndex, colIndex, suggestion: newValue } = suggestion;
 
-              // Get the header name for the column index
-              const header = headersToUse[colIndex];
-              if (header) {
+              if (colIndex !== undefined) {
                 // Now we can use the correct types as expected by handleCellChange
-                handleCellChange(rowIndex, header, newValue);
+                handleCellChange(rowIndex, colIndex, newValue);
               }
             });
           }

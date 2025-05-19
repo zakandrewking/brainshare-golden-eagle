@@ -7,12 +7,11 @@ import React, {
   useState,
 } from "react";
 
-import * as Y from "yjs";
 import { UndoManager } from "yjs";
 
 import { useRoom } from "@liveblocks/react/suspense";
 
-import { initializeLiveblocksRoom } from "./LiveTableDoc";
+import { ColumnDefinition, initializeLiveblocksRoom } from "./LiveTableDoc";
 import { useUpdatedSelf } from "./useUpdatedSelf";
 
 interface CellPosition {
@@ -31,25 +30,29 @@ export interface LiveTableContextType {
   headers: string[] | undefined;
   columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
+
   handleCellChange: (
     rowIndex: number,
-    header: string,
+    colIndex: number,
     newValue: string
   ) => void;
-  yDoc: Y.Doc;
-  yTable: Y.Array<Y.Map<unknown>>;
-  yHeaders: Y.Array<string>;
-  selectedCell: { rowIndex: number; colIndex: number } | null;
-  undoManager: UndoManager | null;
-  handleCellFocus: (rowIndex: number, colIndex: number) => void;
-  handleCellBlur: () => void;
-  editingHeaderIndex: number | null;
-  editingHeaderValue: string;
-  handleHeaderDoubleClick: (colIndex: number) => void;
+  handleHeaderDoubleClick: (colIndex: number) => void; // colIndex in yColumnOrder
   handleHeaderChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleHeaderBlur: () => void;
   handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
-  handleColumnResize: (header: string, newWidth: number) => void;
+  handleColumnResize: (colIndex: number, newWidth: number) => void; // colIndex in yColumnOrder
+
+  handleInsertRows: (rows: string[][], rowInsertIndex: number) => void;
+  handleInsertColumns: (columns: string[], columnInsertIndex: number) => void;
+
+  undoManager: UndoManager | null;
+
+  selectedCell: CellPosition | null;
+  handleCellFocus: (rowIndex: number, colIndex: number) => void;
+  handleCellBlur: () => void;
+  editingHeaderIndex: number | null; // Display colIndex of header being edited
+  editingHeaderValue: string; // Current value of header being edited
+
   selectionArea: SelectionArea;
   isSelecting: boolean;
   selectedCells: CellPosition[];
@@ -59,8 +62,8 @@ export interface LiveTableContextType {
   isCellSelected: (rowIndex: number, colIndex: number) => boolean;
   clearSelection: () => void;
   getSelectedCellsData: () => string[][];
-  editingCell: { rowIndex: number; colIndex: number } | null;
-  setEditingCell: (cell: { rowIndex: number; colIndex: number } | null) => void;
+  editingCell: CellPosition | null;
+  setEditingCell: (cell: CellPosition | null) => void;
 }
 
 interface LiveTableProviderProps {
@@ -81,11 +84,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // Downstream components should read table, headers, and colWidths for most
   // uses cases.
 
-  // TODO table/setTable is keyed by Column ID, a unique, non-meaningful identifier for each
-  // column.
-  // TODO headers/setHeaders is a map of Column ID to human-readable header name.
-  // TODO colWidths/setColumnWidths is keyed by Column ID
-
   const [tableData, setTableData] = useState<
     Record<string, unknown>[] | undefined
   >(undefined);
@@ -95,54 +93,38 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   >(undefined);
   const [isTableLoaded, setIsTableLoaded] = useState<boolean>(false);
 
-  // Header editing state
   const [editingHeaderIndex, setEditingHeaderIndex] = useState<number | null>(
     null
   );
   const [editingHeaderValue, setEditingHeaderValue] = useState<string>("");
+  const [editingCell, setEditingCell] = useState<CellPosition | null>(null);
 
-  // State for tracking the cell being edited
-  const [editingCell, setEditingCell] = useState<{
-    rowIndex: number;
-    colIndex: number;
-  } | null>(null);
-
-  // liveblocks
   const room = useRoom();
   const { liveTableDoc, yProvider } = useMemo(
     () => initializeLiveblocksRoom(room),
     [room]
   );
+
   liveTableDoc.tableDataUpdateCallback = setTableData;
   liveTableDoc.headersUpdateCallback = setHeaders;
   liveTableDoc.columnWidthsUpdateCallback = setColumnWidths;
+
   const yDoc = useMemo(() => liveTableDoc.yDoc, [liveTableDoc]);
-  const yHeaders = useMemo(() => liveTableDoc.yHeaders, [liveTableDoc]);
-  const yTable = useMemo(() => liveTableDoc.yTable, [liveTableDoc]);
-  const yColWidths = useMemo(() => liveTableDoc.yColWidths, [liveTableDoc]);
   const undoManager = useMemo(() => liveTableDoc.undoManager, [liveTableDoc]);
 
-  // update self info in awareness
   useUpdatedSelf(yProvider);
 
-  const [selectedCell, setSelectedCell] = useState<{
-    rowIndex: number;
-    colIndex: number;
-  } | null>(null);
-
-  // multiple cell selection
+  const [selectedCell, setSelectedCell] = useState<CellPosition | null>(null);
   const [selectionArea, setSelectionArea] = useState<SelectionArea>({
     startCell: null,
     endCell: null,
   });
   const [isSelecting, setIsSelecting] = useState(false);
 
-  // Calculate all selected cells based on the selection area
   const selectedCells = useMemo(() => {
     if (!selectionArea.startCell || !selectionArea.endCell) {
       return [];
     }
-
     const startRow = Math.min(
       selectionArea.startCell.rowIndex,
       selectionArea.endCell.rowIndex
@@ -159,18 +141,15 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       selectionArea.startCell.colIndex,
       selectionArea.endCell.colIndex
     );
-
     const cells: CellPosition[] = [];
     for (let rowIndex = startRow; rowIndex <= endRow; rowIndex++) {
       for (let colIndex = startCol; colIndex <= endCol; colIndex++) {
         cells.push({ rowIndex, colIndex });
       }
     }
-
     return cells;
   }, [selectionArea]);
 
-  // Start selection process when a cell is clicked
   const handleSelectionStart = useCallback(
     (rowIndex: number, colIndex: number) => {
       setSelectionArea({
@@ -183,11 +162,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     []
   );
 
-  // Update selection as mouse moves
   const handleSelectionMove = useCallback(
     (rowIndex: number, colIndex: number) => {
       if (!isSelecting || !selectionArea.startCell) return;
-
       setSelectionArea((prev) => ({
         ...prev,
         endCell: { rowIndex, colIndex },
@@ -196,12 +173,10 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [isSelecting, selectionArea.startCell]
   );
 
-  // End selection process when mouse is released
   const handleSelectionEnd = useCallback(() => {
     setIsSelecting(false);
   }, []);
 
-  // Check if a specific cell is within the current selection
   const isCellSelected = useCallback(
     (rowIndex: number, colIndex: number) => {
       return selectedCells.some(
@@ -211,19 +186,15 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [selectedCells]
   );
 
-  // Clear the current selection
   const clearSelection = useCallback(() => {
     setSelectionArea({ startCell: null, endCell: null });
     setSelectedCell(null);
   }, []);
 
-  // Get data from all selected cells (useful for copy operations)
   const getSelectedCellsData = useCallback(() => {
     if (!tableData || !headers || selectedCells.length === 0) {
       return [];
     }
-
-    // Group cells by row
     const rowGroups = selectedCells.reduce<Record<number, CellPosition[]>>(
       (acc, cell) => {
         if (!acc[cell.rowIndex]) {
@@ -234,22 +205,18 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       },
       {}
     );
-
-    // For each row, extract the cell data in order
     return Object.keys(rowGroups)
       .map(Number)
       .sort((a, b) => a - b)
       .map((rowIndex) => {
         const row = rowGroups[rowIndex].sort((a, b) => a.colIndex - b.colIndex);
         return row.map((cell) => {
-          const header = headers[cell.colIndex];
+          const headerName = headers[cell.colIndex];
           const rowData = tableData[cell.rowIndex];
-          return rowData && header ? String(rowData[header] ?? "") : "";
+          return rowData && headerName ? String(rowData[headerName] ?? "") : "";
         });
       });
   }, [tableData, headers, selectedCells]);
-
-  // --- Load status ---
 
   useEffect(() => {
     if (!isTableLoaded && tableData && headers && columnWidths) {
@@ -258,9 +225,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       );
       setIsTableLoaded(true);
     }
-  }, [tableData, headers, isTableLoaded, yTable.length, columnWidths]);
-
-  // --- Awareness & Focus ---
+  }, [tableData, headers, columnWidths, isTableLoaded]);
 
   const handleCellFocus = useCallback(
     (rowIndex: number, colIndex: number) => {
@@ -273,20 +238,55 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [yProvider.awareness]
   );
 
-  // Function to handle cell blur
   const handleCellBlur = useCallback(() => {
-    setSelectedCell(null);
+    // setSelectedCell(null); // This is handled by selection logic or explicit clearSelection
     yProvider.awareness.setLocalStateField("selectedCell", null);
   }, [yProvider.awareness]);
 
-  // Header editing functions
+  const handleCellChange = useCallback(
+    (rowIndex: number, colIndex: number, newValue: string) => {
+      liveTableDoc.yDoc.transact(() => {
+        const rowId = liveTableDoc.yRowOrder.get(rowIndex);
+        const columnId = liveTableDoc.yColumnOrder.get(colIndex);
+        if (rowId && columnId) {
+          const rowMap = liveTableDoc.yRowData.get(rowId);
+          if (rowMap) {
+            if (newValue === "") {
+              rowMap.set(columnId, "");
+            } else {
+              rowMap.set(columnId, newValue);
+            }
+          }
+        } else {
+          console.error(
+            `handleCellChange: Could not find RowId for rowIndex ${rowIndex} or ColumnId for colIndex ${colIndex}`
+          );
+        }
+      });
+    },
+    [liveTableDoc]
+  );
+
   const handleHeaderDoubleClick = useCallback(
     (colIndex: number) => {
-      if (!headers) return;
-      setEditingHeaderIndex(colIndex);
-      setEditingHeaderValue(headers[colIndex]);
+      const columnId = liveTableDoc.yColumnOrder.get(colIndex);
+      if (columnId) {
+        const definition = liveTableDoc.yColumnDefinitions.get(columnId);
+        if (definition) {
+          setEditingHeaderIndex(colIndex);
+          setEditingHeaderValue(definition.name);
+        } else {
+          console.error(
+            `handleHeaderDoubleClick: No definition for colId ${columnId}`
+          );
+        }
+      } else {
+        console.error(
+          `handleHeaderDoubleClick: No colId at colIndex ${colIndex}`
+        );
+      }
     },
-    [headers]
+    [liveTableDoc]
   );
 
   const handleHeaderChange = useCallback(
@@ -297,17 +297,19 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   );
 
   const handleHeaderBlur = useCallback(() => {
-    if (editingHeaderIndex === null || !headers || !yHeaders) return;
+    if (editingHeaderIndex === null) return;
 
-    const oldHeader = headers[editingHeaderIndex];
-    const newHeader = editingHeaderValue.trim();
+    const newHeaderName = editingHeaderValue.trim();
+    const columnId = liveTableDoc.yColumnOrder.get(editingHeaderIndex);
 
-    if (newHeader && newHeader !== oldHeader) {
-      liveTableDoc.editHeader(editingHeaderIndex, newHeader);
+    if (columnId) {
+      const definition = liveTableDoc.yColumnDefinitions.get(columnId);
+      if (definition && newHeaderName && newHeaderName !== definition.name) {
+        liveTableDoc.editHeader(editingHeaderIndex, newHeaderName);
+      }
     }
-
     setEditingHeaderIndex(null);
-  }, [editingHeaderIndex, headers, yHeaders, editingHeaderValue, liveTableDoc]);
+  }, [editingHeaderIndex, editingHeaderValue, liveTableDoc]);
 
   const handleHeaderKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -323,17 +325,32 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   );
 
   const handleColumnResize = useCallback(
-    (header: string, newWidth: number) => {
-      if (!yColWidths) return;
-
-      yDoc.transact(() => {
-        yColWidths.set(header, newWidth);
+    (colIndex: number, newWidth: number) => {
+      liveTableDoc.yDoc.transact(() => {
+        const columnId = liveTableDoc.yColumnOrder.get(colIndex);
+        if (columnId) {
+          const definition = liveTableDoc.yColumnDefinitions.get(columnId);
+          if (definition) {
+            const updatedDefinition: ColumnDefinition = {
+              ...definition,
+              width: newWidth,
+            };
+            liveTableDoc.yColumnDefinitions.set(columnId, updatedDefinition);
+          } else {
+            console.error(
+              `handleColumnResize: No definition found for columnId ${columnId}`
+            );
+          }
+        } else {
+          console.error(
+            `handleColumnResize: No columnId found at colIndex ${colIndex}`
+          );
+        }
       });
     },
-    [yDoc, yColWidths]
+    [liveTableDoc]
   );
 
-  // wire up yjs observers
   useEffect(() => {
     liveTableDoc.initializeObservers();
     return () => {
@@ -341,21 +358,18 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     };
   }, [liveTableDoc]);
 
-  // Function to handle cell changes
-  const handleCellChange = useCallback(
-    (rowIndex: number, header: string, newValue: string) => {
-      yDoc.transact(() => {
-        const yRow = yTable.get(rowIndex);
-        if (yRow) {
-          if (newValue === "") {
-            yRow.delete(header);
-          } else {
-            yRow.set(header, newValue);
-          }
-        }
-      });
+  const handleInsertRows = useCallback(
+    (rows: string[][], rowInsertIndex: number) => {
+      liveTableDoc?.insertRows(rows, rowInsertIndex);
     },
-    [yDoc, yTable]
+    [liveTableDoc]
+  );
+
+  const handleInsertColumns = useCallback(
+    (columns: string[], columnInsertIndex: number) => {
+      liveTableDoc?.insertColumns(columns, columnInsertIndex);
+    },
+    [liveTableDoc]
   );
 
   return (
@@ -367,11 +381,8 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         columnWidths,
         isTableLoaded,
         handleCellChange,
-        yDoc,
-        yTable,
-        yHeaders,
-        selectedCell,
         undoManager,
+        selectedCell,
         handleCellFocus,
         handleCellBlur,
         editingHeaderIndex,
@@ -381,7 +392,8 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         handleHeaderBlur,
         handleHeaderKeyDown,
         handleColumnResize,
-        // New exports for multiple cell selection
+        handleInsertRows,
+        handleInsertColumns,
         selectionArea,
         isSelecting,
         selectedCells,

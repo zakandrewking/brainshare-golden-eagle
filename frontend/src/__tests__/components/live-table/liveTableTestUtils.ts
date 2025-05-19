@@ -1,12 +1,13 @@
 import { vi } from "vitest";
 import * as Y from "yjs";
 
+import { ColumnDefinition } from "@/components/live-table/LiveTableDoc";
 import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
 
 // Define a more specific type for overrides that allows yColWidths (Y.Map)
 // and other context properties.
 type LiveTableMockOverrides = Partial<
-  ReturnType<typeof LiveTableProvider.useLiveTable>
+  ReturnType<typeof LiveTableProvider.useL  iveTable>
 > & {
   yColWidths?: Y.Map<number>; // Allow explicitly passing a Y.Map for yColWidths
 };
@@ -15,8 +16,14 @@ export const getLiveTableMockValues = (
   overrides: LiveTableMockOverrides = {}
 ) => {
   const yDoc = overrides.yDoc || new Y.Doc();
-  const yHeaders = overrides.yHeaders || yDoc.getArray<string>("tableHeaders");
-  const yTable = overrides.yTable || yDoc.getArray<Y.Map<unknown>>("tableData");
+  const yRowData = overrides.yRowData || yDoc.getMap<Y.Map<unknown>>("rowData");
+  const yColumnDefinitions =
+    overrides.yColumnDefinitions ||
+    yDoc.getMap<ColumnDefinition>("columnDefinitions");
+  const yColumnOrder =
+    overrides.yColumnOrder || yDoc.getArray<Y.Map<unknown>>("tableData");
+  const yRowOrder =
+    overrides.yRowOrder || yDoc.getArray<Y.Map<unknown>>("tableData");
 
   // If overrides.yColWidths (the Y.Map) is provided, use it.
   // Otherwise, create/get the Y.Map from yDoc.
@@ -25,7 +32,7 @@ export const getLiveTableMockValues = (
 
   const undoManager =
     overrides.undoManager ||
-    new Y.UndoManager([yHeaders, yTable, yColWidthsMapSource]);
+    new Y.UndoManager([yRowData, yColumnDefinitions, yColumnOrder, yRowOrder]);
 
   // If overrides.columnWidths (the plain object) is provided, it takes precedence.
   // Otherwise, derive the plain object from the yColWidthsMapSource.
@@ -35,8 +42,10 @@ export const getLiveTableMockValues = (
   const defaultMockValue: ReturnType<typeof LiveTableProvider.useLiveTable> = {
     // Start with all required Yjs instances and default values
     yDoc,
-    yHeaders,
-    yTable,
+    yRowData,
+    yColumnDefinitions,
+    yColumnOrder,
+    yRowOrder,
     yColWidths: yColWidthsMapSource, // This is the Y.Map instance for the context
     undoManager,
     isTableLoaded: true,

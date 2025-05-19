@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
-import { ArrowDown, ArrowUp, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -53,8 +53,6 @@ const LiveTable: React.FC = () => {
     editingCell,
     setEditingCell,
     clearSelection,
-    sortConfig,
-    handleSort,
   } = useLiveTable();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
@@ -300,7 +298,7 @@ const LiveTable: React.FC = () => {
                           onDoubleClick={() => handleHeaderDoubleClick(index)}
                         >
                           {header}
-                          {sortConfig?.key === header && (
+                          {/* {sortConfig?.key === header && (
                             <span className="ml-2">
                               {sortConfig.direction === "asc" ? (
                                 <ArrowUp className="h-4 w-4" />
@@ -308,7 +306,7 @@ const LiveTable: React.FC = () => {
                                 <ArrowDown className="h-4 w-4" />
                               )}
                             </span>
-                          )}
+                          )} */}
                         </div>
                       )}
                       <DropdownMenu>

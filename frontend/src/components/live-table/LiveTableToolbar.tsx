@@ -34,8 +34,6 @@ import { useLiveTable } from "./LiveTableProvider";
 import {
   applyDefaultColumnToYDocOnError,
   applyGeneratedColumnToYDoc,
-  createDefaultYMapForRow,
-  createYMapFromData,
 } from "./yjs-operations";
 
 // Define the possible pending operations
@@ -48,13 +46,16 @@ type PendingOperation =
 
 const LiveTableToolbar: React.FC = () => {
   const {
-    yDoc,
-    yTable,
-    yHeaders,
+    tableData,
+    headers,
     selectedCell,
     undoManager,
     isTableLoaded,
     selectedCells,
+    insertRows,
+    deleteRows,
+    insertColumns,
+    deleteColumns,
   } = useLiveTable();
 
   const [isPending, startTransition] = useTransition();
@@ -91,7 +92,7 @@ const LiveTableToolbar: React.FC = () => {
     const currentSelectedCell = selectedCell;
     const currentSelectedCells = selectedCells;
 
-    if (!yDoc || !yTable || !currentSelectedCell || !yHeaders) return;
+    if (!currentSelectedCell || !headers || !tableData) return;
 
     let numRowsToAdd = 1;
     const uniqueSelectedRowIndices: number[] = [];
@@ -139,8 +140,8 @@ const LiveTableToolbar: React.FC = () => {
           : currentSelectedCell.rowIndex + 1;
     }
 
+    // respecting current row order
     const initialInsertIndex = calculatedInitialInsertIndex;
-    const yHeadersArray = yHeaders.toArray(); // Get headers once
 
     setPendingOperation(
       direction === "above" ? "add-row-above" : "add-row-below"
@@ -149,43 +150,35 @@ const LiveTableToolbar: React.FC = () => {
     startTransition(async () => {
       let aiRowsAddedCount = 0;
       let defaultRowsAddedCount = 0;
-      const rowsToInsertInYjs: Y.Map<unknown>[] = [];
+      const rowsToInsert: string[][] = [];
 
       try {
-        const result = await generateNewRows(
-          yTable.toArray().map((row) => row.toJSON()),
-          yHeadersArray,
-          numRowsToAdd
-        );
+        const result = await generateNewRows(tableData, headers, numRowsToAdd);
 
         if (result.error || !result.newRows || result.newRows.length === 0) {
           console.warn(
             `Failed to generate AI rows or no rows returned, falling back to default rows. Error: ${result.error}`
           );
           for (let i = 0; i < numRowsToAdd; i++) {
-            rowsToInsertInYjs.push(createDefaultYMapForRow(yHeadersArray));
+            rowsToInsert.push(headers.map(() => ""));
             defaultRowsAddedCount++;
           }
         } else {
           result.newRows.forEach((rowData: Record<string, string>) => {
-            if (rowsToInsertInYjs.length < numRowsToAdd) {
-              rowsToInsertInYjs.push(
-                createYMapFromData(rowData, yHeadersArray)
-              );
+            if (rowsToInsert.length < numRowsToAdd) {
+              rowsToInsert.push(headers.map((header) => rowData[header] || ""));
               aiRowsAddedCount++;
             }
           });
           const remainingRowsToFill = numRowsToAdd - aiRowsAddedCount;
           for (let i = 0; i < remainingRowsToFill; i++) {
-            rowsToInsertInYjs.push(createDefaultYMapForRow(yHeadersArray));
+            rowsToInsert.push(headers.map(() => ""));
             defaultRowsAddedCount++;
           }
         }
 
-        if (rowsToInsertInYjs.length > 0) {
-          yDoc.transact(() => {
-            yTable.insert(initialInsertIndex, rowsToInsertInYjs);
-          });
+        if (rowsToInsert.length > 0) {
+          insertRows(rowsToInsert, initialInsertIndex);
         }
 
         // Consolidated Toast Message Logic
@@ -202,7 +195,7 @@ const LiveTableToolbar: React.FC = () => {
           toast.info(
             `Added ${defaultRowsAddedCount} default row(s) as AI suggestions were not available or failed.`
           );
-        } else if (numRowsToAdd > 0 && rowsToInsertInYjs.length === 0) {
+        } else if (numRowsToAdd > 0 && rowsToInsert.length === 0) {
           // This case should ideally not be hit if logic is correct, but acts as a fallback.
           toast.info("Attempted to add rows, but no rows were prepared.");
         }
@@ -211,14 +204,12 @@ const LiveTableToolbar: React.FC = () => {
       } catch (error) {
         console.error(`Error during add row operation:`, error);
         // Fallback: add default empty rows on catastrophic failure
-        const fallbackRows: Y.Map<unknown>[] = [];
+        const fallbackRows: string[][] = [];
         for (let i = 0; i < numRowsToAdd; i++) {
-          fallbackRows.push(createDefaultYMapForRow(yHeadersArray));
+          fallbackRows.push(headers.map(() => ""));
         }
         if (fallbackRows.length > 0) {
-          yDoc.transact(() => {
-            yTable.insert(initialInsertIndex, fallbackRows);
-          });
+          insertRows(fallbackRows, initialInsertIndex);
         }
         toast.error(
           `Failed to add ${numRowsToAdd} row(s). ${
@@ -238,24 +229,16 @@ const LiveTableToolbar: React.FC = () => {
       (a, b) => b - a // Sort descending for safe deletion
     );
 
-    if (uniqueRowIndicesToDelete.length === 0 || !yDoc || !yTable) {
+    if (uniqueRowIndicesToDelete.length === 0) {
       return;
     }
 
-    yDoc.transact(() => {
-      try {
-        uniqueRowIndicesToDelete.forEach((rowIndex) => {
-          yTable.delete(rowIndex, 1); // Delete 1 row at the specified index
-        });
-      } catch (error) {
-        console.error("Error during row deletion transaction:", error);
-      }
-    });
+    deleteRows(uniqueRowIndicesToDelete);
   };
 
   const handleAddColumnRelative = (direction: "left" | "right") => {
     const currentSelectedCell = selectedCell;
-    if (!yDoc || !yTable || !yHeaders || !currentSelectedCell) return;
+    if (!tableData || !headers || !currentSelectedCell) return;
 
     const uniqueSelectedColIndices = getUniqueSelectedColumnIndices();
     let numColsToAdd = 1;
@@ -495,12 +478,7 @@ const LiveTableToolbar: React.FC = () => {
       (a, b) => b - a
     );
 
-    if (
-      uniqueColIndicesToDelete.length === 0 ||
-      !yDoc ||
-      !yHeaders ||
-      !yTable
-    ) {
+    if (uniqueColIndicesToDelete.length === 0 || !tableData || !headers) {
       return;
     }
 
@@ -600,9 +578,8 @@ const LiveTableToolbar: React.FC = () => {
   const selectedRowIndices = getSelectedRowIndices();
   const numSelectedRows = selectedRowIndices.length;
 
-  const canDeleteRow = numSelectedRows > 0 && isTableLoaded && !!yTable;
-
-  const canDownload = isTableLoaded && yHeaders && yHeaders.length > 0;
+  const canDeleteRow = numSelectedRows > 0 && isTableLoaded;
+  const canDownload = isTableLoaded;
 
   // For disabling buttons, check for any pending operations
   const isAnyOperationPending = isPending && pendingOperation !== null;
