@@ -167,6 +167,41 @@ export class LiveTableDoc {
     this.yTable.insert(initialInsertIndex, rowsToInsertInYjs);
     return rowsToInsertInYjs.length;
   }
+
+  /**
+   * Deletes rows from the table.
+   * Assumes rowIndices are sorted in descending order by the caller to prevent index shifting issues.
+   * @param rowIndices - An array of row indices to delete (sorted descending).
+   * @returns number of rows deleted.
+   */
+  deleteRows(rowIndices: number[]): number {
+    if (rowIndices.length === 0) {
+      return 0;
+    }
+
+    let deletedCount = 0;
+    this.yDoc.transact(() => {
+      rowIndices.forEach((rowIndex) => {
+        // Ensure row exists before attempting to delete
+        if (rowIndex < this.yTable.length) {
+          this.yTable.delete(rowIndex, 1);
+          deletedCount++;
+        } else {
+          console.warn(
+            `LiveTableDoc.deleteRows: Attempted to delete non-existent row at index ${rowIndex}. Table length: ${this.yTable.length}`
+          );
+        }
+      });
+    });
+    if (deletedCount < rowIndices.length) {
+      // This case might indicate some indices were out of bounds but others were valid.
+      // The operation is still partially successful.
+      console.warn(
+        `LiveTableDoc.deleteRows: Attempted to delete ${rowIndices.length} rows, but only ${deletedCount} were valid and deleted.`
+      );
+    }
+    return deletedCount;
+  }
 }
 
 export function initializeLiveblocksRoom(

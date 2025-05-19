@@ -11,11 +11,7 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
@@ -78,6 +74,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
   let yTable: Y.Array<Y.Map<unknown>>;
   let yHeaders: Y.Array<string>;
   let mockStartTransition: React.TransitionStartFunction;
+  let mockDeleteRows: Mock;
 
   const initialHeaders = ["Header1", "Header2"];
   const initialTableContent = [
@@ -130,6 +127,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
       isTableLoaded: true,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    mockDeleteRows = mockData.deleteRows as Mock;
   });
 
   afterEach(() => {
@@ -149,8 +147,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
       redoStack: [],
     } as unknown as Y.UndoManager;
 
-    const yTableDeleteSpy = vi.spyOn(yTable, "delete");
-
     const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yTable: yTable,
@@ -167,6 +163,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
       isTableLoaded: true,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    mockDeleteRows = mockData.deleteRows as Mock;
 
     render(
       <TooltipProvider>
@@ -186,26 +183,8 @@ describe("LiveTableToolbar - Delete Rows", () => {
 
     fireEvent.click(deleteButton!);
 
-    expect(yTableDeleteSpy).toHaveBeenCalledTimes(1);
-    expect(yTableDeleteSpy).toHaveBeenCalledWith(selectedRowIndex, 1);
-
-    expect(yTable.length).toBe(initialTableContent.length - 1);
-    const remainingRows = yTable.toArray().map((row) => row.toJSON());
-    const expectedRemainingContent = initialTableContent.filter(
-      (_, index) => index !== selectedRowIndex
-    );
-    expect(remainingRows).toEqual(expectedRemainingContent);
-
-    let foundDeletedContent = false;
-    remainingRows.forEach((row) => {
-      if (
-        JSON.stringify(row) ===
-        JSON.stringify(initialTableContent[selectedRowIndex])
-      ) {
-        foundDeletedContent = true;
-      }
-    });
-    expect(foundDeletedContent).toBe(false);
+    expect(mockDeleteRows).toHaveBeenCalledTimes(1);
+    expect(mockDeleteRows).toHaveBeenCalledWith([selectedRowIndex]);
   });
 
   it("should delete multiple selected rows and update aria-label", () => {
@@ -225,8 +204,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
       redoStack: [],
     } as unknown as Y.UndoManager;
 
-    const yTableDeleteSpy = vi.spyOn(yTable, "delete");
-
     const mockData = getLiveTableMockValues({
       yDoc: ydoc,
       yTable: yTable,
@@ -245,6 +222,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
       isTableLoaded: true,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    mockDeleteRows = mockData.deleteRows as Mock;
 
     render(
       <TooltipProvider>
@@ -261,19 +239,10 @@ describe("LiveTableToolbar - Delete Rows", () => {
 
     fireEvent.click(deleteButton!);
 
-    expect(yTableDeleteSpy).toHaveBeenCalledTimes(rowIndicesToDelete.length);
-    expect(yTableDeleteSpy).toHaveBeenNthCalledWith(1, 2, 1);
-    expect(yTableDeleteSpy).toHaveBeenNthCalledWith(2, 0, 1);
-
-    expect(yTable.length).toBe(
-      initialTableContent.length - rowIndicesToDelete.length
+    expect(mockDeleteRows).toHaveBeenCalledTimes(1);
+    expect(mockDeleteRows).toHaveBeenCalledWith(
+      rowIndicesToDelete.sort((a, b) => b - a)
     );
-    const remainingRows = yTable.toArray().map((row) => row.toJSON());
-    const expectedRemainingContent = [
-      initialTableContent[1],
-      initialTableContent[3],
-    ];
-    expect(remainingRows).toEqual(expectedRemainingContent);
   });
 
   it("should not delete any row if no cells are selected and button should be disabled", () => {
@@ -301,6 +270,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
       isTableLoaded: true,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    mockDeleteRows = mockData.deleteRows as Mock;
 
     render(
       <TooltipProvider>

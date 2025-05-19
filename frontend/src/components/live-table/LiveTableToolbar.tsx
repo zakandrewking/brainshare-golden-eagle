@@ -53,6 +53,7 @@ const LiveTableToolbar: React.FC = () => {
     isTableLoaded,
     selectedCells,
     generateAndInsertRows,
+    deleteRows,
   } = useLiveTable();
 
   const [isPending, startTransition] = useTransition();
@@ -166,18 +167,23 @@ const LiveTableToolbar: React.FC = () => {
       (a, b) => b - a // Sort descending for safe deletion
     );
 
-    if (uniqueRowIndicesToDelete.length === 0 || !yDoc || !yTable) {
+    if (uniqueRowIndicesToDelete.length === 0) {
+      // This case is already handled by deleteRowsFromDoc in the provider (toast.info)
+      // but good to have a guard here too.
       return;
     }
 
-    yDoc.transact(() => {
+    startTransition(async () => {
       try {
-        uniqueRowIndicesToDelete.forEach((rowIndex) => {
-          yTable.delete(rowIndex, 1); // Delete 1 row at the specified index
-        });
+        await deleteRows(uniqueRowIndicesToDelete);
       } catch (error) {
-        console.error("Error during row deletion transaction:", error);
+        // This catch block is a backup as deleteRows also handles errors and toasting.
+        console.error("Critical error in handleDeleteRows transition:", error);
+        toast.error(
+          "A critical error occurred while preparing to delete rows. Please try again."
+        );
       }
+      // pendingOperation state for delete was not used, so no need to reset it.
     });
   };
 

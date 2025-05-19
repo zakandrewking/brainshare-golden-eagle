@@ -70,7 +70,9 @@ export interface LiveTableContextType {
   ) => Promise<{
     aiRowsAdded: number;
     defaultRowsAdded: number;
-    error?: string;
+  }>;
+  deleteRows: (rowIndices: number[]) => Promise<{
+    deletedCount: number;
   }>;
 }
 
@@ -376,16 +378,11 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         return { aiRowsAdded: 0, defaultRowsAdded: 0 };
       }
       if (!headers || !tableData) {
-        toast.error("Cannot add rows: table headers or data not loaded.");
-        return {
-          aiRowsAdded: 0,
-          defaultRowsAdded: 0,
-          error: "Missing headers or table data",
-        };
+        throw new Error("Cannot add rows: table headers or data not loaded.");
       }
 
-      const currentTableDataForAi = tableData.map((row) => ({ ...row })); // Use current state
-      const currentHeadersForAi = [...headers]; // Use current state
+      const currentTableDataForAi = tableData.map((row) => ({ ...row }));
+      const currentHeadersForAi = [...headers];
 
       const rowsToInsertInYjs: Y.Map<unknown>[] = [];
       let aiRowsAddedCount = 0;
@@ -398,10 +395,18 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           numRowsToAdd
         );
 
-        if (result.error || !result.newRows || result.newRows.length === 0) {
+        if (result.error) {
           console.warn(
-            `Failed to generate AI rows or no rows returned, falling back to default rows. Error: ${result.error}`
+            `AI generation failed: ${result.error}. Falling back to default rows.`
           );
+          for (let i = 0; i < numRowsToAdd; i++) {
+            rowsToInsertInYjs.push(
+              createDefaultYMapForRow(currentHeadersForAi)
+            );
+            defaultRowsAddedCount++;
+          }
+        } else if (!result.newRows || result.newRows.length === 0) {
+          console.warn(`No AI rows returned, falling back to default rows.`);
           for (let i = 0; i < numRowsToAdd; i++) {
             rowsToInsertInYjs.push(
               createDefaultYMapForRow(currentHeadersForAi)
@@ -426,10 +431,20 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           }
         }
 
-        liveTableDoc.insertRows(initialInsertIndex, rowsToInsertInYjs);
+        if (rowsToInsertInYjs.length === 0 && numRowsToAdd > 0) {
+          toast.info("Attempted to add rows, but no rows were prepared.");
+          return { aiRowsAdded: 0, defaultRowsAdded: 0 };
+        }
 
-        // Consolidated Toast Message Logic based on what was prepared and inserted
-        if (aiRowsAddedCount > 0 && defaultRowsAddedCount === 0) {
+        if (rowsToInsertInYjs.length > 0) {
+          liveTableDoc.insertRows(initialInsertIndex, rowsToInsertInYjs);
+        }
+
+        if (result.error) {
+          toast.error(
+            `AI row generation failed: ${result.error}. Added ${defaultRowsAddedCount} default row(s).`
+          );
+        } else if (aiRowsAddedCount > 0 && defaultRowsAddedCount === 0) {
           toast.success(
             `Successfully added ${aiRowsAddedCount} AI-suggested row(s).`
           );
@@ -437,12 +452,10 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           toast.info(
             `Added ${numRowsToAdd} row(s): ${aiRowsAddedCount} AI-suggested, ${defaultRowsAddedCount} default.`
           );
-        } else if (defaultRowsAddedCount > 0) {
+        } else if (defaultRowsAddedCount > 0 && aiRowsAddedCount === 0) {
           toast.info(
-            `Added ${defaultRowsAddedCount} default row(s) as AI suggestions were not available or failed.`
+            `Added ${defaultRowsAddedCount} default row(s) as AI suggestions were not available or an issue occurred.`
           );
-        } else if (numRowsToAdd > 0 && rowsToInsertInYjs.length === 0) {
-          toast.info("Attempted to add rows, but no rows were prepared.");
         }
 
         return {
@@ -450,36 +463,66 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           defaultRowsAdded: defaultRowsAddedCount,
         };
       } catch (error) {
-        console.error(`Error in generateAndInsertRows:`, error);
-        // Fallback: attempt to insert default rows directly into Yjs if AI/initial processing failed catastrophically
+        // This catch is for errors during Yjs operations or other unexpected issues within the try block
+        console.error(`Critical error in generateAndInsertRows:`, error);
+        // Fallback: attempt to insert default rows directly into Yjs
         const fallbackYMaps: Y.Map<unknown>[] = [];
         for (let i = 0; i < numRowsToAdd; i++) {
           fallbackYMaps.push(createDefaultYMapForRow(currentHeadersForAi));
         }
 
-        let fallbackInsertedCount = 0;
         if (fallbackYMaps.length > 0) {
-          fallbackInsertedCount = liveTableDoc.insertRows(
-            initialInsertIndex,
-            fallbackYMaps
-          );
+          try {
+            liveTableDoc.insertRows(initialInsertIndex, fallbackYMaps);
+          } catch (yjsError) {
+            console.error("Failed to insert fallback rows into Yjs:", yjsError);
+            // If even fallback fails, we throw the original error that led to this catch block.
+            // No need to throw yjsError specifically, as the primary error is more relevant to the user action.
+          }
         }
-
-        toast.error(
-          `Failed to add ${numRowsToAdd} row(s). ${
-            fallbackInsertedCount > 0
-              ? `${fallbackInsertedCount} default row(s) added as fallback.`
-              : "No rows were added."
-          }`
-        );
-        return {
-          aiRowsAdded: 0,
-          defaultRowsAdded: fallbackInsertedCount,
-          error: error instanceof Error ? error.message : String(error),
-        };
+        // Throw the original error to be caught by the toolbar
+        throw error instanceof Error ? error : new Error(String(error));
       }
     },
     [liveTableDoc, headers, tableData]
+  );
+
+  const deleteRows = useCallback(
+    async (rowIndices: number[]) => {
+      if (!liveTableDoc) {
+        throw new Error("Table document not available. Cannot delete rows.");
+      }
+      if (rowIndices.length === 0) {
+        toast.info("No rows selected for deletion.");
+        return { deletedCount: 0 };
+      }
+
+      let deletedCount = 0;
+
+      try {
+        deletedCount = liveTableDoc.deleteRows(rowIndices);
+
+        if (deletedCount > 0) {
+          toast.success(`Successfully deleted ${deletedCount} row(s).`);
+          if (rowIndices.length > deletedCount) {
+            toast.info(
+              `${
+                rowIndices.length - deletedCount
+              } row(s) could not be deleted (possibly out of bounds). Check console for details.`
+            );
+          }
+        } else if (rowIndices.length > 0 && deletedCount === 0) {
+          toast.info(
+            "No rows were deleted. They might have been out of bounds. Check console for details."
+          );
+        }
+      } catch (error) {
+        console.error("Error during Yjs row deletion in Provider:", error);
+        throw error instanceof Error ? error : new Error(String(error));
+      }
+      return { deletedCount };
+    },
+    [liveTableDoc]
   );
 
   return (
@@ -517,6 +560,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         editingCell,
         setEditingCell,
         generateAndInsertRows,
+        deleteRows,
       }}
     >
       {children}

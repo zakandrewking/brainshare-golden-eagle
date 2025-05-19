@@ -66,9 +66,21 @@ export const getLiveTableMockValues = (
     getSelectedCellsData: vi.fn().mockReturnValue([]),
     editingCell: null,
     setEditingCell: vi.fn(),
+    generateAndInsertRows: vi
+      .fn()
+      .mockResolvedValue({ aiRowsAdded: 0, defaultRowsAdded: 0 }),
+    deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     // Apply all overrides last to ensure they take precedence
     ...overrides,
   };
+
+  // Ensure the specific functions are correctly sourced from overrides if present, or use the default mocks.
+  // This handles the case where `overrides` might explicitly set one of these to `undefined`,
+  // which is not allowed by the context type.
+  defaultMockValue.generateAndInsertRows =
+    overrides.generateAndInsertRows || defaultMockValue.generateAndInsertRows;
+  defaultMockValue.deleteRows =
+    overrides.deleteRows || defaultMockValue.deleteRows;
 
   // Final check: if overrides had columnWidths, ensure it's used.
   // If yColWidths was overridden, its derived plain object is already set unless columnWidths itself was also overridden.

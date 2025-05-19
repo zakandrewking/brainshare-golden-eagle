@@ -10,6 +10,8 @@ alwaysApply: true
 - ALWAYS run tests using the shell tool after implementing them or making edits
   to them. Be clever about running the tests at useful times to get info about
   how work is progressing. We're not done until all the tests are passing.
+- if error info needs to be returned to the calling function, just throw an
+  appropriate error. do not return an object with error info
 - ALWAYS use frontend components from /components/ui when possible
 - ALWAYS use lucide-react for icons if possible
 - use server actions instead of api routes in next.js
