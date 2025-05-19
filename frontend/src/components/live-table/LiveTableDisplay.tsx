@@ -222,16 +222,23 @@ const LiveTable: React.FC = () => {
     if (isCurrentlyEditing) {
       return;
     }
-
     event.preventDefault();
 
     if (editingCell) {
       setEditingCell(null);
     }
-    if (document.activeElement instanceof HTMLElement) {
+    if (
+      document.activeElement instanceof HTMLElement &&
+      !event.currentTarget.contains(document.activeElement)
+    ) {
       document.activeElement.blur();
     }
-    handleSelectionStart(rowIndex, colIndex);
+
+    if (event.shiftKey && selectedCell) {
+      handleSelectionMove(rowIndex, colIndex);
+    } else {
+      handleSelectionStart(rowIndex, colIndex);
+    }
   };
 
   const handleCellDoubleClick = (

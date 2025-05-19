@@ -89,6 +89,8 @@ export interface LiveTableContextType {
   deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
 }
 
+export type { CellPosition, SelectionArea };
+
 interface LiveTableProviderProps {
   children: React.ReactNode;
   tableId: string;
@@ -208,14 +210,19 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // Update selection as mouse moves
   const handleSelectionMove = useCallback(
     (rowIndex: number, colIndex: number) => {
-      if (!isSelecting || !selectionArea.startCell) return;
+      if (!selectionArea.startCell) {
+        console.warn(
+          "LiveTableProvider: handleSelectionMove called without selectionArea.startCell."
+        );
+        return;
+      }
 
       setSelectionArea((prev) => ({
         ...prev,
         endCell: { rowIndex, colIndex },
       }));
     },
-    [isSelecting, selectionArea.startCell]
+    [selectionArea.startCell]
   );
 
   // End selection process when mouse is released

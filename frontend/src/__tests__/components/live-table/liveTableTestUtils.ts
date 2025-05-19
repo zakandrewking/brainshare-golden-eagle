@@ -7,26 +7,27 @@ import type {
   ColumnId,
   RowId,
 } from "@/components/live-table/LiveTableDoc";
-import { LiveTableDoc } from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
+import {
+  LiveTableDoc,
+} from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
 import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
 
 // Define a more specific type for overrides that allows yColWidths (Y.Map)
 // and other context properties.
-type LiveTableMockOverrides = Partial<
-  ReturnType<typeof LiveTableProvider.useLiveTable>
-> & {
-  // Allow providing a fully initialized LiveTableDoc instance
+export interface LiveTableMockOverrides
+  extends Partial<ReturnType<typeof LiveTableProvider.useLiveTable>> {
   liveTableDocInstance?: LiveTableDoc;
-  // Or, allow providing initial V2 data structures for auto-initialization
   initialColumnDefinitions?: ColumnDefinition[];
   initialColumnOrder?: ColumnId[];
   initialRowOrder?: RowId[];
   initialRowData?: Record<RowId, Record<ColumnId, CellValue>>;
-  // For tests that might still want to simulate V1 migration
   initialV1Headers?: string[];
   initialV1TableData?: Record<string, unknown>[];
   initialV1ColWidths?: Record<string, number>;
-};
+  // Explicitly include selectionArea and selectedCells for clarity if they are overridden
+  selectionArea?: LiveTableProvider.SelectionArea;
+  selectedCells?: LiveTableProvider.CellPosition[];
+}
 
 export const getLiveTableMockValues = (
   overrides: LiveTableMockOverrides = {}
@@ -40,7 +41,6 @@ export const getLiveTableMockValues = (
   } else {
     yDoc = new Y.Doc();
 
-    // Handle V1 data for migration testing if provided
     if (overrides.initialV1Headers) {
       const yV1Headers = yDoc.getArray<string>("tableHeaders");
       yV1Headers.push(overrides.initialV1Headers);
@@ -62,10 +62,8 @@ export const getLiveTableMockValues = (
       }
     }
 
-    liveTableDoc = new LiveTableDoc(yDoc); // This will run migration if V1 data was added
+    liveTableDoc = new LiveTableDoc(yDoc);
 
-    // If no V1 data and specific V2 data is provided, populate V2 structures directly
-    // This assumes an already migrated state or fresh V2 doc
     if (
       !overrides.initialV1Headers &&
       (overrides.initialColumnDefinitions || overrides.initialRowData)
@@ -79,7 +77,6 @@ export const getLiveTableMockValues = (
         if (overrides.initialColumnOrder) {
           liveTableDoc.yColumnOrder.push(overrides.initialColumnOrder);
         } else if (overrides.initialColumnDefinitions) {
-          // Infer column order from definitions if not explicitly provided
           liveTableDoc.yColumnOrder.push(
             overrides.initialColumnDefinitions.map((d) => d.id)
           );
@@ -90,10 +87,8 @@ export const getLiveTableMockValues = (
             overrides.initialRowOrder ||
             (Object.keys(overrides.initialRowData) as RowId[]);
           if (overrides.initialRowOrder) {
-            // if rowOrder is specified, push it.
             liveTableDoc.yRowOrder.push(overrides.initialRowOrder);
           } else {
-            // if not, infer from initialRowData keys
             liveTableDoc.yRowOrder.push(
               Object.keys(overrides.initialRowData) as RowId[]
             );
@@ -113,8 +108,6 @@ export const getLiveTableMockValues = (
     }
   }
 
-  // Derive tableData, headers, columnWidths from the liveTableDoc's V2 state
-  // by calling its update methods and capturing their output.
   let currentTableData: Record<string, unknown>[] = [];
   let currentHeaders: string[] = [];
   let currentColWidths: Record<string, number> = {};
@@ -132,6 +125,44 @@ export const getLiveTableMockValues = (
   liveTableDoc.updateTableState();
   liveTableDoc.updateHeadersState();
   liveTableDoc.updateColWidthsState();
+
+  // Calculate selectedCells if selectionArea is provided and selectedCells is not directly overridden
+  let calculatedSelectedCells: LiveTableProvider.CellPosition[] =
+    overrides.selectedCells || [];
+  const areaForSelectedCellsCalculation = overrides.selectionArea || {
+    startCell: null,
+    endCell: null,
+  };
+
+  if (
+    !overrides.selectedCells &&
+    areaForSelectedCellsCalculation.startCell &&
+    areaForSelectedCellsCalculation.endCell
+  ) {
+    const cells: LiveTableProvider.CellPosition[] = [];
+    const startRow = Math.min(
+      areaForSelectedCellsCalculation.startCell.rowIndex,
+      areaForSelectedCellsCalculation.endCell.rowIndex
+    );
+    const endRow = Math.max(
+      areaForSelectedCellsCalculation.startCell.rowIndex,
+      areaForSelectedCellsCalculation.endCell.rowIndex
+    );
+    const startCol = Math.min(
+      areaForSelectedCellsCalculation.startCell.colIndex,
+      areaForSelectedCellsCalculation.endCell.colIndex
+    );
+    const endCol = Math.max(
+      areaForSelectedCellsCalculation.startCell.colIndex,
+      areaForSelectedCellsCalculation.endCell.colIndex
+    );
+    for (let rowIndex = startRow; rowIndex <= endRow; rowIndex++) {
+      for (let colIndex = startCol; colIndex <= endCol; colIndex++) {
+        cells.push({ rowIndex, colIndex });
+      }
+    }
+    calculatedSelectedCells = cells;
+  }
 
   const defaultMockValue: ReturnType<typeof LiveTableProvider.useLiveTable> = {
     undoManager: liveTableDoc.undoManager,
@@ -151,9 +182,9 @@ export const getLiveTableMockValues = (
     handleHeaderBlur: vi.fn(),
     handleHeaderKeyDown: vi.fn(),
     handleColumnResize: vi.fn(),
-    selectionArea: { startCell: null, endCell: null },
+    selectionArea: areaForSelectedCellsCalculation, // Use the same area used for calculation or the default
     isSelecting: false,
-    selectedCells: [],
+    selectedCells: calculatedSelectedCells, // Use calculated or directly overridden
     handleSelectionStart: vi.fn(),
     handleSelectionMove: vi.fn(),
     handleSelectionEnd: vi.fn(),
