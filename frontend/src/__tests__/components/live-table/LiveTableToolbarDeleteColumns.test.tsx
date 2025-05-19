@@ -11,11 +11,7 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
@@ -204,7 +200,7 @@ describe("LiveTableToolbar - Delete Column", () => {
     expect(deleteButton).not.toBeDisabled();
     expect(deleteButton).toHaveAttribute(
       "aria-label",
-      "Delete selected column"
+      "Delete Selected Column"
     );
 
     expect(yHeaders.length).toBe(initialHeadersData.length);
@@ -353,7 +349,7 @@ describe("LiveTableToolbar - Delete Column", () => {
     expect(deleteButton).toBeDisabled();
     expect(deleteButton).toHaveAttribute(
       "aria-label",
-      "Delete selected column"
+      "Delete Selected Column"
     );
 
     expect(yHeaders.length).toBe(initialHeadersData.length);

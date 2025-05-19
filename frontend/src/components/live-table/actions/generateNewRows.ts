@@ -32,7 +32,7 @@ export default async function generateNewRows(
   headers: string[],
   numRowsToGenerate: number
 ): Promise<{
-  newRows?: Record<string, string>[]; // Output remains Record<string, string>[]
+  newRows?: Record<string, string>[];
   error?: string;
 }> {
   if (numRowsToGenerate <= 0) {

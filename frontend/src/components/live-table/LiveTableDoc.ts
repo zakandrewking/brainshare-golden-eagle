@@ -202,6 +202,54 @@ export class LiveTableDoc {
     }
     return deletedCount;
   }
+
+  /**
+   * Inserts columns into the table at the specified index.
+   * @param initialInsertIndex - The index to insert the columns at
+   * @param columnsToInsert - Array of { headerName, columnData } objects. columnData can be null for default columns.
+   * @returns The number of columns inserted
+   */
+  insertColumns(
+    initialInsertIndex: number,
+    columnsToInsert: {
+      headerName: string;
+      columnData: (string | null)[] | null;
+    }[]
+  ): number {
+    if (columnsToInsert.length === 0) {
+      return 0;
+    }
+    try {
+      this.yDoc.transact(() => {
+        columnsToInsert.forEach((col, i) => {
+          const insertIdx = initialInsertIndex + i;
+          this.yHeaders.insert(insertIdx, [col.headerName]);
+          this.yTable.forEach((row: Y.Map<unknown>, rowIndex) => {
+            const valueToAdd = col.columnData
+              ? col.columnData[rowIndex] ?? ""
+              : "";
+            if (!row.has(col.headerName)) {
+              row.set(col.headerName, valueToAdd);
+            }
+          });
+          // If table is empty, add a new row with just this column
+          if (this.yTable.length === 0) {
+            const newRow = new Y.Map<unknown>();
+            const valueToAdd =
+              col.columnData && col.columnData.length > 0
+                ? col.columnData[0] ?? ""
+                : "";
+            newRow.set(col.headerName, valueToAdd);
+            this.yTable.push([newRow]);
+          }
+        });
+      });
+      return columnsToInsert.length;
+    } catch (error) {
+      // Let the error propagate to the caller
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
 }
 
 export function initializeLiveblocksRoom(
