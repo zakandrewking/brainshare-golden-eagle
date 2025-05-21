@@ -34,11 +34,8 @@ const TableCell: React.FC<TableCellProps> = React.memo(({
   handleCellBlur,
   setEditingCell,
 }) => {
-  const cellKey = `${rowIndex}-${colIndex}`;
-
   return (
     <td
-      key={cellKey}
       className="border p-0 relative"
       data-row-index={rowIndex}
       data-col-index={colIndex}
