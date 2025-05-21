@@ -16,11 +16,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-
+import { Input } from "@/components/ui/input"; // Keep for header editing
 import { DelayedLoadingSpinner } from "../ui/loading";
 import { useLiveTable } from "./LiveTableProvider";
+import TableRow from "./TableRow"; // Import TableRow
 
+// CursorInfo and CursorDataForCell interfaces remain if used by other parts or for future use
 export interface CursorInfo {
   user?: { name: string; color: string };
 }
@@ -35,14 +36,14 @@ const DEFAULT_COL_WIDTH = 150;
 const MIN_COL_WIDTH = 50;
 const ROW_NUMBER_COL_WIDTH = 50;
 
-const LiveTable: React.FC = () => {
+const LiveTableDisplay: React.FC = React.memo(() => { // Changed name to LiveTableDisplay
   const {
     isTableLoaded,
     tableData,
     headers,
     columnWidths,
     handleCellChange,
-    handleCellFocus,
+    handleCellFocus, // Keep for cell double click -> focus notification
     handleCellBlur,
     editingHeaderIndex,
     editingHeaderValue,
@@ -56,9 +57,9 @@ const LiveTable: React.FC = () => {
     handleSelectionMove,
     handleSelectionEnd,
     isSelecting,
-    isCellSelected,
-    editingCell,
-    setEditingCell,
+    isCellSelected, // Prop for TableRow
+    editingCell, // Prop for TableRow
+    setEditingCell, // Prop for TableRow
     clearSelection,
   } = useLiveTable();
 
@@ -193,25 +194,19 @@ const LiveTable: React.FC = () => {
     };
   }, [isSelecting, handleSelectionMove, handleSelectionEnd]);
 
-  // Effect to handle clicks outside the table
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        tableRef.current &&
-        !tableRef.current.contains(event.target as Node) &&
-        selectedCell
-      ) {
+      if (tableRef.current && !tableRef.current.contains(event.target as Node) && selectedCell) {
         clearSelection();
       }
     };
-
     document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
+    return () => document.removeEventListener("click", handleClickOutside);
   }, [selectedCell, clearSelection, tableRef]);
 
-  const handleCellMouseDown = (
+  // Cell specific handlers are now passed to TableRow -> TableCell
+  // This specific handleCellMouseDown is for initiating selection on the table
+  const handleCellMouseDownForSelection = (
     rowIndex: number,
     colIndex: number,
     event: React.MouseEvent
@@ -222,45 +217,43 @@ const LiveTable: React.FC = () => {
     if (isCurrentlyEditing) {
       return;
     }
-    event.preventDefault();
+    event.preventDefault(); // Keep this for selection initiation
 
-    if (editingCell) {
-      setEditingCell(null);
+    if (editingCell) { // If another cell is being edited, commit/blur it
+      setEditingCell(null); 
     }
+    // Blur active element if it's not within the clicked cell (now handled in TableCell's own input onBlur)
+    // However, we might still want to blur a general active element if it's outside the table input context
     if (
       document.activeElement instanceof HTMLElement &&
-      !event.currentTarget.contains(document.activeElement)
+      !event.currentTarget.contains(document.activeElement) 
     ) {
-      document.activeElement.blur();
+       // Potentially problematic if currentTarget is not what's expected,
+       // this logic might need refinement or be handled differently with focus scopes.
+       // For now, let's assume onBlur on inputs within TableCell handles most cases.
     }
 
     if (event.shiftKey && selectedCell) {
-      handleSelectionMove(rowIndex, colIndex);
+      handleSelectionMove(rowIndex, colIndex); // Extends selection
     } else {
-      handleSelectionStart(rowIndex, colIndex);
+      handleSelectionStart(rowIndex, colIndex); // Starts new selection
     }
   };
-
-  const handleCellDoubleClick = (
+  
+  // This specific handleCellDoubleClick is for initiating editing
+  const handleCellDoubleClickForEditing = ( 
     rowIndex: number,
     colIndex: number,
-    event: React.MouseEvent
+    event: React.MouseEvent // event is passed but might not be directly used if input focusing is handled in TableCell
   ) => {
-    // First, set the editing state
     setEditingCell({ rowIndex, colIndex });
+    handleCellFocus(rowIndex, colIndex); // Notify provider/context about focus
 
-    // notify that the cell has focus
-    handleCellFocus(rowIndex, colIndex);
-
-    // Find and focus the input inside the current cell
-    const cell = event.currentTarget as HTMLElement;
-    if (cell) {
-      const inputElement = cell.querySelector("input");
-      if (inputElement) {
-        inputElement.focus();
-      }
-    }
+    // Focusing the input is now primarily handled within TableCell's onDoubleClick or a useEffect based on isEditing
+    // However, ensuring the cell is editable and focus is set can be initiated here.
+    // The actual input focusing might be better handled in TableCell after it re-renders in editing mode.
   };
+
 
   if (!isTableLoaded) {
     return <DelayedLoadingSpinner />;
@@ -364,86 +357,30 @@ const LiveTable: React.FC = () => {
           </thead>
           <tbody>
             {tableData?.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                <td
-                  className="border border-slate-300 p-0 text-center"
-                  style={{
-                    width: `${ROW_NUMBER_COL_WIDTH}px`,
-                    minWidth: `${ROW_NUMBER_COL_WIDTH}px`,
-                    maxWidth: `${ROW_NUMBER_COL_WIDTH}px`,
-                  }}
-                  data-testid="row-number"
-                >
-                  <div className="p-2 h-full flex items-center justify-center">
-                    {rowIndex + 1}
-                  </div>
-                </td>
-                {headers?.map((header, colIndex) => {
-                  const cellKey = `${rowIndex}-${colIndex}`;
-                  const isSelected =
-                    selectedCell?.rowIndex === rowIndex &&
-                    selectedCell?.colIndex === colIndex;
-                  const isEditing =
-                    editingCell?.rowIndex === rowIndex &&
-                    editingCell?.colIndex === colIndex;
-                  const isInSelection = isCellSelected(rowIndex, colIndex);
-
-                  return (
-                    <td
-                      key={cellKey}
-                      className="border p-0 relative"
-                      data-row-index={rowIndex}
-                      data-col-index={colIndex}
-                      data-selected={isInSelection ? "true" : "false"}
-                      data-editing={isEditing ? "true" : "false"}
-                      data-testid="table-cell"
-                      style={{
-                        boxShadow: isSelected
-                          ? "inset 0 0 0 2px blue"
-                          : isInSelection
-                          ? "inset 0 0 0 1px rgba(59, 130, 246, 0.5)"
-                          : undefined,
-                        backgroundColor: isEditing
-                          ? "rgba(255, 255, 200, 0.2)"
-                          : isInSelection
-                          ? "rgba(59, 130, 246, 0.1)"
-                          : undefined,
-                      }}
-                      onMouseDown={(e) =>
-                        handleCellMouseDown(rowIndex, colIndex, e)
-                      }
-                      onDoubleClick={(e) =>
-                        handleCellDoubleClick(rowIndex, colIndex, e)
-                      }
-                    >
-                      <input
-                        type="text"
-                        value={String(row[header] ?? "")}
-                        onChange={(e) =>
-                          handleCellChange(rowIndex, header, e.target.value)
-                        }
-                        onBlur={() => {
-                          handleCellBlur();
-                          if (isEditing) {
-                            setEditingCell(null);
-                          }
-                        }}
-                        className={`w-full h-full p-2 border-none focus:outline-none ${
-                          isEditing
-                            ? "focus:ring-2 focus:ring-yellow-400"
-                            : "focus:ring-2 focus:ring-blue-300"
-                        } bg-transparent`}
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
+              <TableRow
+                key={`table-row-${rowIndex}`} // Added prefix to key
+                rowData={row}
+                rowIndex={rowIndex}
+                headers={headers}
+                columnWidths={columnWidths}
+                selectedCell={selectedCell}
+                editingCell={editingCell}
+                isCellSelected={isCellSelected}
+                handleCellMouseDown={handleCellMouseDownForSelection} // Renamed for clarity
+                handleCellDoubleClick={handleCellDoubleClickForEditing} // Renamed for clarity
+                handleCellChange={handleCellChange} // Passed directly
+                handleCellBlur={handleCellBlur} // Passed directly
+                setEditingCell={setEditingCell} // Passed directly
+                ROW_NUMBER_COL_WIDTH={ROW_NUMBER_COL_WIDTH}
+                DEFAULT_COL_WIDTH={DEFAULT_COL_WIDTH}
+              />
             ))}
           </tbody>
         </table>
       </div>
     </div>
   );
-};
+});
 
-export default LiveTable;
+LiveTableDisplay.displayName = "LiveTableDisplay"; // Ensure correct component name used for displayName
+export default LiveTableDisplay; // Ensure correct component name used for export
