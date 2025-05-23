@@ -1,4 +1,6 @@
-import { create } from "zustand";
+import { createStore, useStore } from "zustand";
+import { shallow } from "zustand/shallow";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 
 export interface CellPosition {
   rowIndex: number;
@@ -21,13 +23,16 @@ interface SelectionState {
   clearSelection: () => void;
 }
 
-const initialState: Pick<SelectionState, 'selectedCell' | 'selectionArea' | 'isSelecting'> = {
+const initialState: Pick<
+  SelectionState,
+  "selectedCell" | "selectionArea" | "isSelecting"
+> = {
   selectedCell: null,
   selectionArea: { startCell: null, endCell: null },
   isSelecting: false,
 };
 
-export const useSelectionStore = create<SelectionState>((set) => ({
+export const selectionStore = createStore<SelectionState>((set) => ({
   ...initialState,
   setSelectedCell: (cell) => set({ selectedCell: cell }),
   startSelection: (rowIndex, colIndex) =>
@@ -64,6 +69,12 @@ export const useSelectionStore = create<SelectionState>((set) => ({
   clearSelection: () => set({ ...initialState }),
 }));
 
+export function useSelectionStore(): SelectionState;
+export function useSelectionStore<T>(selector: (state: SelectionState) => T): T;
+export function useSelectionStore<T>(selector?: (state: SelectionState) => T) {
+  return useStore(selectionStore, selector!);
+}
+
 // Selectors
 
 export const selectSelectedCells = (state: SelectionState): CellPosition[] => {
@@ -98,7 +109,23 @@ export const selectSelectedCells = (state: SelectionState): CellPosition[] => {
   return cells;
 };
 
-export const selectIsCellSelected = (state: SelectionState, rowIndex: number, colIndex: number): boolean => {
+export const useSelectedCells = () =>
+  useStoreWithEqualityFn(selectionStore, selectSelectedCells, (a, b) => {
+    const makeSet = (cells: CellPosition[]) => {
+      const set = new Set();
+      cells.forEach((cell) => {
+        set.add(`${cell.rowIndex}-${cell.colIndex}`);
+      });
+      return set;
+    };
+    return shallow(makeSet(a), makeSet(b));
+  });
+
+export const selectIsCellSelected = (
+  state: SelectionState,
+  rowIndex: number,
+  colIndex: number
+): boolean => {
   const selectedCells = selectSelectedCells(state);
   return selectedCells.some(
     (cell) => cell.rowIndex === rowIndex && cell.colIndex === colIndex
