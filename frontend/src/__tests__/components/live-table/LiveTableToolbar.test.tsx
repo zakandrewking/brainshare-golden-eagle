@@ -1,16 +1,35 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
-import generateNewColumns from "@/components/live-table/actions/generateNewColumns";
+import generateNewColumns
+  from "@/components/live-table/actions/generateNewColumns";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
+import * as selectionStoreModule from "@/stores/selectionStore";
 
 import { getLiveTableMockValues } from "./liveTableTestUtils";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
+}));
+
+vi.mock("@/stores/selectionStore", () => ({
+  useSelectionStore: vi.fn(),
+  selectSelectedCells: vi.fn(),
 }));
 
 vi.mock("@/components/live-table/actions/generateNewColumns", () => ({
@@ -36,6 +55,17 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     mockYHeaders = mockYDoc.getArray<string>("headers");
     mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
     mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
+
+    // Mock selection store
+    vi.mocked(selectionStoreModule.useSelectionStore).mockImplementation((selector) => {
+      if (selector === selectionStoreModule.selectSelectedCells) {
+        return [{ rowIndex: 0, colIndex: 0 }];
+      }
+      if (typeof selector === 'function') {
+        return selector({ selectedCell: { rowIndex: 0, colIndex: 0 } });
+      }
+      return { rowIndex: 0, colIndex: 0 };
+    });
 
     const mockData = getLiveTableMockValues({
       yDoc: mockYDoc,
@@ -190,26 +220,42 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     }>(() => {});
     vi.mocked(generateNewColumns).mockReturnValueOnce(neverResolvedPromise);
 
-    const testYDoc = new Y.Doc();
-    const testYHeaders = testYDoc.getArray<string>("headers");
-    const testYTable = testYDoc.getArray<Y.Map<unknown>>("table");
-    const initialRow = new Y.Map<unknown>();
-    testYTable.push([initialRow]);
+    // Update selection store mock for this test with 2 columns selected
+    const selectedCells = [
+      { rowIndex: 0, colIndex: 0 },
+      { rowIndex: 0, colIndex: 1 },
+    ];
+    vi.mocked(selectionStoreModule.useSelectionStore).mockImplementation((selector) => {
+      if (selector === selectionStoreModule.selectSelectedCells) {
+        return selectedCells;
+      }
+      if (typeof selector === 'function') {
+        return selector({
+          selectedCell: { rowIndex: 0, colIndex: 0 },
+          selectionArea: {
+            startCell: { rowIndex: 0, colIndex: 0 },
+            endCell: { rowIndex: 0, colIndex: 1 }
+          },
+          isSelecting: false,
+          setSelectedCell: vi.fn(),
+          startSelection: vi.fn(),
+          moveSelection: vi.fn(),
+          endSelection: vi.fn(),
+          clearSelection: vi.fn(),
+        });
+      }
+      return { rowIndex: 0, colIndex: 0 };
+    });
 
     const mockData = getLiveTableMockValues({
-      yDoc: testYDoc,
-      yHeaders: testYHeaders,
-      yTable: testYTable,
-      selectedCell: { rowIndex: 0, colIndex: 0 },
-      selectedCells: [
-        { rowIndex: 0, colIndex: 0 },
-        { rowIndex: 0, colIndex: 1 },
-      ],
+      selectedCells: selectedCells,
       headers: ["A", "B"],
       tableData: [{ A: "foo", B: "bar" }],
       columnWidths: {},
       isTableLoaded: true,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
+    });
+    vi.mocked(useLiveTable).mockReturnValue(mockData);
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
 

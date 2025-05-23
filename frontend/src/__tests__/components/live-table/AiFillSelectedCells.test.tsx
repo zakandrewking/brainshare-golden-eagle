@@ -21,9 +21,15 @@ import {
 } from "@/components/live-table/AiFillSelectionButton";
 import * as LiveTableProviderModule
   from "@/components/live-table/LiveTableProvider";
+import * as selectionStoreModule from "@/stores/selectionStore";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
+}));
+
+vi.mock("@/stores/selectionStore", () => ({
+  useSelectionStore: vi.fn(),
+  selectSelectedCells: vi.fn(),
 }));
 
 vi.mock(
@@ -70,9 +76,6 @@ describe("AiFillSelectionButton", () => {
   ];
 
   const mockHandleCellChange = vi.fn();
-  const mockGetSelectedCellsData = vi
-    .fn()
-    .mockReturnValue(mockSelectedCellsData);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -80,10 +83,11 @@ describe("AiFillSelectionButton", () => {
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
       tableData: mockTableData,
       headers: mockHeaders,
-      selectedCells: mockSelectedCells,
-      getSelectedCellsData: mockGetSelectedCellsData,
       handleCellChange: mockHandleCellChange,
     } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
+
+    vi.mocked(selectionStoreModule.useSelectionStore).mockReturnValue(mockSelectedCells);
+    vi.mocked(selectionStoreModule.selectSelectedCells).mockReturnValue(mockSelectedCells);
 
     vi.mocked(generateSelectedCellsSuggestionsModule.default).mockResolvedValue(
       {
@@ -103,11 +107,8 @@ describe("AiFillSelectionButton", () => {
   });
 
   it("should be disabled when no cells are selected", () => {
-    // Override the mock for useLiveTable with no selected cells
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValueOnce({
-      ...vi.mocked(LiveTableProviderModule.useLiveTable)(),
-      selectedCells: [],
-    } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
+    // Override the mock for useSelectionStore with no selected cells
+    vi.mocked(selectionStoreModule.useSelectionStore).mockReturnValueOnce([]);
 
     render(<AiFillSelectionButton />);
 
