@@ -110,7 +110,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
 
   it("should not start selection when mousedown on a cell in edit mode", () => {
     const currentMock = LiveTableProviderModule.useLiveTable();
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValueOnce({
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
       ...currentMock,
       editingCell: { rowIndex: 0, colIndex: 0 },
     } as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
