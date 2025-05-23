@@ -12,22 +12,20 @@ import { UndoManager } from "yjs";
 
 import { useRoom } from "@liveblocks/react/suspense";
 
+import {
+  type CellPosition,
+  type SelectionArea,
+  selectIsCellSelected,
+  selectSelectedCells,
+  useSelectionStore,
+} from "@/stores/selectionStore";
+
 import generateNewColumns, {
   GeneratedColumn,
 } from "./actions/generateNewColumns";
 import generateNewRows from "./actions/generateNewRows";
 import { initializeLiveblocksRoom } from "./LiveTableDoc";
 import { useUpdatedSelf } from "./useUpdatedSelf";
-
-interface CellPosition {
-  rowIndex: number;
-  colIndex: number;
-}
-
-interface SelectionArea {
-  startCell: CellPosition | null;
-  endCell: CellPosition | null;
-}
 
 export interface LiveTableContextType {
   // data
@@ -149,102 +147,44 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // update self info in awareness
   useUpdatedSelf(yProvider);
 
-  const [selectedCell, setSelectedCell] = useState<{
-    rowIndex: number;
-    colIndex: number;
-  } | null>(null);
+  // Use the selection store instead of local state
+  const {
+    selectedCell,
+    selectionArea,
+    isSelecting,
+    setSelectedCell,
+    startSelection,
+    moveSelection,
+    endSelection,
+    clearSelection
+  } = useSelectionStore();
 
-  // multiple cell selection
-  const [selectionArea, setSelectionArea] = useState<SelectionArea>({
-    startCell: null,
-    endCell: null,
-  });
-  const [isSelecting, setIsSelecting] = useState(false);
-
-  // Calculate all selected cells based on the selection area
-  const selectedCells = useMemo(() => {
-    if (!selectionArea.startCell || !selectionArea.endCell) {
-      return [];
-    }
-
-    const startRow = Math.min(
-      selectionArea.startCell.rowIndex,
-      selectionArea.endCell.rowIndex
-    );
-    const endRow = Math.max(
-      selectionArea.startCell.rowIndex,
-      selectionArea.endCell.rowIndex
-    );
-    const startCol = Math.min(
-      selectionArea.startCell.colIndex,
-      selectionArea.endCell.colIndex
-    );
-    const endCol = Math.max(
-      selectionArea.startCell.colIndex,
-      selectionArea.endCell.colIndex
-    );
-
-    const cells: CellPosition[] = [];
-    for (let rowIndex = startRow; rowIndex <= endRow; rowIndex++) {
-      for (let colIndex = startCol; colIndex <= endCol; colIndex++) {
-        cells.push({ rowIndex, colIndex });
-      }
-    }
-
-    return cells;
-  }, [selectionArea]);
-
-  // Start selection process when a cell is clicked
-  const handleSelectionStart = useCallback(
-    (rowIndex: number, colIndex: number) => {
-      setSelectionArea({
-        startCell: { rowIndex, colIndex },
-        endCell: { rowIndex, colIndex },
-      });
-      setIsSelecting(true);
-      setSelectedCell({ rowIndex, colIndex });
-    },
+  // Get derived state using selectors
+  const selectedCells = selectSelectedCells(useSelectionStore.getState());
+  const isCellSelected = useCallback(
+    (rowIndex: number, colIndex: number) =>
+      selectIsCellSelected(useSelectionStore.getState(), rowIndex, colIndex),
     []
   );
 
-  // Update selection as mouse moves
+  // Create handlers that use the store actions
+  const handleSelectionStart = useCallback(
+    (rowIndex: number, colIndex: number) => {
+      startSelection(rowIndex, colIndex);
+    },
+    [startSelection]
+  );
+
   const handleSelectionMove = useCallback(
     (rowIndex: number, colIndex: number) => {
-      if (!selectionArea.startCell) {
-        console.warn(
-          "LiveTableProvider: handleSelectionMove called without selectionArea.startCell."
-        );
-        return;
-      }
-
-      setSelectionArea((prev) => ({
-        ...prev,
-        endCell: { rowIndex, colIndex },
-      }));
+      moveSelection(rowIndex, colIndex);
     },
-    [selectionArea.startCell]
+    [moveSelection]
   );
 
-  // End selection process when mouse is released
   const handleSelectionEnd = useCallback(() => {
-    setIsSelecting(false);
-  }, []);
-
-  // Check if a specific cell is within the current selection
-  const isCellSelected = useCallback(
-    (rowIndex: number, colIndex: number) => {
-      return selectedCells.some(
-        (cell) => cell.rowIndex === rowIndex && cell.colIndex === colIndex
-      );
-    },
-    [selectedCells]
-  );
-
-  // Clear the current selection
-  const clearSelection = useCallback(() => {
-    setSelectionArea({ startCell: null, endCell: null });
-    setSelectedCell(null);
-  }, []);
+    endSelection();
+  }, [endSelection]);
 
   // Get data from all selected cells (useful for copy operations)
   const getSelectedCellsData = useCallback(() => {
@@ -299,14 +239,14 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         colIndex,
       });
     },
-    [yProvider.awareness]
+    [setSelectedCell, yProvider.awareness]
   );
 
   // Function to handle cell blur
   const handleCellBlur = useCallback(() => {
     setSelectedCell(null);
     yProvider.awareness.setLocalStateField("selectedCell", null);
-  }, [yProvider.awareness]);
+  }, [setSelectedCell, yProvider.awareness]);
 
   // Header editing functions
   const handleHeaderDoubleClick = useCallback(
