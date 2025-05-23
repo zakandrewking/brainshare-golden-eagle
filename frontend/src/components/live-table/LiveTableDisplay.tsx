@@ -17,9 +17,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  type CellPosition,
+  selectionStore,
+  useSelectionStore,
+} from "@/stores/selectionStore";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
 import { useLiveTable } from "./LiveTableProvider";
+import TableCell from "./TableCell";
 
 export interface CursorInfo {
   user?: { name: string; color: string };
@@ -41,9 +47,7 @@ const LiveTable: React.FC = () => {
     tableData,
     headers,
     columnWidths,
-    handleCellChange,
     handleCellFocus,
-    handleCellBlur,
     editingHeaderIndex,
     editingHeaderValue,
     handleHeaderDoubleClick,
@@ -51,16 +55,21 @@ const LiveTable: React.FC = () => {
     handleHeaderBlur,
     handleHeaderKeyDown,
     handleColumnResize,
-    selectedCell,
-    handleSelectionStart,
-    handleSelectionMove,
-    handleSelectionEnd,
-    isSelecting,
-    isCellSelected,
     editingCell,
     setEditingCell,
-    clearSelection,
   } = useLiveTable();
+
+  const selectedCell = useSelectionStore(
+    (state): CellPosition | null => state.selectedCell
+  );
+  const isSelecting = useSelectionStore((state) => state.isSelecting);
+  const {
+    startSelection,
+    moveSelection,
+    endSelection,
+    clearSelection: clearSelectionFromStore,
+    setSelectedCell,
+  } = selectionStore.getState();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
@@ -148,78 +157,87 @@ const LiveTable: React.FC = () => {
     };
   }, [resizingHeader, handleMouseMove, handleMouseUp]);
 
+  // Effect to handle global mouse move for selection
+  const handleGlobalMouseMove = useCallback(
+    (event: MouseEvent) => {
+      if (!isSelecting) return;
+
+      let target = event.target as HTMLElement;
+      while (target && target !== tableRef.current) {
+        if (target.tagName === "TD" || target.tagName === "INPUT") {
+          const parentTd = target.closest("td");
+          if (parentTd) {
+            const rowIndexAttr = parentTd.dataset.rowIndex;
+            const colIndexAttr = parentTd.dataset.colIndex;
+            if (rowIndexAttr && colIndexAttr) {
+              const rowIndex = parseInt(rowIndexAttr, 10);
+              const colIndex = parseInt(colIndexAttr, 10);
+              if (!isNaN(rowIndex) && !isNaN(colIndex)) {
+                moveSelection(rowIndex, colIndex);
+              }
+            }
+          }
+          break;
+        }
+        target = target.parentNode as HTMLElement;
+      }
+    },
+    [isSelecting, moveSelection, tableRef]
+  );
+
+  const handleGlobalMouseUp = useCallback(() => {
+    if (isSelecting) {
+      endSelection();
+    }
+  }, [isSelecting, endSelection]);
+
   useEffect(() => {
-    if (!isSelecting) return;
-
-    const handleGlobalMouseMove = (event: MouseEvent) => {
-      if (!tableRef.current) return;
-
-      if (typeof document.elementFromPoint !== "function") {
-        return;
-      }
-
-      const cellElement = document.elementFromPoint(
-        event.clientX,
-        event.clientY
-      ) as HTMLElement;
-
-      const cell = cellElement?.closest("td");
-      if (!cell) return;
-
-      const rowIndex = parseInt(
-        cell.getAttribute("data-row-index") || "-1",
-        10
-      );
-      const colIndex = parseInt(
-        cell.getAttribute("data-col-index") || "-1",
-        10
-      );
-
-      if (rowIndex >= 0 && colIndex >= 0) {
-        handleSelectionMove(rowIndex, colIndex);
-      }
-    };
-
-    const handleGlobalMouseUp = () => {
-      handleSelectionEnd();
-    };
-
     document.addEventListener("mousemove", handleGlobalMouseMove);
     document.addEventListener("mouseup", handleGlobalMouseUp);
-
     return () => {
       document.removeEventListener("mousemove", handleGlobalMouseMove);
       document.removeEventListener("mouseup", handleGlobalMouseUp);
     };
-  }, [isSelecting, handleSelectionMove, handleSelectionEnd]);
+  }, [handleGlobalMouseMove, handleGlobalMouseUp]);
 
-  // Effect to handle clicks outside the table
+  // Effect to handle clicks outside the table to clear selection
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if (resizingHeader) {
+        // If a column resize is in progress, don't clear selection.
+        // The mouseup handler for resizing will manage the state.
+        return;
+      }
+
+      const targetElement = event.target as HTMLElement;
+
+      // Do not clear selection if clicking on a dropdown menu, dialog, or their triggers.
+      // These elements might be rendered outside the table via portals.
       if (
-        tableRef.current &&
-        !tableRef.current.contains(event.target as Node) &&
-        selectedCell
+        targetElement.closest('[role="menu"]') ||
+        targetElement.closest('[aria-haspopup="true"]') ||
+        targetElement.closest('[role="dialog"]')
       ) {
-        clearSelection();
+        return;
+      }
+
+      if (tableRef.current && !tableRef.current.contains(targetElement)) {
+        clearSelectionFromStore();
       }
     };
 
-    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener("click", handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [selectedCell, clearSelection, tableRef]);
+  }, [clearSelectionFromStore, resizingHeader, tableRef]);
 
   const handleCellMouseDown = (
     rowIndex: number,
     colIndex: number,
     event: React.MouseEvent
   ) => {
-    const isCurrentlyEditing =
-      editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
-
-    if (isCurrentlyEditing) {
+    if (event.button !== 0) {
       return;
     }
     event.preventDefault();
@@ -235,10 +253,12 @@ const LiveTable: React.FC = () => {
     }
 
     if (event.shiftKey && selectedCell) {
-      handleSelectionMove(rowIndex, colIndex);
+      moveSelection(rowIndex, colIndex);
     } else {
-      handleSelectionStart(rowIndex, colIndex);
+      startSelection(rowIndex, colIndex);
     }
+    // Ensure the clicked cell is also set as the primary selected cell for focus indication
+    setSelectedCell({ rowIndex, colIndex });
   };
 
   const handleCellDoubleClick = (
@@ -262,7 +282,18 @@ const LiveTable: React.FC = () => {
     }
   };
 
-  if (!isTableLoaded) {
+  const handleTableKeyDown = (event: React.KeyboardEvent<HTMLTableElement>) => {
+    if (event.key === "Escape") {
+      if (editingCell) {
+        setEditingCell(null);
+      } else if (isSelecting || selectedCell) { // Simplified condition
+        clearSelectionFromStore();
+      }
+      event.preventDefault();
+    }
+  };
+
+  if (!isTableLoaded || !tableData || !headers) {
     return <DelayedLoadingSpinner />;
   }
 
@@ -273,6 +304,7 @@ const LiveTable: React.FC = () => {
           ref={tableRef}
           className="table-fixed border-collapse border border-slate-400 relative"
           style={{ tableLayout: "fixed" }}
+          onKeyDown={handleTableKeyDown}
         >
           <thead>
             <tr>
@@ -379,62 +411,27 @@ const LiveTable: React.FC = () => {
                   </div>
                 </td>
                 {headers?.map((header, colIndex) => {
-                  const cellKey = `${rowIndex}-${colIndex}`;
-                  const isSelected =
-                    selectedCell?.rowIndex === rowIndex &&
-                    selectedCell?.colIndex === colIndex;
-                  const isEditing =
+                  const currentCellIsSelected =
+                    selectedCell !== null && // Check if selectedCell is not null
+                    selectedCell.rowIndex === rowIndex &&
+                    selectedCell.colIndex === colIndex;
+                  const currentCellIsEditing =
                     editingCell?.rowIndex === rowIndex &&
                     editingCell?.colIndex === colIndex;
-                  const isInSelection = isCellSelected(rowIndex, colIndex);
 
                   return (
-                    <td
-                      key={cellKey}
-                      className="border p-0 relative"
-                      data-row-index={rowIndex}
-                      data-col-index={colIndex}
-                      data-selected={isInSelection ? "true" : "false"}
-                      data-editing={isEditing ? "true" : "false"}
-                      data-testid="table-cell"
-                      style={{
-                        boxShadow: isSelected
-                          ? "inset 0 0 0 2px blue"
-                          : isInSelection
-                          ? "inset 0 0 0 1px rgba(59, 130, 246, 0.5)"
-                          : undefined,
-                        backgroundColor: isEditing
-                          ? "rgba(255, 255, 200, 0.2)"
-                          : isInSelection
-                          ? "rgba(59, 130, 246, 0.1)"
-                          : undefined,
-                      }}
-                      onMouseDown={(e) =>
-                        handleCellMouseDown(rowIndex, colIndex, e)
-                      }
-                      onDoubleClick={(e) =>
-                        handleCellDoubleClick(rowIndex, colIndex, e)
-                      }
-                    >
-                      <input
-                        type="text"
-                        value={String(row[header] ?? "")}
-                        onChange={(e) =>
-                          handleCellChange(rowIndex, header, e.target.value)
-                        }
-                        onBlur={() => {
-                          handleCellBlur();
-                          if (isEditing) {
-                            setEditingCell(null);
-                          }
-                        }}
-                        className={`w-full h-full p-2 border-none focus:outline-none ${
-                          isEditing
-                            ? "focus:ring-2 focus:ring-yellow-400"
-                            : "focus:ring-2 focus:ring-blue-300"
-                        } bg-transparent`}
-                      />
-                    </td>
+                    <TableCell
+                      key={`${rowIndex}-${colIndex}`}
+                      rowIndex={rowIndex}
+                      colIndex={colIndex}
+                      header={header}
+                      value={tableData[rowIndex]?.[header]}
+                      isSelectedCell={currentCellIsSelected}
+                      isEditingCell={currentCellIsEditing}
+                      onMouseDown={handleCellMouseDown}
+                      onDoubleClick={handleCellDoubleClick}
+                      // REMOVED: onMouseMove from TableCell props
+                    />
                   );
                 })}
               </tr>

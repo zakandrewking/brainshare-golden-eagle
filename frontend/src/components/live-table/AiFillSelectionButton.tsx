@@ -1,9 +1,13 @@
-import { useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
 
 import { Wand2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useSelectedCells } from "@/stores/selectionStore";
 
 import generateSelectedCellsSuggestions
   from "./actions/generateSelectedCellsSuggestions";
@@ -14,18 +18,46 @@ export function AiFillSelectionButton() {
   const {
     tableData,
     headers,
-    selectedCells,
-    getSelectedCellsData,
     handleCellChange,
   } = useLiveTable();
+
+  const selectedCells = useSelectedCells();
+
+  const selectedCellsData = useMemo(() => {
+    if (!tableData || !headers || selectedCells.length === 0) {
+      return [];
+    }
+
+    // Group cells by row
+    const rowGroups = selectedCells.reduce<Record<number, typeof selectedCells[0][]>>(
+      (acc, cell) => {
+        if (!acc[cell.rowIndex]) {
+          acc[cell.rowIndex] = [];
+        }
+        acc[cell.rowIndex].push(cell);
+        return acc;
+      },
+      {}
+    );
+
+    // For each row, extract the cell data in order
+    return Object.keys(rowGroups)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((rowIndex) => {
+        const row = rowGroups[rowIndex].sort((a, b) => a.colIndex - b.colIndex);
+        return row.map((cell) => {
+          const header = headers[cell.colIndex];
+          const rowData = tableData[cell.rowIndex];
+          return rowData && header ? String(rowData[header] ?? "") : "";
+        });
+      });
+  }, [selectedCells, tableData, headers]);
 
   const handleClick = async () => {
     if (selectedCells.length === 0) return;
 
     setIsLoading(true);
-
-    // Get the current data for selected cells
-    const selectedCellsData = getSelectedCellsData();
 
     toast.promise(
       async () => {

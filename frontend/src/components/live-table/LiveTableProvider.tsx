@@ -12,14 +12,6 @@ import { UndoManager } from "yjs";
 
 import { useRoom } from "@liveblocks/react/suspense";
 
-import {
-  type CellPosition,
-  type SelectionArea,
-  selectIsCellSelected,
-  selectSelectedCells,
-  useSelectionStore,
-} from "@/stores/selectionStore";
-
 import generateNewColumns, {
   GeneratedColumn,
 } from "./actions/generateNewColumns";
@@ -44,17 +36,6 @@ export interface LiveTableContextType {
   handleHeaderBlur: () => void;
   handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   handleColumnResize: (header: string, newWidth: number) => void;
-  // selection
-  selectedCell: { rowIndex: number; colIndex: number } | null;
-  selectionArea: SelectionArea;
-  isSelecting: boolean;
-  selectedCells: CellPosition[];
-  handleSelectionStart: (rowIndex: number, colIndex: number) => void;
-  handleSelectionMove: (rowIndex: number, colIndex: number) => void;
-  handleSelectionEnd: () => void;
-  isCellSelected: (rowIndex: number, colIndex: number) => boolean;
-  clearSelection: () => void;
-  getSelectedCellsData: () => string[][];
   // editing
   handleCellChange: (
     rowIndex: number,
@@ -86,8 +67,6 @@ export interface LiveTableContextType {
   }>;
   deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
 }
-
-export type { CellPosition, SelectionArea };
 
 interface LiveTableProviderProps {
   children: React.ReactNode;
@@ -147,77 +126,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // update self info in awareness
   useUpdatedSelf(yProvider);
 
-  // Use the selection store instead of local state
-  const {
-    selectedCell,
-    selectionArea,
-    isSelecting,
-    setSelectedCell,
-    startSelection,
-    moveSelection,
-    endSelection,
-    clearSelection
-  } = useSelectionStore();
-
-  // Get derived state using selectors
-  const selectedCells = selectSelectedCells(useSelectionStore.getState());
-  const isCellSelected = useCallback(
-    (rowIndex: number, colIndex: number) =>
-      selectIsCellSelected(useSelectionStore.getState(), rowIndex, colIndex),
-    []
-  );
-
-  // Create handlers that use the store actions
-  const handleSelectionStart = useCallback(
-    (rowIndex: number, colIndex: number) => {
-      startSelection(rowIndex, colIndex);
-    },
-    [startSelection]
-  );
-
-  const handleSelectionMove = useCallback(
-    (rowIndex: number, colIndex: number) => {
-      moveSelection(rowIndex, colIndex);
-    },
-    [moveSelection]
-  );
-
-  const handleSelectionEnd = useCallback(() => {
-    endSelection();
-  }, [endSelection]);
-
-  // Get data from all selected cells (useful for copy operations)
-  const getSelectedCellsData = useCallback(() => {
-    if (!tableData || !headers || selectedCells.length === 0) {
-      return [];
-    }
-
-    // Group cells by row
-    const rowGroups = selectedCells.reduce<Record<number, CellPosition[]>>(
-      (acc, cell) => {
-        if (!acc[cell.rowIndex]) {
-          acc[cell.rowIndex] = [];
-        }
-        acc[cell.rowIndex].push(cell);
-        return acc;
-      },
-      {}
-    );
-
-    // For each row, extract the cell data in order
-    return Object.keys(rowGroups)
-      .map(Number)
-      .sort((a, b) => a - b)
-      .map((rowIndex) => {
-        const row = rowGroups[rowIndex].sort((a, b) => a.colIndex - b.colIndex);
-        return row.map((cell) => {
-          const header = headers[cell.colIndex];
-          const rowData = tableData[cell.rowIndex];
-          return rowData && header ? String(rowData[header] ?? "") : "";
-        });
-      });
-  }, [tableData, headers, selectedCells]);
-
   // --- Load status ---
 
   useEffect(() => {
@@ -233,20 +141,18 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   const handleCellFocus = useCallback(
     (rowIndex: number, colIndex: number) => {
-      setSelectedCell({ rowIndex, colIndex });
       yProvider.awareness.setLocalStateField("selectedCell", {
         rowIndex,
         colIndex,
       });
     },
-    [setSelectedCell, yProvider.awareness]
+    [yProvider.awareness]
   );
 
   // Function to handle cell blur
   const handleCellBlur = useCallback(() => {
-    setSelectedCell(null);
     yProvider.awareness.setLocalStateField("selectedCell", null);
-  }, [setSelectedCell, yProvider.awareness]);
+  }, [yProvider.awareness]);
 
   // Header editing functions
   const handleHeaderDoubleClick = useCallback(
@@ -685,7 +591,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         columnWidths,
         isTableLoaded,
         handleCellChange,
-        selectedCell,
         undoManager,
         handleCellFocus,
         handleCellBlur,
@@ -696,15 +601,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         handleHeaderBlur,
         handleHeaderKeyDown,
         handleColumnResize,
-        selectionArea,
-        isSelecting,
-        selectedCells,
-        handleSelectionStart,
-        handleSelectionMove,
-        handleSelectionEnd,
-        isCellSelected,
-        clearSelection,
-        getSelectedCellsData,
         editingCell,
         setEditingCell,
         generateAndInsertRows,

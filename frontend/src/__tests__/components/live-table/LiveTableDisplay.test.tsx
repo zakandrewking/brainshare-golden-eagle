@@ -2,10 +2,21 @@ import "@testing-library/jest-dom";
 
 import React from "react";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
@@ -17,6 +28,7 @@ import {
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
+import { selectionStore } from "@/stores/selectionStore";
 
 import { getLiveTableMockValues } from "./liveTableTestUtils";
 
@@ -24,11 +36,36 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
+// Mock the selection store
+vi.mock("@/stores/selectionStore", async () => {
+  const actual = await vi.importActual("@/stores/selectionStore");
+  return {
+    ...actual,
+    selectionStore: {
+      ...actual.selectionStore,
+      getState: vi.fn().mockReturnValue({
+        ...actual.selectionStore.getState(),
+        clearSelection: vi.fn(), // Mock clearSelection from the store
+        startSelection: vi.fn(),
+        moveSelection: vi.fn(),
+        endSelection: vi.fn(),
+        setSelectedCell: vi.fn(),
+      }),
+      subscribe: vi.fn(() => () => {}), // Mock subscribe
+    },
+    useSelectionStore: vi.fn((selector) => {
+      // Provide a basic mock for useSelectionStore if needed for other parts of the component
+      // For this specific test, we are more interested in the direct call to clearSelection
+      const state = actual.selectionStore.getState();
+      return selector ? selector(state) : state;
+    }),
+  };
+});
+
 const mockedUseLiveTable = vi.mocked(useLiveTable);
+const mockedSelectionStore = vi.mocked(selectionStore);
 
 describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
-  const mockClearSelection = vi.fn();
-
   let yDoc: Y.Doc;
   let liveTableDocInstance: LiveTableDoc;
 
@@ -50,6 +87,21 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+
+    // Reset the mock for clearSelection before each test
+    // Ensure the mock is fresh for each assertion
+    const actualStore = await vi.importActual("@/stores/selectionStore");
+    mockedSelectionStore.getState.mockReturnValue({
+      ...actualStore.selectionStore.getState(),
+      selectedCell: null, // Reset relevant parts of state
+      isSelecting: false,
+      selectionArea: { startCell: null, endCell: null },
+      clearSelection: vi.fn(), // This is the important mock
+      startSelection: vi.fn(),
+      moveSelection: vi.fn(),
+      endSelection: vi.fn(),
+      setSelectedCell: vi.fn(),
+    });
 
     yDoc = new Y.Doc();
     liveTableDocInstance = new LiveTableDoc(yDoc);
@@ -74,7 +126,7 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
     mockedUseLiveTable.mockReturnValue(
       getLiveTableMockValues({
         liveTableDocInstance,
-        clearSelection: mockClearSelection,
+        // Remove clearSelection from here as it's no longer from context
       })
     );
   });
@@ -85,14 +137,25 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
   });
 
   it("should clear selection when clicking outside the table", async () => {
+    // Mock the store's state for this specific test if needed, e.g., if selectedCell should have a value
+    const actualStore = await vi.importActual("@/stores/selectionStore");
+    const mockClearSelectionFromStore = vi.fn();
+    mockedSelectionStore.getState.mockReturnValueOnce({
+        ...actualStore.selectionStore.getState(),
+        selectedCell: { rowIndex: 0, colIndex: 0 }, // Example initial state
+        isSelecting: false,
+        clearSelection: mockClearSelectionFromStore, // Use a fresh mock for this test
+        startSelection: vi.fn(),
+        moveSelection: vi.fn(),
+        endSelection: vi.fn(),
+        setSelectedCell: vi.fn(),
+    });
+
     mockedUseLiveTable.mockReturnValueOnce(
       getLiveTableMockValues({
         liveTableDocInstance,
-        selectedCell: { rowIndex: 0, colIndex: 0 },
-        isCellSelected: vi.fn(
-          (rowIndex, colIndex) => rowIndex === 0 && colIndex === 0
-        ),
-        clearSelection: mockClearSelection,
+        // selectedCell and isCellSelected are not directly used by the click-outside logic anymore
+        // as it relies on the selectionStore
       })
     );
 
@@ -110,19 +173,28 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
     const outsideElement = screen.getByTestId("outside-element");
     fireEvent.click(outsideElement);
     await vi.runAllTimersAsync();
-    expect(mockClearSelection).toHaveBeenCalledTimes(1);
+    expect(mockClearSelectionFromStore).toHaveBeenCalledTimes(1); // Check the store's mock
     expect(captureClick).toHaveBeenCalledTimes(1);
   });
 
-  it("should not clear selection when clicking inside the table", () => {
+  it("should not clear selection when clicking inside the table", async () => {
+    const actualStore = await vi.importActual("@/stores/selectionStore");
+    const mockClearSelectionFromStore = vi.fn();
+    mockedSelectionStore.getState.mockReturnValueOnce({
+        ...actualStore.selectionStore.getState(),
+        selectedCell: { rowIndex: 0, colIndex: 0 }, // Example initial state
+        isSelecting: false,
+        clearSelection: mockClearSelectionFromStore, // Use a fresh mock for this test
+        startSelection: vi.fn(),
+        moveSelection: vi.fn(),
+        endSelection: vi.fn(),
+        setSelectedCell: vi.fn(),
+    });
+
     mockedUseLiveTable.mockReturnValueOnce(
       getLiveTableMockValues({
         liveTableDocInstance,
-        selectedCell: { rowIndex: 0, colIndex: 0 },
-        isCellSelected: vi.fn(
-          (rowIndex, colIndex) => rowIndex === 0 && colIndex === 0
-        ),
-        clearSelection: mockClearSelection,
+        // selectedCell and isCellSelected are not directly used by the click-outside logic anymore
       })
     );
 
@@ -137,6 +209,6 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
       throw new Error("Could not find parent TD for input with value R1C1");
     }
 
-    expect(mockClearSelection).not.toHaveBeenCalled();
+    expect(mockClearSelectionFromStore).not.toHaveBeenCalled(); // Check the store's mock
   });
 });

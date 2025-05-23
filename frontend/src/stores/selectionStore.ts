@@ -1,4 +1,9 @@
-import { create } from "zustand";
+import {
+  createStore,
+  useStore,
+} from "zustand";
+import { shallow } from "zustand/shallow";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 
 export interface CellPosition {
   rowIndex: number;
@@ -27,7 +32,7 @@ const initialState: Pick<SelectionState, 'selectedCell' | 'selectionArea' | 'isS
   isSelecting: false,
 };
 
-export const useSelectionStore = create<SelectionState>((set) => ({
+export const selectionStore = createStore<SelectionState>((set) => ({
   ...initialState,
   setSelectedCell: (cell) => set({ selectedCell: cell }),
   startSelection: (rowIndex, colIndex) =>
@@ -64,12 +69,15 @@ export const useSelectionStore = create<SelectionState>((set) => ({
   clearSelection: () => set({ ...initialState }),
 }));
 
+export const useSelectionStore = (selector?: (state: SelectionState) => unknown) => useStore(selectionStore, selector);
+
 // Selectors
 
 export const selectSelectedCells = (state: SelectionState): CellPosition[] => {
   const { selectionArea } = state;
+  const cells: CellPosition[] = [];
   if (!selectionArea.startCell || !selectionArea.endCell) {
-    return [];
+    return cells;
   }
 
   const startRow = Math.min(
@@ -89,7 +97,6 @@ export const selectSelectedCells = (state: SelectionState): CellPosition[] => {
     selectionArea.endCell.colIndex
   );
 
-  const cells: CellPosition[] = [];
   for (let rIndex = startRow; rIndex <= endRow; rIndex++) {
     for (let cIndex = startCol; cIndex <= endCol; cIndex++) {
       cells.push({ rowIndex: rIndex, colIndex: cIndex });
@@ -98,9 +105,57 @@ export const selectSelectedCells = (state: SelectionState): CellPosition[] => {
   return cells;
 };
 
+export const useSelectedCells = () => useStoreWithEqualityFn(selectionStore, selectSelectedCells, (a, b) => {
+    const makeSet = (cells: CellPosition[]) => {
+      const set = new Set();
+      cells.forEach(cell => {
+        set.add(`${cell.rowIndex}-${cell.colIndex}`);
+      });
+      return set;
+    };
+    return shallow(makeSet(a), makeSet(b));
+});
+
 export const selectIsCellSelected = (state: SelectionState, rowIndex: number, colIndex: number): boolean => {
   const selectedCells = selectSelectedCells(state);
   return selectedCells.some(
     (cell) => cell.rowIndex === rowIndex && cell.colIndex === colIndex
   );
+};
+
+export const selectSelectedCellsData = (
+  state: SelectionState,
+  tableData: Record<string, unknown>[] | undefined,
+  headers: string[] | undefined
+): string[][] => {
+  const selectedCells = selectSelectedCells(state);
+
+  if (!tableData || !headers || selectedCells.length === 0) {
+    return [];
+  }
+
+  // Group cells by row
+  const rowGroups = selectedCells.reduce<Record<number, CellPosition[]>>(
+    (acc, cell) => {
+      if (!acc[cell.rowIndex]) {
+        acc[cell.rowIndex] = [];
+      }
+      acc[cell.rowIndex].push(cell);
+      return acc;
+    },
+    {}
+  );
+
+  // For each row, extract the cell data in order
+  return Object.keys(rowGroups)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((rowIndex) => {
+      const row = rowGroups[rowIndex].sort((a, b) => a.colIndex - b.colIndex);
+      return row.map((cell) => {
+        const header = headers[cell.colIndex];
+        const rowData = tableData[cell.rowIndex];
+        return rowData && header ? String(rowData[header] ?? "") : "";
+      });
+    });
 };
