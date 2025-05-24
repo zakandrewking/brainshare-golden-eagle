@@ -18,6 +18,7 @@ export function EmptyScreen() {
         </pre>
         <div>Hello, human.</div>
       </div>
+      <div className="text-2xl font-bold my-2">Welcome to BRAINSHARE.</div>
       <div className="text-2xl font-bold">
         Let&apos;s start with:{" "}
         <InternalLink href="/planets" className="text-2xl">
