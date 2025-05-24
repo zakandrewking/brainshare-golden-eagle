@@ -19,6 +19,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "./drawer";
+import { InternalLink } from "./link";
 import { Stack } from "./stack";
 
 function NavButton({
@@ -115,8 +116,15 @@ function NavigationButtonWithDrawer() {
               >
                 Home
               </NavButton>
-            </Stack>
-            <Stack direction="col" gap={1} className="w-full">
+
+              <InternalLink
+                href="/create-room"
+                variant="outline"
+                className="w-full my-4"
+              >
+                Create a room
+              </InternalLink>
+
               <NavButton
                 href="/planets"
                 match={new RegExp("^/planets$")}
