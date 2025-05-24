@@ -2,6 +2,11 @@
 
 import React, { useCallback } from "react";
 
+import {
+  selectIsCellSelected,
+  useSelectionStore,
+} from "@/stores/selectionStore";
+
 import { useLiveTable } from "./LiveTableProvider";
 
 interface TableCellProps {
@@ -18,22 +23,24 @@ const TableCell: React.FC<TableCellProps> = ({
   value,
 }) => {
   const {
-    selectedCell,
     editingCell,
-    isCellSelected,
     handleCellChange,
     handleCellBlur,
     setEditingCell,
-    handleSelectionMove,
-    handleSelectionStart,
     handleCellFocus,
   } = useLiveTable();
+
+  const selectedCell = useSelectionStore((state) => state.selectedCell);
+  const startSelection = useSelectionStore((state) => state.startSelection);
+  const moveSelection = useSelectionStore((state) => state.moveSelection);
+  const isInSelection = useSelectionStore((state) =>
+    selectIsCellSelected(state, rowIndex, colIndex)
+  );
 
   const isSelected =
     selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;
   const isEditing =
     editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
-  const isInSelection = isCellSelected(rowIndex, colIndex);
 
   const handleCellMouseDown = useCallback(
     (event: React.MouseEvent) => {
@@ -57,9 +64,9 @@ const TableCell: React.FC<TableCellProps> = ({
       }
 
       if (event.shiftKey && selectedCell) {
-        handleSelectionMove(rowIndex, colIndex);
+        moveSelection(rowIndex, colIndex);
       } else {
-        handleSelectionStart(rowIndex, colIndex);
+        startSelection(rowIndex, colIndex);
       }
     },
     [
@@ -68,8 +75,8 @@ const TableCell: React.FC<TableCellProps> = ({
       colIndex,
       selectedCell,
       setEditingCell,
-      handleSelectionMove,
-      handleSelectionStart,
+      moveSelection,
+      startSelection,
     ]
   );
 

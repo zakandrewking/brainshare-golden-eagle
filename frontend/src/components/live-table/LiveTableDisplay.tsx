@@ -1,11 +1,6 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { MoreHorizontal } from "lucide-react";
 
@@ -17,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useSelectionStore } from "@/stores/selectionStore";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
 import { useLiveTable } from "./LiveTableProvider";
@@ -49,12 +45,13 @@ const LiveTable: React.FC = () => {
     handleHeaderBlur,
     handleHeaderKeyDown,
     handleColumnResize,
-    selectedCell,
-    handleSelectionMove,
-    handleSelectionEnd,
-    isSelecting,
-    clearSelection,
   } = useLiveTable();
+
+  const selectedCell = useSelectionStore((state) => state.selectedCell);
+  const moveSelection = useSelectionStore((state) => state.moveSelection);
+  const endSelection = useSelectionStore((state) => state.endSelection);
+  const clearSelection = useSelectionStore((state) => state.clearSelection);
+  const isSelecting = useSelectionStore((state) => state.isSelecting);
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
@@ -170,12 +167,12 @@ const LiveTable: React.FC = () => {
       );
 
       if (rowIndex >= 0 && colIndex >= 0) {
-        handleSelectionMove(rowIndex, colIndex);
+        moveSelection(rowIndex, colIndex);
       }
     };
 
     const handleGlobalMouseUp = () => {
-      handleSelectionEnd();
+      endSelection();
     };
 
     document.addEventListener("mousemove", handleGlobalMouseMove);
@@ -185,7 +182,7 @@ const LiveTable: React.FC = () => {
       document.removeEventListener("mousemove", handleGlobalMouseMove);
       document.removeEventListener("mouseup", handleGlobalMouseUp);
     };
-  }, [isSelecting, handleSelectionMove, handleSelectionEnd]);
+  }, [isSelecting, moveSelection, endSelection]);
 
   // Effect to handle clicks outside the table
   useEffect(() => {

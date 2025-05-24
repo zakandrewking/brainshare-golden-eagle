@@ -1,18 +1,8 @@
 import React from "react";
 
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import {
@@ -25,8 +15,14 @@ import type {
   CellPosition,
   SelectionArea,
 } from "@/components/live-table/LiveTableProvider";
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
+import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
+// Use an ES6 import style for the mocked function
+import {
+  type SelectionState,
+  selectIsCellSelected as mockedSelectIsCellSelectedOriginal,
+  selectSelectedCells as actualSelectSelectedCells,
+  useSelectionStore,
+} from "@/stores/selectionStore";
 
 import { getLiveTableMockValues } from "./liveTableTestUtils";
 
@@ -34,7 +30,21 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
+// Add a mock for the selection store
+vi.mock("@/stores/selectionStore", () => ({
+  useSelectionStore: vi.fn(),
+  selectIsCellSelected: vi.fn(),
+  selectSelectedCells: vi.fn(),
+  useSelectedCells: vi.fn(),
+}));
+
 const mockedUseLiveTable = vi.mocked(LiveTableProviderModule.useLiveTable);
+const mockedUseSelectionStore = vi.mocked(useSelectionStore);
+
+const mockedSelectIsCellSelected = vi.mocked(
+  mockedSelectIsCellSelectedOriginal
+);
+const mockedSelectSelectedCells = vi.mocked(actualSelectSelectedCells);
 
 describe("LiveTableDisplay - Shift-Click Selection", () => {
   const colId1 = crypto.randomUUID() as ColumnId;
@@ -70,15 +80,69 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
         initialColumnOrder,
         initialRowOrder,
         initialRowData,
-        selectedCell: mockCurrentSelectedCellAnchor,
-        selectionArea: mockCurrentSelectionArea,
-        isSelecting: mockIsSelectingState,
-        // Pass the mock functions themselves, not new vi.fn() each time
+        selectionArea: {
+          startCell: mockCurrentSelectedCellAnchor,
+          endCell: mockCurrentSelectedCellAnchor,
+        },
         handleSelectionStart: mockHandleSelectionStart,
         handleSelectionMove: mockHandleSelectionMove,
-        // Add other necessary mocks if getLiveTableMockValues doesn't provide them by default
-        // or if they need to be specific to this test suite
       })
+    );
+
+    mockedUseSelectionStore.mockImplementation(
+      <TState = SelectionState,>(
+        selector?: (state: SelectionState) => TState
+      ): TState | SelectionState => {
+        const state: SelectionState = {
+          selectedCell: mockCurrentSelectedCellAnchor,
+          selectionArea: mockCurrentSelectionArea,
+          isSelecting: mockIsSelectingState,
+          setSelectedCell: vi.fn(),
+          startSelection: mockHandleSelectionStart,
+          moveSelection: mockHandleSelectionMove,
+          endSelection: vi.fn(),
+          clearSelection: vi.fn(),
+        };
+        if (selector) {
+          return selector(state);
+        }
+        return state;
+      }
+    );
+
+    mockedSelectSelectedCells.mockImplementation(
+      (state: SelectionState): CellPosition[] => {
+        if (!state.selectionArea.startCell || !state.selectionArea.endCell) {
+          return state.selectedCell ? [state.selectedCell] : [];
+        }
+        const { startCell, endCell } = state.selectionArea;
+        const cells: CellPosition[] = [];
+        const minRow = Math.min(startCell.rowIndex, endCell.rowIndex);
+        const maxRow = Math.max(startCell.rowIndex, endCell.rowIndex);
+        const minCol = Math.min(startCell.colIndex, endCell.colIndex);
+        const maxCol = Math.max(startCell.colIndex, endCell.colIndex);
+        for (let r = minRow; r <= maxRow; r++) {
+          for (let c = minCol; c <= maxCol; c++) {
+            cells.push({ rowIndex: r, colIndex: c });
+          }
+        }
+        return cells;
+      }
+    );
+
+    mockedSelectIsCellSelected.mockImplementation(
+      (
+        stateFromSelector: SelectionState,
+        rowIndex: number,
+        colIndex: number
+      ): boolean => {
+        const currentSelectedCells =
+          mockedSelectSelectedCells(stateFromSelector);
+        return currentSelectedCells.some(
+          (cell: CellPosition) =>
+            cell.rowIndex === rowIndex && cell.colIndex === colIndex
+        );
+      }
     );
   };
 
@@ -88,26 +152,33 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     mockCurrentSelectionArea = { startCell: null, endCell: null };
     mockIsSelectingState = false;
 
-    // Define mock implementations here where they can access and modify test-scoped variables
     mockHandleSelectionStart = vi.fn((rowIndex: number, colIndex: number) => {
       const cell = { rowIndex, colIndex };
       mockCurrentSelectedCellAnchor = cell;
       mockCurrentSelectionArea = { startCell: cell, endCell: cell };
       mockIsSelectingState = true;
-      updateLiveTableMock(); // Update the global mock with new states
+      // Simulate that startSelection action in the store is called
+      // This will trigger updates in components observing useSelectionStore
+      updateLiveTableMock();
     });
 
     mockHandleSelectionMove = vi.fn((rowIndex: number, colIndex: number) => {
+      if (!mockCurrentSelectionArea.startCell) {
+        mockCurrentSelectionArea.startCell = mockCurrentSelectedCellAnchor || {
+          rowIndex: 0,
+          colIndex: 0,
+        };
+      }
       mockCurrentSelectionArea = {
         ...mockCurrentSelectionArea,
         endCell: { rowIndex, colIndex },
       };
-      // isSelecting state should ideally remain true during a move
       if (!mockIsSelectingState) mockIsSelectingState = true;
-      updateLiveTableMock(); // Update the global mock with new states
+      // Simulate that moveSelection action in the store is called
+      updateLiveTableMock();
     });
 
-    updateLiveTableMock(); // Initial setup of the mock for useLiveTable
+    updateLiveTableMock(); // Initial setup
   });
 
   it("should expand selection with shift-click after an initial selection and update selectedCells", async () => {
@@ -135,8 +206,10 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
       endCell: { rowIndex: 0, colIndex: 0 },
     });
     // Check selectedCells after first click
-    let currentContext = mockedUseLiveTable();
-    expect(currentContext.selectedCells).toEqual([
+    let storeState = mockedUseSelectionStore(
+      (state) => state
+    ) as SelectionState;
+    expect(mockedSelectSelectedCells(storeState)).toEqual([
       { rowIndex: 0, colIndex: 0 },
     ]);
 
@@ -153,28 +226,15 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
       endCell: { rowIndex: 1, colIndex: 1 },
     });
 
-    // Check selectedCells after shift-click (expansion)
-    currentContext = mockedUseLiveTable();
-    const expectedSelectedCells = [
-      { rowIndex: 0, colIndex: 0 },
-      { rowIndex: 0, colIndex: 1 },
-      { rowIndex: 1, colIndex: 0 },
-      { rowIndex: 1, colIndex: 1 },
-    ];
-    expect(currentContext.selectedCells).toEqual(
-      expect.arrayContaining(expectedSelectedCells)
-    );
+    // Check selectedCells after shift-click (expansion) from the store
+    storeState = mockedUseSelectionStore((state) => state) as SelectionState;
+    const expectedSelectedCells = mockedSelectSelectedCells(storeState);
     expect(expectedSelectedCells).toEqual(
-      expect.arrayContaining(currentContext.selectedCells)
+      expect.arrayContaining(mockedSelectSelectedCells(storeState))
     );
-    expect(currentContext.selectedCells.length).toBe(
-      expectedSelectedCells.length
+    expect(expectedSelectedCells.length).toBe(
+      mockedSelectSelectedCells(storeState).length
     );
-
-    // console.log("mockSelectedCell at end of test:", mockCurrentSelectedCellAnchor);
-    // if (mockHandleSelectionMove.mock.calls.length > 0) {
-    //   console.log("mockHandleSelectionMove was called with:", mockHandleSelectionMove.mock.calls[0]);
-    // }
   });
 
   it("should start a new selection with click if shift is not pressed, even if an anchor exists", async () => {
@@ -193,8 +253,11 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     expect(mockHandleSelectionStart).toHaveBeenCalledTimes(1);
     expect(mockHandleSelectionStart).toHaveBeenLastCalledWith(0, 0);
     expect(mockCurrentSelectedCellAnchor).toEqual({ rowIndex: 0, colIndex: 0 });
-    let currentContext = mockedUseLiveTable();
-    expect(currentContext.selectedCells).toEqual([
+    // Access selectedCells from the mocked store
+    let storeState = mockedUseSelectionStore(
+      (state) => state
+    ) as SelectionState;
+    expect(mockedSelectSelectedCells(storeState)).toEqual([
       { rowIndex: 0, colIndex: 0 },
     ]);
 
@@ -205,8 +268,9 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     expect(mockHandleSelectionStart).toHaveBeenCalledTimes(2);
     expect(mockHandleSelectionStart).toHaveBeenLastCalledWith(1, 1);
     expect(mockCurrentSelectedCellAnchor).toEqual({ rowIndex: 1, colIndex: 1 });
-    currentContext = mockedUseLiveTable();
-    expect(currentContext.selectedCells).toEqual([
+    // Access selectedCells from the mocked store
+    storeState = mockedUseSelectionStore((state) => state) as SelectionState;
+    expect(mockedSelectSelectedCells(storeState)).toEqual([
       { rowIndex: 1, colIndex: 1 },
     ]);
   });
@@ -227,8 +291,11 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     expect(mockHandleSelectionStart).toHaveBeenCalledTimes(1);
     expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 1);
     expect(mockCurrentSelectedCellAnchor).toEqual({ rowIndex: 0, colIndex: 1 });
-    const currentContext = mockedUseLiveTable();
-    expect(currentContext.selectedCells).toEqual([
+    // Access selectedCells from the mocked store
+    const storeState = mockedUseSelectionStore(
+      (state) => state
+    ) as SelectionState;
+    expect(mockedSelectSelectedCells(storeState)).toEqual([
       { rowIndex: 0, colIndex: 1 },
     ]);
     expect(mockHandleSelectionMove).not.toHaveBeenCalled();

@@ -6,9 +6,14 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import * as generateSelectedCellsSuggestionsModule from "@/components/live-table/actions/generateSelectedCellsSuggestions";
 import { AiFillSelectionButton } from "@/components/live-table/AiFillSelectionButton";
 import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
+import * as SelectionStoreModule from "@/stores/selectionStore";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
+}));
+
+vi.mock("@/stores/selectionStore", () => ({
+  useSelectedCells: vi.fn(),
 }));
 
 vi.mock(
@@ -63,9 +68,12 @@ describe("AiFillSelectionButton", () => {
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
       tableData: mockTableData,
       headers: mockHeaders,
-      selectedCells: mockSelectedCells,
       handleCellChange: mockHandleCellChange,
     } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
+
+    vi.mocked(SelectionStoreModule.useSelectedCells).mockReturnValue(
+      mockSelectedCells
+    );
 
     vi.mocked(generateSelectedCellsSuggestionsModule.default).mockResolvedValue(
       {
@@ -90,10 +98,13 @@ describe("AiFillSelectionButton", () => {
 
   it("should be disabled when no cells are selected", () => {
     // Override the mock for useLiveTable with no selected cells
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValueOnce({
-      ...vi.mocked(LiveTableProviderModule.useLiveTable)(),
-      selectedCells: [],
-    } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
+    // vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValueOnce({
+    //   ...vi.mocked(LiveTableProviderModule.useLiveTable)(),
+    //   selectedCells: [],
+    // } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
+
+    // Mock useSelectedCells to return an empty array
+    vi.mocked(SelectionStoreModule.useSelectedCells).mockReturnValueOnce([]);
 
     render(<AiFillSelectionButton />);
 

@@ -15,9 +15,6 @@ import { useRoom } from "@liveblocks/react/suspense";
 import {
   type CellPosition,
   type SelectionArea,
-  selectionStore,
-  selectIsCellSelected,
-  useSelectedCells,
   useSelectionStore,
 } from "@/stores/selectionStore";
 
@@ -45,16 +42,6 @@ export interface LiveTableContextType {
   handleHeaderBlur: () => void;
   handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   handleColumnResize: (header: string, newWidth: number) => void;
-  // selection
-  selectedCell: { rowIndex: number; colIndex: number } | null;
-  selectionArea: SelectionArea;
-  isSelecting: boolean;
-  selectedCells: CellPosition[];
-  handleSelectionStart: (rowIndex: number, colIndex: number) => void;
-  handleSelectionMove: (rowIndex: number, colIndex: number) => void;
-  handleSelectionEnd: () => void;
-  isCellSelected: (rowIndex: number, colIndex: number) => boolean;
-  clearSelection: () => void;
   // editing
   handleCellChange: (
     rowIndex: number,
@@ -147,44 +134,8 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // update self info in awareness
   useUpdatedSelf(yProvider);
 
-  // Use the selection store instead of local state
-  const {
-    selectedCell,
-    selectionArea,
-    isSelecting,
-    setSelectedCell,
-    startSelection,
-    moveSelection,
-    endSelection,
-    clearSelection,
-  } = useSelectionStore();
-
-  // Get derived state using selectors
-  const selectedCells = useSelectedCells();
-  const isCellSelected = useCallback(
-    (rowIndex: number, colIndex: number) =>
-      selectIsCellSelected(selectionStore.getState(), rowIndex, colIndex),
-    []
-  );
-
-  // Create handlers that use the store actions
-  const handleSelectionStart = useCallback(
-    (rowIndex: number, colIndex: number) => {
-      startSelection(rowIndex, colIndex);
-    },
-    [startSelection]
-  );
-
-  const handleSelectionMove = useCallback(
-    (rowIndex: number, colIndex: number) => {
-      moveSelection(rowIndex, colIndex);
-    },
-    [moveSelection]
-  );
-
-  const handleSelectionEnd = useCallback(() => {
-    endSelection();
-  }, [endSelection]);
+  // selection store
+  const setSelectedCell = useSelectionStore((state) => state.setSelectedCell);
 
   // --- Load status ---
 
@@ -653,7 +604,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         columnWidths,
         isTableLoaded,
         handleCellChange,
-        selectedCell,
         undoManager,
         handleCellFocus,
         handleCellBlur,
@@ -664,14 +614,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         handleHeaderBlur,
         handleHeaderKeyDown,
         handleColumnResize,
-        selectionArea,
-        isSelecting,
-        selectedCells,
-        handleSelectionStart,
-        handleSelectionMove,
-        handleSelectionEnd,
-        isCellSelected,
-        clearSelection,
         editingCell,
         setEditingCell,
         generateAndInsertRows,

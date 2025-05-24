@@ -4,14 +4,16 @@ import { Wand2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useSelectedCells } from "@/stores/selectionStore";
 
 import generateSelectedCellsSuggestions from "./actions/generateSelectedCellsSuggestions";
 import { useLiveTable } from "./LiveTableProvider";
 
 export function AiFillSelectionButton() {
   const [isLoading, setIsLoading] = useState(false);
-  const { tableData, headers, selectedCells, handleCellChange } =
-    useLiveTable();
+  const { tableData, headers, handleCellChange } = useLiveTable();
+
+  const selectedCells = useSelectedCells();
 
   const handleClick = async () => {
     if (selectedCells.length === 0) return;

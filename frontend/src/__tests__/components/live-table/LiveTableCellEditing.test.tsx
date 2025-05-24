@@ -27,6 +27,10 @@ import {
   LiveTableContextType,
   useLiveTable,
 } from "@/components/live-table/LiveTableProvider";
+import {
+  type SelectionState,
+  useSelectionStore,
+} from "@/stores/selectionStore";
 
 import { getLiveTableMockValues } from "./liveTableTestUtils";
 
@@ -34,11 +38,14 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
+// Mock the entire store module
+vi.mock("@/stores/selectionStore");
+
 describe("LiveTableDisplay Cell Editing", () => {
   const mockHandleCellChange = vi.fn();
   const mockHandleCellFocus = vi.fn();
   const mockHandleCellBlur = vi.fn();
-  const mockHandleSelectionStart = vi.fn();
+  const mockStartSelection = vi.fn();
   let currentEditingCell: { rowIndex: number; colIndex: number } | null = null;
 
   const mockSetEditingCell = vi.fn((cell) => {
@@ -72,10 +79,31 @@ describe("LiveTableDisplay Cell Editing", () => {
         handleCellChange: mockHandleCellChange,
         handleCellFocus: mockHandleCellFocus,
         handleCellBlur: mockHandleCellBlur,
-        handleSelectionStart: mockHandleSelectionStart,
         setEditingCell: mockSetEditingCell,
         editingCell: currentEditingCell,
       }) as LiveTableContextType
+    );
+
+    // Use vi.mocked to correctly type the mocked store hook
+    vi.mocked(useSelectionStore).mockImplementation(
+      <TState = SelectionState,>(
+        selector?: (state: SelectionState) => TState
+      ): TState | SelectionState => {
+        const state: SelectionState = {
+          selectedCell: null,
+          selectionArea: { startCell: null, endCell: null },
+          isSelecting: false,
+          setSelectedCell: vi.fn(),
+          startSelection: mockStartSelection,
+          moveSelection: vi.fn(),
+          endSelection: vi.fn(),
+          clearSelection: vi.fn(),
+        };
+        if (selector) {
+          return selector(state);
+        }
+        return state;
+      }
     );
   };
 
@@ -118,7 +146,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     expect(cellInputJohnDoe).toBeInTheDocument();
 
     await user.click(cellInputJohnDoe);
-    expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
+    expect(mockStartSelection).toHaveBeenCalledWith(0, 0);
     expect(cellInputJohnDoe).not.toHaveFocus();
 
     const tdJohnDoe = cellInputJohnDoe.closest("td");
@@ -155,6 +183,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     await user.click(cellInputJaneSmith.closest("td")!);
 
     expect(mockHandleCellBlur).toHaveBeenCalled();
-    expect(mockHandleSelectionStart).toHaveBeenCalledWith(1, 0);
+    expect(mockStartSelection).toHaveBeenCalledWith(1, 0);
   });
 });

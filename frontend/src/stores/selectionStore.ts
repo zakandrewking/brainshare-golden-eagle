@@ -12,7 +12,7 @@ export interface SelectionArea {
   endCell: CellPosition | null;
 }
 
-interface SelectionState {
+export interface SelectionState {
   selectedCell: CellPosition | null;
   selectionArea: SelectionArea;
   isSelecting: boolean;
