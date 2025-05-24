@@ -127,11 +127,10 @@ export class LiveTableDoc {
     this.updateV2ColumnOrderObserver = this.updateHeadersState.bind(this); // Reuses updateHeadersState for order changes
     this.updateV2RowOrderObserver = this.updateTableState.bind(this); // Reuses updateTableState for row order changes
 
-    // Also need to call columnWidthsUpdateCallback if V2 column definition width changes
-    // For simplicity, updateV2ColumnDefinitionsObserver can trigger both header and width updates
     this.updateV2ColumnDefinitionsObserver = () => {
       this.updateHeadersState();
       this.updateColWidthsState();
+      this.updateTableState();
     };
   }
 
