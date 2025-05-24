@@ -2,13 +2,16 @@
 
 import { ReactNode, useEffect, useState } from "react";
 
-import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
+import { VariantProps } from "class-variance-authority";
+import { ChevronLeft, ChevronRight, HousePlus, Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
-import { Button } from "./button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/utils/tailwind";
+
 import {
   Drawer,
   DrawerClose,
@@ -19,7 +22,6 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "./drawer";
-import { InternalLink } from "./link";
 import { Stack } from "./stack";
 
 function NavButton({
@@ -27,18 +29,25 @@ function NavButton({
   match,
   setOpen,
   children,
+  variant,
+  className,
 }: {
   href: string;
-  match: RegExp;
+  match?: RegExp;
   setOpen: (open: boolean) => void;
   children: ReactNode;
+  variant?: VariantProps<typeof buttonVariants>["variant"];
+  className?: string;
 }) {
   const pathname = usePathname();
 
   return (
     <Button
-      variant={pathname.match(match) ? "secondary" : "ghost"}
-      className="w-full justify-start text-left"
+      variant={
+        variant ||
+        (match ? (pathname.match(match) ? "secondary" : "ghost") : "ghost")
+      }
+      className={cn("w-full justify-start text-left", className)}
       asChild
       onClick={() => setOpen(false)}
     >
@@ -117,13 +126,15 @@ function NavigationButtonWithDrawer() {
                 Home
               </NavButton>
 
-              <InternalLink
+              <NavButton
                 href="/create-room"
                 variant="outline"
-                className="w-full my-4"
+                className="w-full my-4 justify-center"
+                setOpen={setWillOpen}
               >
+                <HousePlus className="mr-2" size={16} />
                 Create a room
-              </InternalLink>
+              </NavButton>
 
               <NavButton
                 href="/planets"
