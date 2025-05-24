@@ -268,16 +268,12 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     mockYTable.push([yRow]);
 
     const mockData = getLiveTableMockValues({
-      yDoc: mockYDoc,
-      yHeaders: mockYHeaders,
-      yTable: mockYTable,
       undoManager: mockUndoManager,
       selectedCell: { rowIndex: 0, colIndex: 0 },
       selectedCells: [{ rowIndex: 0, colIndex: 0 }],
       tableData: mockYTable.toArray().map((r) => r.toJSON()),
       headers: mockYHeaders.toArray(),
       columnWidths: {},
-      getSelectedCellsData: vi.fn().mockReturnValue([["Alice"]]),
       generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
@@ -366,7 +362,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     const yHeadersDataForCall = mockYHeaders.toArray();
 
     const mockData = getLiveTableMockValues({
-      yDoc: mockYDoc,
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
@@ -405,9 +400,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     const yHeadersDataForCall = mockYHeaders.toArray();
 
     const mockData = getLiveTableMockValues({
-      yDoc: mockYDoc,
-      yHeaders: mockYHeaders,
-      yTable: mockYTable,
       undoManager: mockUndoManager,
       selectedCell: primarySelectedCell,
       selectedCells: selectedCellsData,
@@ -436,9 +428,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     const yHeadersDataForCall = mockYHeaders.toArray();
 
     const mockData = getLiveTableMockValues({
-      yDoc: mockYDoc,
-      yHeaders: mockYHeaders,
-      yTable: mockYTable,
       undoManager: mockUndoManager,
       selectedCell,
       selectedCells: [],

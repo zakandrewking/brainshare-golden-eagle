@@ -7,9 +7,7 @@ import type {
   ColumnId,
   RowId,
 } from "@/components/live-table/LiveTableDoc";
-import {
-  LiveTableDoc,
-} from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
+import { LiveTableDoc } from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
 import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
 
 // Define a more specific type for overrides that allows yColWidths (Y.Map)
@@ -190,7 +188,6 @@ export const getLiveTableMockValues = (
     handleSelectionEnd: vi.fn(),
     isCellSelected: vi.fn().mockReturnValue(false),
     clearSelection: vi.fn(),
-    getSelectedCellsData: vi.fn().mockReturnValue([]),
     editingCell: null,
     setEditingCell: vi.fn(),
     generateAndInsertRows: vi

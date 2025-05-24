@@ -164,7 +164,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
       selectedCell: selectedCellForTest,
       selectedCells: [selectedCellForTest],
       isCellSelected: vi.fn((rI) => rI === selectedRowIndex),
-      getSelectedCellsData: vi.fn(() => [[initialRowData[rowId1][colId1]]]),
     });
 
     render(
@@ -206,10 +205,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
           (cell) => cell.rowIndex === rI && cell.colIndex === cI
         )
       ),
-      getSelectedCellsData: vi.fn(() => [
-        [initialRowData[rowId0][colId1]],
-        [initialRowData[rowId2][colId1]],
-      ]),
     });
 
     render(
@@ -241,7 +236,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
       selectedCell: null,
       selectedCells: [],
       isCellSelected: vi.fn(() => false),
-      getSelectedCellsData: vi.fn(() => []),
     });
 
     render(

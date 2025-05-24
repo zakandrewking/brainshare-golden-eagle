@@ -5,19 +5,13 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 
-import generateSelectedCellsSuggestions
-  from "./actions/generateSelectedCellsSuggestions";
+import generateSelectedCellsSuggestions from "./actions/generateSelectedCellsSuggestions";
 import { useLiveTable } from "./LiveTableProvider";
 
 export function AiFillSelectionButton() {
   const [isLoading, setIsLoading] = useState(false);
-  const {
-    tableData,
-    headers,
-    selectedCells,
-    getSelectedCellsData,
-    handleCellChange,
-  } = useLiveTable();
+  const { tableData, headers, selectedCells, handleCellChange } =
+    useLiveTable();
 
   const handleClick = async () => {
     if (selectedCells.length === 0) return;
@@ -25,7 +19,37 @@ export function AiFillSelectionButton() {
     setIsLoading(true);
 
     // Get the current data for selected cells
-    const selectedCellsData = getSelectedCellsData();
+    const selectedCellsData = (() => {
+      if (!tableData || !headers || selectedCells.length === 0) {
+        return [];
+      }
+
+      // Group cells by row
+      const rowGroups = selectedCells.reduce<
+        Record<number, { rowIndex: number; colIndex: number }[]>
+      >((acc, cell) => {
+        if (!acc[cell.rowIndex]) {
+          acc[cell.rowIndex] = [];
+        }
+        acc[cell.rowIndex].push(cell);
+        return acc;
+      }, {});
+
+      // For each row, extract the cell data in order
+      return Object.keys(rowGroups)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .map((rowIndex) => {
+          const row = rowGroups[rowIndex].sort(
+            (a, b) => a.colIndex - b.colIndex
+          );
+          return row.map((cell) => {
+            const header = headers[cell.colIndex];
+            const rowData = tableData[cell.rowIndex];
+            return rowData && header ? String(rowData[header] ?? "") : "";
+          });
+        });
+    })();
 
     toast.promise(
       async () => {
@@ -42,6 +66,7 @@ export function AiFillSelectionButton() {
           );
 
           if (result.error) {
+            console.error(result.error);
             throw new Error(result.error);
           }
 
@@ -58,19 +83,13 @@ export function AiFillSelectionButton() {
               }
             });
           }
-        } catch (error) {
-          if (error instanceof Error) {
-            toast.error(error.message);
-          } else {
-            toast.error("An unknown error occurred");
-          }
         } finally {
           setIsLoading(false);
         }
       },
       {
         loading: "Generating suggestions for selected cells...",
-        success: "Cells updated with AI suggestions!",
+        success: "Cells updated with AI suggestions",
         error: "Failed to generate suggestions",
       }
     );

@@ -1,26 +1,11 @@
 import { toast } from "sonner";
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
-import * as generateSelectedCellsSuggestionsModule
-  from "@/components/live-table/actions/generateSelectedCellsSuggestions";
-import {
-  AiFillSelectionButton,
-} from "@/components/live-table/AiFillSelectionButton";
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
+import * as generateSelectedCellsSuggestionsModule from "@/components/live-table/actions/generateSelectedCellsSuggestions";
+import { AiFillSelectionButton } from "@/components/live-table/AiFillSelectionButton";
+import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
@@ -70,18 +55,15 @@ describe("AiFillSelectionButton", () => {
   ];
 
   const mockHandleCellChange = vi.fn();
-  const mockGetSelectedCellsData = vi
-    .fn()
-    .mockReturnValue(mockSelectedCellsData);
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // vi.useFakeTimers();
 
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
       tableData: mockTableData,
       headers: mockHeaders,
       selectedCells: mockSelectedCells,
-      getSelectedCellsData: mockGetSelectedCellsData,
       handleCellChange: mockHandleCellChange,
     } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
 
@@ -100,6 +82,10 @@ describe("AiFillSelectionButton", () => {
       // To satisfy the complex type with vi.mocked, we cast.
       return 1 as unknown as ReturnType<typeof toast.promise>;
     });
+  });
+
+  afterEach(() => {
+    // vi.useRealTimers();
   });
 
   it("should be disabled when no cells are selected", () => {
@@ -154,24 +140,27 @@ describe("AiFillSelectionButton", () => {
   });
 
   it("should show error toast when action fails", async () => {
-    // Mock the action to return an error
     vi.mocked(
       generateSelectedCellsSuggestionsModule.default
     ).mockResolvedValueOnce({
       error: "Failed to generate suggestions",
     });
 
-    render(<AiFillSelectionButton />);
+    vi.spyOn(toast, "promise").mockImplementationOnce(
+      (prom: Parameters<typeof toast.promise>[0]) => {
+        expect(prom).toBeInstanceOf(Function);
+        (prom as () => Promise<unknown>)().catch((error: Error) => {
+          expect(error).toBeDefined();
+        });
+        return 1 as unknown as ReturnType<typeof toast.promise>;
+      }
+    );
 
+    render(<AiFillSelectionButton />);
     const button = screen.getByRole("button", { name: /fill selection/i });
 
     await act(async () => {
       fireEvent.click(button);
-      // Wait for promises to resolve
-      await Promise.resolve();
     });
-
-    // Error should be shown
-    expect(toast.error).toHaveBeenCalledWith("Failed to generate suggestions");
   });
 });

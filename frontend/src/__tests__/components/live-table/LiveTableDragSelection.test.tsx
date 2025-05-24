@@ -57,11 +57,6 @@ describe("LiveTableDisplay - Drag Selection", () => {
         (rowIndex === 0 || rowIndex === 1) && (colIndex === 0 || colIndex === 1)
       );
     });
-  // This data should correspond to the selection (0,0)-(1,1) from initialRowData
-  const mockGetSelectedCellsData = vi.fn().mockReturnValue([
-    ["A1", "B1"],
-    ["A2", "B2"],
-  ]);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -89,7 +84,6 @@ describe("LiveTableDisplay - Drag Selection", () => {
       handleSelectionMove: mockHandleSelectionMove,
       handleSelectionEnd: mockHandleSelectionEnd,
       isCellSelected: mockIsCellSelected,
-      getSelectedCellsData: mockGetSelectedCellsData,
       editingCell: null,
       setEditingCell: mockSetEditingCell,
     });

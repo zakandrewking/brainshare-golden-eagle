@@ -184,13 +184,12 @@ describe("LiveTableToolbar - Delete Column", () => {
       ...currentMockData,
       selectedCell: selectedCellForTest,
       selectedCells: [selectedCellForTest],
-      // isCellSelected and getSelectedCellsData might need adjustment if their mocks were V1 specific
+      // isCellSelected might need adjustment if mocks were V1 specific
       isCellSelected: vi.fn(
         (rI, cI) =>
           rI === selectedCellForTest.rowIndex &&
           cI === selectedCellForTest.colIndex
       ),
-      getSelectedCellsData: vi.fn(() => [[initialRowData[rowId1][colId2]]]), // Data from R1C2
     });
 
     render(
@@ -241,10 +240,6 @@ describe("LiveTableToolbar - Delete Column", () => {
           (cell) => cell.rowIndex === rI && cell.colIndex === cI
         )
       ),
-      getSelectedCellsData: vi.fn(() => [
-        [initialRowData[rowId1][colId1]],
-        [initialRowData[rowId1][colId3]],
-      ]),
     });
 
     render(
@@ -283,7 +278,6 @@ describe("LiveTableToolbar - Delete Column", () => {
       selectedCell: null,
       selectedCells: [],
       isCellSelected: vi.fn(() => false),
-      getSelectedCellsData: vi.fn(() => []),
     });
 
     render(

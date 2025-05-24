@@ -15,8 +15,9 @@ import { useRoom } from "@liveblocks/react/suspense";
 import {
   type CellPosition,
   type SelectionArea,
+  selectionStore,
   selectIsCellSelected,
-  selectSelectedCells,
+  useSelectedCells,
   useSelectionStore,
 } from "@/stores/selectionStore";
 
@@ -54,7 +55,6 @@ export interface LiveTableContextType {
   handleSelectionEnd: () => void;
   isCellSelected: (rowIndex: number, colIndex: number) => boolean;
   clearSelection: () => void;
-  getSelectedCellsData: () => string[][];
   // editing
   handleCellChange: (
     rowIndex: number,
@@ -156,14 +156,14 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     startSelection,
     moveSelection,
     endSelection,
-    clearSelection
+    clearSelection,
   } = useSelectionStore();
 
   // Get derived state using selectors
-  const selectedCells = selectSelectedCells(useSelectionStore.getState());
+  const selectedCells = useSelectedCells();
   const isCellSelected = useCallback(
     (rowIndex: number, colIndex: number) =>
-      selectIsCellSelected(useSelectionStore.getState(), rowIndex, colIndex),
+      selectIsCellSelected(selectionStore.getState(), rowIndex, colIndex),
     []
   );
 
@@ -185,38 +185,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   const handleSelectionEnd = useCallback(() => {
     endSelection();
   }, [endSelection]);
-
-  // Get data from all selected cells (useful for copy operations)
-  const getSelectedCellsData = useCallback(() => {
-    if (!tableData || !headers || selectedCells.length === 0) {
-      return [];
-    }
-
-    // Group cells by row
-    const rowGroups = selectedCells.reduce<Record<number, CellPosition[]>>(
-      (acc, cell) => {
-        if (!acc[cell.rowIndex]) {
-          acc[cell.rowIndex] = [];
-        }
-        acc[cell.rowIndex].push(cell);
-        return acc;
-      },
-      {}
-    );
-
-    // For each row, extract the cell data in order
-    return Object.keys(rowGroups)
-      .map(Number)
-      .sort((a, b) => a - b)
-      .map((rowIndex) => {
-        const row = rowGroups[rowIndex].sort((a, b) => a.colIndex - b.colIndex);
-        return row.map((cell) => {
-          const header = headers[cell.colIndex];
-          const rowData = tableData[cell.rowIndex];
-          return rowData && header ? String(rowData[header] ?? "") : "";
-        });
-      });
-  }, [tableData, headers, selectedCells]);
 
   // --- Load status ---
 
@@ -704,7 +672,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         handleSelectionEnd,
         isCellSelected,
         clearSelection,
-        getSelectedCellsData,
         editingCell,
         setEditingCell,
         generateAndInsertRows,
