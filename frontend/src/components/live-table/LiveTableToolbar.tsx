@@ -23,6 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
 
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import { useLiveTable } from "./LiveTableProvider";
@@ -37,10 +38,8 @@ type PendingOperation =
 
 const LiveTableToolbar: React.FC = () => {
   const {
-    selectedCell,
     undoManager,
     isTableLoaded,
-    selectedCells,
     generateAndInsertRows,
     deleteRows,
     generateAndInsertColumns,
@@ -48,6 +47,9 @@ const LiveTableToolbar: React.FC = () => {
     headers,
     tableData,
   } = useLiveTable();
+
+  const selectedCell = useSelectionStore((state) => state.selectedCell);
+  const selectedCells = useSelectedCells();
 
   const [isPending, startTransition] = useTransition();
   const [pendingOperation, setPendingOperation] =

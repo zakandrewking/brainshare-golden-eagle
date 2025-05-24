@@ -14,6 +14,9 @@ import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
 // and other context properties.
 export interface LiveTableMockOverrides
   extends Partial<ReturnType<typeof LiveTableProvider.useLiveTable>> {
+  yDoc?: Y.Doc;
+  yHeaders?: Y.Array<string>;
+  yTable?: Y.Array<Y.Map<unknown>>;
   liveTableDocInstance?: LiveTableDoc;
   initialColumnDefinitions?: ColumnDefinition[];
   initialColumnOrder?: ColumnId[];

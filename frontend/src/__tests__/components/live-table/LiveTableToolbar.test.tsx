@@ -6,6 +6,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import generateNewColumns from "@/components/live-table/actions/generateNewColumns";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
+import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
 
 import { getLiveTableMockValues } from "./liveTableTestUtils";
 
@@ -15,6 +16,11 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
 
 vi.mock("@/components/live-table/actions/generateNewColumns", () => ({
   default: vi.fn(),
+}));
+
+vi.mock("@/stores/selectionStore", () => ({
+  useSelectedCells: vi.fn(),
+  useSelectionStore: vi.fn(),
 }));
 
 const mockGenerateAndInsertRows = vi.fn();
@@ -79,8 +85,6 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     const baseMockData = getLiveTableMockValues();
     vi.mocked(useLiveTable).mockReturnValue({
       ...baseMockData,
-      selectedCell: { rowIndex: 0, colIndex: 0 },
-      selectedCells: [{ rowIndex: 0, colIndex: 0 }],
       headers: [],
       tableData: testYTable.toArray().map((r) => r.toJSON()),
       columnWidths: baseMockData.columnWidths,
@@ -88,6 +92,11 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       isTableLoaded: baseMockData.isTableLoaded,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
+    vi.mocked(useSelectionStore).mockReturnValue({
+      rowIndex: 0,
+      colIndex: 0,
+    });
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
 
     render(<LiveTableToolbar />);
 
@@ -128,6 +137,8 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    vi.mocked(useSelectionStore).mockReturnValue(mockSelectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue([mockSelectedCell]);
 
     render(<LiveTableToolbar />);
     const addRightButton = screen.getByRole("button", {
@@ -168,6 +179,8 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    vi.mocked(useSelectionStore).mockReturnValue({ rowIndex: 0, colIndex: 0 });
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
 
     render(<LiveTableToolbar />);
     const addLeftButton = screen.getByRole("button", {
@@ -212,6 +225,11 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    vi.mocked(useSelectionStore).mockReturnValue({ rowIndex: 0, colIndex: 0 });
+    vi.mocked(useSelectedCells).mockReturnValue([
+      { rowIndex: 0, colIndex: 0 },
+      { rowIndex: 0, colIndex: 1 },
+    ]);
 
     render(<LiveTableToolbar />);
 
@@ -278,6 +296,8 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    vi.mocked(useSelectionStore).mockReturnValue({ rowIndex: 0, colIndex: 0 });
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
 
     mockGenerateAndInsertRows.mockResolvedValue({
       aiRowsAdded: 0,
@@ -308,6 +328,8 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    vi.mocked(useSelectionStore).mockReturnValue(selectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue([selectedCell]);
 
     render(<LiveTableToolbar />);
     const button = screen.getByRole("button", { name: "Add Row Above" });
@@ -373,6 +395,8 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    vi.mocked(useSelectionStore).mockReturnValue(primarySelectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue(selectedCellsData);
 
     render(<LiveTableToolbar />);
     const button = screen.getByRole("button", { name: "Add 2 Rows Above" });
@@ -409,6 +433,8 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    vi.mocked(useSelectionStore).mockReturnValue(primarySelectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue(selectedCellsData);
 
     render(<LiveTableToolbar />);
     const button = screen.getByRole("button", { name: "Add 3 Rows Below" });
@@ -517,6 +543,8 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    vi.mocked(useSelectionStore).mockReturnValue(mockData.selectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue(mockData.selectedCells);
 
     vi.mocked(generateNewColumns).mockReset();
   });
@@ -548,6 +576,8 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    vi.mocked(useSelectionStore).mockReturnValue(mockData.selectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue(mockData.selectedCells);
 
     vi.mocked(generateNewColumns).mockResolvedValueOnce({
       generatedColumns: [
@@ -595,7 +625,10 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       undoManager: mockUndoManager,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
+
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+    vi.mocked(useSelectionStore).mockReturnValue(mockData.selectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue(mockData.selectedCells);
 
     vi.mocked(generateNewColumns).mockResolvedValueOnce({
       error: "AI multi-column error",

@@ -23,6 +23,7 @@ import {
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
 
 import { getLiveTableMockValues } from "./liveTableTestUtils";
 
@@ -42,6 +43,11 @@ vi.mock("react", async () => {
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
+}));
+
+vi.mock("@/stores/selectionStore", () => ({
+  useSelectionStore: vi.fn(),
+  useSelectedCells: vi.fn(),
 }));
 
 vi.mock("lucide-react", async () => {
@@ -182,15 +188,9 @@ describe("LiveTableToolbar - Delete Column", () => {
     const currentMockData = useLiveTable();
     vi.mocked(useLiveTable).mockReturnValue({
       ...currentMockData,
-      selectedCell: selectedCellForTest,
-      selectedCells: [selectedCellForTest],
-      // isCellSelected might need adjustment if mocks were V1 specific
-      isCellSelected: vi.fn(
-        (rI, cI) =>
-          rI === selectedCellForTest.rowIndex &&
-          cI === selectedCellForTest.colIndex
-      ),
     });
+    vi.mocked(useSelectionStore).mockReturnValue(selectedCellForTest);
+    vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
 
     render(
       <TooltipProvider>
@@ -233,14 +233,9 @@ describe("LiveTableToolbar - Delete Column", () => {
     const currentMockData = useLiveTable();
     vi.mocked(useLiveTable).mockReturnValue({
       ...currentMockData,
-      selectedCell: selectedCellsForTest[0],
-      selectedCells: selectedCellsForTest,
-      isCellSelected: vi.fn((rI, cI) =>
-        selectedCellsForTest.some(
-          (cell) => cell.rowIndex === rI && cell.colIndex === cI
-        )
-      ),
     });
+    vi.mocked(useSelectionStore).mockReturnValue(selectedCellsForTest[0]);
+    vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
 
     render(
       <TooltipProvider>
@@ -275,10 +270,9 @@ describe("LiveTableToolbar - Delete Column", () => {
     const currentMockData = useLiveTable();
     vi.mocked(useLiveTable).mockReturnValue({
       ...currentMockData,
-      selectedCell: null,
-      selectedCells: [],
-      isCellSelected: vi.fn(() => false),
     });
+    vi.mocked(useSelectionStore).mockReturnValue(null);
+    vi.mocked(useSelectedCells).mockReturnValue([]);
 
     render(
       <TooltipProvider>
