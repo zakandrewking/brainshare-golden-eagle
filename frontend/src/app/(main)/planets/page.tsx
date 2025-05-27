@@ -14,7 +14,7 @@ export default function Planets() {
         href="/moons"
         variant="outline"
         size="sm"
-        className="absolute top-4 right-4"
+        className="absolute top-3 right-3"
       >
         Next: some moons
       </InternalLink>

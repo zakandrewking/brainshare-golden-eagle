@@ -4,11 +4,7 @@
 
 import React from "react";
 
-import DarkModeToggle from "@/components/DarkModeToggle";
-// import { usePathname } from "next/navigation";
-// import { toast } from "sonner";
-// import { logOut } from "@/actions/log-out";
-// import { useUser } from "@/utils/supabase/client";
+import DarkModeToggle from "@/components/dark-mode-toggle";
 import { cn } from "@/utils/tailwind";
 
 import { fontTitle } from "../fonts";
@@ -16,20 +12,6 @@ import { NavigationButtonWithDrawer } from "./navigation-drawer";
 import { FillSpace, Stack } from "./stack";
 
 export default function NavigationHeaderTitle() {
-  // const pathname = usePathname();
-
-  // const [stateLogOut, formActionLogOut, isPending] = React.useActionState(
-  //   logOut,
-  //   { error: null }
-  // );
-  // const user = useUser();
-
-  // React.useEffect(() => {
-  //   if (stateLogOut?.error) {
-  //     toast.error("Error logging out. Try again.");
-  //   }
-  // }, [stateLogOut]);
-
   return (
     <div className="h-16">
       <Stack
@@ -52,18 +34,6 @@ export default function NavigationHeaderTitle() {
         <div className="w-[80px] flex justify-end flex-shrink-100">
           <DarkModeToggle />
         </div>
-        {/* {user ? (
-          <form action={formActionLogOut}>
-            <input type="hidden" name="redirect" value={pathname} />
-            <Button variant="outline" disabled={isPending}>
-              Log Out
-            </Button>
-          </form>
-        ) : (
-          <Button variant="outline" asChild>
-            <Link href={logInRedirect(pathname)}>Log In</Link>
-          </Button>
-        )} */}
       </Stack>
     </div>
   );

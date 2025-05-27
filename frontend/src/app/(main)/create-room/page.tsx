@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { useSWRConfig } from "swr";
 import { z } from "zod";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,6 +50,7 @@ export default function CreateRoom() {
     HandleCreateRoomFormState | null,
     FormData
   >(handleCreateRoomForm, null);
+  const { mutate } = useSWRConfig();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -63,6 +65,7 @@ export default function CreateRoom() {
     if (state?.success) {
       toast.success(state.message);
       form.reset();
+      mutate("/api/documents");
       if (state.createdRoomData) {
       }
     } else if (state?.errors) {
@@ -88,7 +91,7 @@ export default function CreateRoom() {
         toast.error(state.errors._form.join(", "));
       }
     }
-  }, [state, form]);
+  }, [state, form, mutate]);
 
   return (
     <Container>
@@ -97,7 +100,7 @@ export default function CreateRoom() {
         description="An open space to collaborate and jot down ideas"
       />
       <Stack direction="col" className="w-full mt-8" gap={6}>
-        <form action={formAction} className="space-y-6">
+        <form action={formAction} className="space-y-6 w-full">
           <div>
             <Label htmlFor="name">Room Name</Label>
             <Input id="name" {...form.register("name")} />
@@ -119,7 +122,7 @@ export default function CreateRoom() {
           <div>
             <Label htmlFor="docType">Document Type</Label>
             <Select
-              defaultValue="text"
+              defaultValue="table"
               onValueChange={(value) =>
                 form.setValue("docType", value as "text" | "table", {
                   shouldValidate: true,
@@ -131,7 +134,7 @@ export default function CreateRoom() {
                 <SelectValue placeholder="Select document type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="text">Text Document</SelectItem>
+                {/* <SelectItem value="text">Text Document</SelectItem> */}
                 <SelectItem value="table">Table Document</SelectItem>
               </SelectContent>
             </Select>

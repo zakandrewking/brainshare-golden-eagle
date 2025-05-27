@@ -1,17 +1,18 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { VariantProps } from "class-variance-authority";
-import { ChevronLeft, ChevronRight, HousePlus, Menu } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import {
+  ChevronLeft,
+  ChevronRight,
+  HousePlus,
+} from "lucide-react";
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/utils/tailwind";
+import { Button } from "@/components/ui/button";
 
+import { DocumentNavList, NavButton } from "./document-nav-list";
 import {
   Drawer,
   DrawerClose,
@@ -23,38 +24,6 @@ import {
   DrawerTrigger,
 } from "./drawer";
 import { Stack } from "./stack";
-
-function NavButton({
-  href,
-  match,
-  setOpen,
-  children,
-  variant,
-  className,
-}: {
-  href: string;
-  match?: RegExp;
-  setOpen: (open: boolean) => void;
-  children: ReactNode;
-  variant?: VariantProps<typeof buttonVariants>["variant"];
-  className?: string;
-}) {
-  const pathname = usePathname();
-
-  return (
-    <Button
-      variant={
-        variant ||
-        (match ? (pathname.match(match) ? "secondary" : "ghost") : "ghost")
-      }
-      className={cn("w-full justify-start text-left", className)}
-      asChild
-      onClick={() => setOpen(false)}
-    >
-      <Link href={href}>{children}</Link>
-    </Button>
-  );
-}
 
 /**
  * Menu button that also manages the nav drawer.
@@ -81,8 +50,8 @@ function NavigationButtonWithDrawer() {
 
   if (!mounted) {
     return (
-      <Button size="icon-sm" variant="ghost" disabled>
-        <Menu />
+      <Button variant="outline" size="sm" className="pl-2" disabled>
+        <ChevronRight className="mr-1" size={16} /> Menu
       </Button>
     );
   }
@@ -150,6 +119,8 @@ function NavigationButtonWithDrawer() {
               >
                 Moons
               </NavButton>
+
+              <DocumentNavList setOpen={setWillOpen} />
             </Stack>
           </div>
           <DrawerFooter>
