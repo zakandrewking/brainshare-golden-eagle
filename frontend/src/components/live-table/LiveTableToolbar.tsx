@@ -1,4 +1,8 @@
-import React, { useEffect, useState, useTransition } from "react";
+import React, {
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
 
 import {
   ArrowDownToLine,
@@ -57,6 +61,10 @@ const LiveTableToolbar: React.FC = () => {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
+  const isTableEmptyOfRows = !tableData || tableData.length === 0;
+  // For disabling buttons, check for any pending operations
+  const isAnyOperationPending = isPending && pendingOperation !== null;
+
   const getUniqueSelectedColumnIndices = (): number[] => {
     if (!selectedCells || selectedCells.length === 0) {
       if (selectedCell) return [selectedCell.colIndex];
@@ -82,57 +90,40 @@ const LiveTableToolbar: React.FC = () => {
   };
 
   const handleAddRowRelative = (direction: "above" | "below") => {
-    if (!isTableLoaded) return;
-    if (!selectedCell) return;
-    if (!selectedCells) return;
+    if (!isTableLoaded || isAnyOperationPending) return;
+    if (!headers || headers.length === 0) {
+      toast.info("Cannot add rows: No columns are defined yet.");
+      return;
+    }
 
     let numRowsToAdd = 1;
-    const uniqueSelectedRowIndices: number[] = [];
+    let initialInsertIndex: number;
 
-    if (selectedCells && selectedCells.length > 0) {
-      const indices = selectedCells.map((cell) => cell.rowIndex);
-      const uniqueSet = new Set(indices);
-      uniqueSelectedRowIndices.push(...uniqueSet);
-      uniqueSelectedRowIndices.sort((a, b) => a - b);
-      numRowsToAdd =
-        uniqueSelectedRowIndices.length > 0
-          ? uniqueSelectedRowIndices.length
-          : 1;
-    } else if (selectedCell) {
-      uniqueSelectedRowIndices.push(selectedCell.rowIndex);
+    const currentIsTableEmptyOfRows = !tableData || tableData.length === 0;
+
+    if (!currentIsTableEmptyOfRows && selectedCell) {
+      const uniqueSelectedRowIndices = getSelectedRowIndices();
+      numRowsToAdd = uniqueSelectedRowIndices.length > 0 ? uniqueSelectedRowIndices.length : 1;
+
+      if (uniqueSelectedRowIndices.length > 0) {
+        const minSelectedRowIndex = uniqueSelectedRowIndices[0];
+        const maxSelectedRowIndex =
+          uniqueSelectedRowIndices[uniqueSelectedRowIndices.length - 1];
+        initialInsertIndex =
+          direction === "above" ? minSelectedRowIndex : maxSelectedRowIndex + 1;
+      } else {
+        initialInsertIndex =
+          direction === "above"
+            ? selectedCell.rowIndex
+            : selectedCell.rowIndex + 1;
+      }
+    } else if (currentIsTableEmptyOfRows) {
       numRowsToAdd = 1;
-    } else {
-      console.error(
-        "handleAddRowRelative: No selection information available."
-      );
-      toast.info("No cell selected to add rows relative to.");
+      initialInsertIndex = 0;
+    } else { // Table has columns, rows, but no cell selected
+      toast.info("Please select a cell to add rows relative to, or the table must be empty of rows.");
       return;
     }
-
-    if (numRowsToAdd === 0) {
-      // Should not happen if buttons are correctly disabled
-      toast.info("No rows were added as the selection was empty.");
-      return;
-    }
-
-    let calculatedInitialInsertIndex: number;
-    if (uniqueSelectedRowIndices.length > 0) {
-      const minSelectedRowIndex = uniqueSelectedRowIndices[0];
-      const maxSelectedRowIndex =
-        uniqueSelectedRowIndices[uniqueSelectedRowIndices.length - 1];
-      calculatedInitialInsertIndex =
-        direction === "above" ? minSelectedRowIndex : maxSelectedRowIndex + 1;
-    } else {
-      console.warn(
-        "handleAddRowRelative: Could not determine min/max selected rows, falling back to currentSelectedCell directly."
-      );
-      calculatedInitialInsertIndex =
-        direction === "above"
-          ? selectedCell.rowIndex
-          : selectedCell.rowIndex + 1;
-    }
-
-    const initialInsertIndex = calculatedInitialInsertIndex;
 
     setPendingOperation(
       direction === "above" ? "add-row-above" : "add-row-below"
@@ -142,8 +133,6 @@ const LiveTableToolbar: React.FC = () => {
       try {
         await generateAndInsertRows(initialInsertIndex, numRowsToAdd);
       } catch (error) {
-        // This catch block might be redundant because generateAndInsertRows
-        // handles errors and toasting
         console.error(
           `Critical error in handleAddRowRelative transition:`,
           error
@@ -159,12 +148,10 @@ const LiveTableToolbar: React.FC = () => {
 
   const handleDeleteRows = () => {
     const uniqueRowIndicesToDelete = getSelectedRowIndices().sort(
-      (a, b) => b - a // Sort descending for safe deletion
+      (a, b) => b - a
     );
 
     if (uniqueRowIndicesToDelete.length === 0) {
-      // This case is already handled by deleteRowsFromDoc in the provider (toast.info)
-      // but good to have a guard here too.
       return;
     }
 
@@ -172,78 +159,41 @@ const LiveTableToolbar: React.FC = () => {
       try {
         await deleteRows(uniqueRowIndicesToDelete);
       } catch (error) {
-        // This catch block is a backup as deleteRows also handles errors and toasting.
         console.error("Critical error in handleDeleteRows transition:", error);
         toast.error(
           "A critical error occurred while preparing to delete rows. Please try again."
         );
       }
-      // pendingOperation state for delete was not used, so no need to reset it.
     });
   };
 
   const handleAddColumnRelative = (direction: "left" | "right") => {
-    const currentSelectedCell = selectedCell;
-    if (!isTableLoaded || !currentSelectedCell) return;
+    if (!isTableLoaded || isAnyOperationPending) return;
 
-    const uniqueSelectedColIndices = getUniqueSelectedColumnIndices();
     let numColsToAdd = 1;
+    let initialInsertIndex: number;
+    const currentHeaders = headers || [];
 
-    if (uniqueSelectedColIndices.length > 0) {
-      const selectionIsConsideredMultiColumn =
-        selectedCells.length > 1 &&
-        new Set(selectedCells.map((s) => s.colIndex)).size > 1;
-      if (selectionIsConsideredMultiColumn) {
-        numColsToAdd = uniqueSelectedColIndices.length;
-      } else if (selectedCells.length === 0 && selectedCell) {
-        numColsToAdd = 1;
-      } else if (
-        selectedCells.length > 0 &&
-        new Set(selectedCells.map((s) => s.colIndex)).size === 1
-      ) {
-        numColsToAdd = 1;
-      } else if (selectedCells.length > 0) {
-        numColsToAdd =
-          uniqueSelectedColIndices.length > 0
-            ? uniqueSelectedColIndices.length
-            : 1;
-      } else {
-        numColsToAdd = 1;
-      }
+    if (currentHeaders.length === 0) {
+      numColsToAdd = 1;
+      initialInsertIndex = 0;
     } else if (selectedCell) {
-      numColsToAdd = 1;
-    } else {
-      toast.info("No cell selected to add columns relative to.");
-      return;
-    }
+      const uniqueSelectedColIndices = getUniqueSelectedColumnIndices();
+      const isMultiColumnSelection = selectedCells.length > 1 && new Set(selectedCells.map(s => s.colIndex)).size > 1;
 
-    if (
-      selectedCell &&
-      numColsToAdd === 0 &&
-      uniqueSelectedColIndices.length === 0
-    )
-      numColsToAdd = 1;
-    if (numColsToAdd === 0) {
-      toast.info(
-        "No columns were added as the selection was effectively empty for columns."
-      );
-      return;
-    }
+      numColsToAdd = isMultiColumnSelection && uniqueSelectedColIndices.length > 0 ? uniqueSelectedColIndices.length : 1;
 
-    let calculatedInitialInsertIndex: number;
-    if (uniqueSelectedColIndices.length > 0) {
-      const minSelectedColIndex = uniqueSelectedColIndices[0];
-      const maxSelectedColIndex =
-        uniqueSelectedColIndices[uniqueSelectedColIndices.length - 1];
-      calculatedInitialInsertIndex =
-        direction === "left" ? minSelectedColIndex : maxSelectedColIndex + 1;
+      if (uniqueSelectedColIndices.length > 0) {
+        const minSelectedColIndex = uniqueSelectedColIndices[0];
+        const maxSelectedColIndex = uniqueSelectedColIndices[uniqueSelectedColIndices.length - 1];
+        initialInsertIndex = direction === "left" ? minSelectedColIndex : maxSelectedColIndex + 1;
+      } else {
+        initialInsertIndex = direction === "left" ? selectedCell.colIndex : selectedCell.colIndex + 1;
+      }
     } else {
-      calculatedInitialInsertIndex =
-        direction === "left"
-          ? currentSelectedCell.colIndex
-          : currentSelectedCell.colIndex + 1;
+      numColsToAdd = 1;
+      initialInsertIndex = direction === "left" ? 0 : currentHeaders.length;
     }
-    const initialInsertIndex = calculatedInitialInsertIndex;
 
     setPendingOperation(
       direction === "left" ? "add-column-left" : "add-column-right"
@@ -272,7 +222,6 @@ const LiveTableToolbar: React.FC = () => {
     );
 
     if (uniqueColIndicesToDelete.length === 0) {
-      // This case is already handled by deleteColumns in the provider (toast.info)
       return;
     }
 
@@ -356,17 +305,72 @@ const LiveTableToolbar: React.FC = () => {
   };
 
   // Update conditions based on isTableLoaded
-  const canOperateOnSelection = !!selectedCell && isTableLoaded;
+  // const canOperateOnSelection = !!selectedCell && isTableLoaded; Removed as it's unused
 
   const selectedRowIndices = getSelectedRowIndices();
-  const numSelectedRows = selectedRowIndices.length;
+  const uniqueSelectedColIndices = getUniqueSelectedColumnIndices();
 
-  const canDeleteRow = numSelectedRows > 0 && isTableLoaded;
+  let numSelectedRowsForLabel = 1; // Default for adding a single row
+  if (isTableEmptyOfRows && !selectedCell) {
+    numSelectedRowsForLabel = 1;
+  } else if (selectedRowIndices.length > 0) {
+    numSelectedRowsForLabel = selectedRowIndices.length;
+  } else if (selectedCell) { // Single cell selected, not part of a multi-row selection for adding
+    numSelectedRowsForLabel = 1;
+  } else if (!isTableEmptyOfRows && !selectedCell) {
+    // Table has rows, but nothing selected. Label will imply adding 'a' row.
+    // The button's action handler (handleAddRowRelative) will toast if this state is problematic for an action.
+    numSelectedRowsForLabel = 1;
+  }
 
-  const canDownload = isTableLoaded && headers && headers.length > 0;
+  const addRowAboveButtonLabel =
+    numSelectedRowsForLabel <= 1
+      ? "Add Row Above"
+      : `Add ${numSelectedRowsForLabel} Rows Above`;
+  const addRowBelowButtonLabel =
+    numSelectedRowsForLabel <= 1
+      ? "Add Row Below"
+      : `Add ${numSelectedRowsForLabel} Rows Below`;
+  const deleteRowsButtonLabel =
+    selectedRowIndices.length <= 1
+      ? "Delete Row"
+      : `Delete ${selectedRowIndices.length} Rows`;
 
-  // For disabling buttons, check for any pending operations
-  const isAnyOperationPending = isPending && pendingOperation !== null;
+  const isTableEmptyOfColumns = !headers || headers.length === 0;
+  let numColsForLabel = 1; // Default for adding a single column
+  if (isTableEmptyOfColumns && !selectedCell) {
+     numColsForLabel = 1;
+  } else if (uniqueSelectedColIndices.length > 0 && new Set(selectedCells.map(s => s.colIndex)).size > 1) {
+    // Multiple distinct columns selected
+    numColsForLabel = uniqueSelectedColIndices.length;
+  } else if (selectedCell) { // Single cell or single column selection
+    numColsForLabel = 1;
+  } else if (!isTableEmptyOfColumns && !selectedCell){ // Has columns, no selection
+    numColsForLabel = 1;
+  }
+
+  const addColLeftButtonLabel =
+    numColsForLabel <= 1
+      ? "Add Column to the Left"
+      : `Add ${numColsForLabel} Columns to the Left`;
+  const addColRightButtonLabel =
+    numColsForLabel <= 1
+      ? "Add Column to the Right"
+      : `Add ${numColsForLabel} Columns to the Right`;
+  const deleteColButtonLabel =
+    uniqueSelectedColIndices.length <= 1
+      ? "Delete Selected Column"
+      : `Delete ${uniqueSelectedColIndices.length} Columns`;
+
+  // Button enable/disable conditions
+  const canAddRows = isTableLoaded && !isAnyOperationPending && headers && headers.length > 0;
+  const canAddColumns = isTableLoaded && !isAnyOperationPending;
+  const canDeleteRow = isTableLoaded && !isAnyOperationPending && selectedRowIndices.length > 0;
+  const canDeleteColumn = isTableLoaded && !isAnyOperationPending && uniqueSelectedColIndices.length > 0;
+  const canDownload = isTableLoaded && headers && headers.length > 0 && tableData && tableData.length > 0;
+
+  const isAddColumnLeftPending = isPending && pendingOperation === "add-column-left";
+  const isAddColumnRightPending = isPending && pendingOperation === "add-column-right";
 
   // Effect to listen to UndoManager stack changes
   useEffect(() => {
@@ -389,65 +393,7 @@ const LiveTableToolbar: React.FC = () => {
       undoManager.off("stack-item-added", updateUndoRedoState);
       undoManager.off("stack-item-popped", updateUndoRedoState);
     };
-  }, [undoManager]); // Rerun if undoManager instance changes
-
-  const addRowAboveButtonLabel =
-    numSelectedRows === 1
-      ? "Add Row Above"
-      : `Add ${numSelectedRows} Rows Above`;
-  const addRowBelowButtonLabel =
-    numSelectedRows === 1
-      ? "Add Row Below"
-      : `Add ${numSelectedRows} Rows Below`;
-  const deleteRowsButtonLabel =
-    numSelectedRows === 0 // Check if no rows are selected
-      ? "Delete Row" // Default singular label when disabled due to no selection
-      : numSelectedRows === 1
-      ? "Delete Row"
-      : `Delete ${numSelectedRows} Rows`;
-
-  const uniqueSelectedColIndices = getUniqueSelectedColumnIndices();
-  let numColsToModify = 1;
-  if (
-    selectedCells.length > 1 &&
-    new Set(selectedCells.map((s) => s.colIndex)).size > 1
-  ) {
-    numColsToModify = uniqueSelectedColIndices.length;
-  } else if (
-    selectedCells.length > 0 &&
-    new Set(selectedCells.map((s) => s.colIndex)).size === 1 &&
-    uniqueSelectedColIndices.length === 1
-  ) {
-    numColsToModify = 1;
-  } else if (
-    uniqueSelectedColIndices.length > 0 &&
-    uniqueSelectedColIndices.length !== 1
-  ) {
-    numColsToModify = uniqueSelectedColIndices.length;
-  } else if (selectedCell && selectedCells.length <= 1) {
-    numColsToModify = 1;
-  }
-  if (selectedCell && numColsToModify === 0) numColsToModify = 1;
-
-  const addColLeftButtonLabel =
-    numColsToModify === 1
-      ? "Add Column to the Left"
-      : `Add ${numColsToModify} Columns to the Left`;
-  const addColRightButtonLabel =
-    numColsToModify === 1
-      ? "Add Column to the Right"
-      : `Add ${numColsToModify} Columns to the Right`;
-  const deleteColButtonLabel =
-    uniqueSelectedColIndices.length === 0
-      ? "Delete Selected Column"
-      : uniqueSelectedColIndices.length === 1
-      ? "Delete Selected Column"
-      : `Delete ${uniqueSelectedColIndices.length} Columns`;
-
-  const isAddColumnLeftPending =
-    isPending && pendingOperation === "add-column-left";
-  const isAddColumnRightPending =
-    isPending && pendingOperation === "add-column-right";
+  }, [undoManager]);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -500,7 +446,7 @@ const LiveTableToolbar: React.FC = () => {
               onClick={() => {
                 handleAddRowRelative("above");
               }}
-              disabled={!canOperateOnSelection || isAnyOperationPending}
+              disabled={!canAddRows}
             >
               {isPending && pendingOperation === "add-row-above" ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -521,7 +467,7 @@ const LiveTableToolbar: React.FC = () => {
                 e.preventDefault();
                 handleAddRowRelative("below");
               }}
-              disabled={!canOperateOnSelection || isAnyOperationPending}
+              disabled={!canAddRows}
             >
               {isPending && pendingOperation === "add-row-below" ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -538,7 +484,7 @@ const LiveTableToolbar: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={handleDeleteRows}
-              disabled={!canDeleteRow || isAnyOperationPending}
+              disabled={!canDeleteRow}
               aria-label={deleteRowsButtonLabel}
             >
               <Trash2 className="h-4 w-4 mr-1" />
@@ -558,12 +504,7 @@ const LiveTableToolbar: React.FC = () => {
               size="icon"
               onClick={() => handleAddColumnRelative("left")}
               aria-label={addColLeftButtonLabel}
-              disabled={
-                isAddColumnLeftPending ||
-                isAddColumnRightPending ||
-                !isTableLoaded ||
-                !selectedCell
-              }
+              disabled={!canAddColumns || isAddColumnRightPending}
               className="h-9 rounded-md px-3"
             >
               {isAddColumnLeftPending ? (
@@ -582,12 +523,7 @@ const LiveTableToolbar: React.FC = () => {
               size="icon"
               onClick={() => handleAddColumnRelative("right")}
               aria-label={addColRightButtonLabel}
-              disabled={
-                isAddColumnRightPending ||
-                isAddColumnLeftPending ||
-                !isTableLoaded ||
-                !selectedCell
-              }
+              disabled={!canAddColumns || isAddColumnLeftPending}
               className="h-9 rounded-md px-3"
             >
               {isAddColumnRightPending ? (
@@ -605,11 +541,7 @@ const LiveTableToolbar: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={handleDeleteColumns}
-              disabled={
-                isPending ||
-                !isTableLoaded ||
-                uniqueSelectedColIndices.length === 0
-              }
+              disabled={!canDeleteColumn}
               aria-label={deleteColButtonLabel}
               className="h-9 rounded-md px-3"
             >
@@ -626,11 +558,6 @@ const LiveTableToolbar: React.FC = () => {
         <AiFillSelectionButton />
 
         <Separator orientation="vertical" className="h-6 mx-1" />
-
-        {/* Lock Button */}
-        {/* <LockButton />
-
-        <Separator orientation="vertical" className="h-6 mx-1" /> */}
 
         {/* Download Button */}
         <Tooltip>

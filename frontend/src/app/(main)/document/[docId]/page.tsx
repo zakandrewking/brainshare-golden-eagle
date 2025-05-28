@@ -3,13 +3,13 @@ import LiveTable from "@/components/live-table/LiveTable";
 import Container from "@/components/ui/container";
 
 interface DocumentPageProps {
-  params: {
-    "doc-id": string;
-  };
+  params: Promise<{ docId: string }>;
 }
 
-export default function DocumentPage({ params }: DocumentPageProps) {
-  const docId = params["doc-id"];
+export default async function DocumentPage({
+  params,
+}: DocumentPageProps) {
+  const { docId } = await params;
   const pageTitle = `Document: ${docId}`;
   const pageDescription = `Live collaborative table for document ${docId}.`;
 

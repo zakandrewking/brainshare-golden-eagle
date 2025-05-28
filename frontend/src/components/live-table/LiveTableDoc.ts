@@ -155,7 +155,6 @@ export class LiveTableDoc {
     }
 
     this.yDoc.transact(() => {
-      console.log("Migrating LiveTableDoc schema from V1 to V2...");
 
       if (force) {
         // clear v2 data
@@ -200,7 +199,6 @@ export class LiveTableDoc {
       });
 
       this.yMeta.set("schemaVersion", CURRENT_SCHEMA_VERSION);
-      console.log("LiveTableDoc schema migration to V2 complete.");
     });
   }
 
@@ -228,7 +226,9 @@ export class LiveTableDoc {
         currentData.push(row);
       }
     });
-    this.tableDataUpdateCallback?.(currentData);
+    if (this.tableDataUpdateCallback) {
+      this.tableDataUpdateCallback(currentData);
+    }
   }
 
   // Function to update React state for headers
@@ -267,7 +267,9 @@ export class LiveTableDoc {
         }
       });
     } else {
-      this.headersUpdateCallback?.(currentHeaders);
+      if (this.headersUpdateCallback) {
+        this.headersUpdateCallback(currentHeaders);
+      }
     }
   }
 
@@ -281,7 +283,9 @@ export class LiveTableDoc {
         currentWidths[def.name] = def.width;
       }
     });
-    this.columnWidthsUpdateCallback?.(currentWidths);
+    if (this.columnWidthsUpdateCallback) {
+      this.columnWidthsUpdateCallback(currentWidths);
+    }
   }
 
   /**
@@ -292,6 +296,11 @@ export class LiveTableDoc {
     this.yColumnDefinitions.observeDeep(this.updateV2ColumnDefinitionsObserver);
     this.yColumnOrder.observe(this.updateV2ColumnOrderObserver);
     this.yRowOrder.observe(this.updateV2RowOrderObserver);
+
+    // Manually trigger initial state propagation
+    this.updateTableState();
+    this.updateHeadersState();
+    this.updateColWidthsState();
   }
 
   /**
@@ -371,9 +380,9 @@ export class LiveTableDoc {
               newRowYMap.set(columnId, cellVal);
               assignedColumnIds.push(columnId);
             } else {
-              console.warn(
-                `ColumnId not found for headerName "${headerName}". This data will be skipped for this cell.`
-              );
+              // console.warn(
+              //   `ColumnId not found for headerName \"${headerName}\". This data will be skipped for this cell.`
+              // );
             }
           }
         }
@@ -412,16 +421,16 @@ export class LiveTableDoc {
           this.yRowData.delete(rowId);
           deletedCount++;
         } else {
-          console.warn(
-            `LiveTableDoc.deleteRows: Attempted to delete non-existent row at index ${rowIndex}. Row order length: ${this.yRowOrder.length}`
-          );
+          // console.warn(
+          //   `LiveTableDoc.deleteRows: Attempted to delete non-existent row at index ${rowIndex}. Row order length: ${this.yRowOrder.length}`
+          // );
         }
       });
     });
     if (deletedCount < rowIndices.length) {
-      console.warn(
-        `LiveTableDoc.deleteRows: Attempted to delete ${rowIndices.length} rows, but only ${deletedCount} were valid and deleted.`
-      );
+      // console.warn(
+      //   `LiveTableDoc.deleteRows: Attempted to delete ${rowIndices.length} rows, but only ${deletedCount} were valid and deleted.`
+      // );
     }
     return deletedCount;
   }
@@ -525,16 +534,16 @@ export class LiveTableDoc {
           });
           deletedCount++;
         } else {
-          console.warn(
-            `LiveTableDoc.deleteColumns: Attempted to delete non-existent column at index ${colIndex}. Column order length: ${this.yColumnOrder.length}`
-          );
+          // console.warn(
+          //   `LiveTableDoc.deleteColumns: Attempted to delete non-existent column at index ${colIndex}. Column order length: ${this.yColumnOrder.length}`
+          // );
         }
       });
     });
     if (deletedCount < colIndices.length) {
-      console.warn(
-        `LiveTableDoc.deleteColumns: Attempted to delete ${colIndices.length} columns, but only ${deletedCount} were valid and deleted.`
-      );
+      // console.warn(
+      //   `LiveTableDoc.deleteColumns: Attempted to delete ${colIndices.length} columns, but only ${deletedCount} were valid and deleted.`
+      // );
     }
     return deletedCount;
   }
@@ -564,14 +573,14 @@ export class LiveTableDoc {
           };
           this.yColumnDefinitions.set(columnIdToUpdate, updatedDefinition);
         } else {
-          console.warn(
-            `LiveTableDoc.updateColumnWidth: No definition found for ID derived from header '${headerName}'.`
-          );
+          // console.warn(
+          //   `LiveTableDoc.updateColumnWidth: No definition found for ID derived from header '${headerName}'.`
+          // );
         }
       } else {
-        console.warn(
-          `LiveTableDoc.updateColumnWidth: No column found with header name '${headerName}'.`
-        );
+        // console.warn(
+        //   `LiveTableDoc.updateColumnWidth: No column found with header name '${headerName}'.`
+        // );
       }
     });
   }
@@ -586,7 +595,7 @@ export class LiveTableDoc {
     this.yDoc.transact(() => {
       const rowId = this.yRowOrder.get(rowIndex);
       if (!rowId) {
-        console.warn(`LiveTableDoc.updateCell: Invalid rowIndex ${rowIndex}.`);
+        // console.warn(`LiveTableDoc.updateCell: Invalid rowIndex ${rowIndex}.`);
         return;
       }
 
@@ -599,9 +608,9 @@ export class LiveTableDoc {
       }
 
       if (!columnIdToUpdate) {
-        console.warn(
-          `LiveTableDoc.updateCell: No column found with header name '${headerName}'.`
-        );
+        // console.warn(
+        //   `LiveTableDoc.updateCell: No column found with header name '${headerName}'.`
+        // );
         return;
       }
 
@@ -612,9 +621,9 @@ export class LiveTableDoc {
         // CellValue is string, so empty string is a valid value.
         yRowMap.set(columnIdToUpdate, newValue);
       } else {
-        console.warn(
-          `LiveTableDoc.updateCell: No row data found for rowId ${rowId}.`
-        );
+        // console.warn(
+        //   `LiveTableDoc.updateCell: No row data found for rowId ${rowId}.`
+        // );
       }
     });
   }

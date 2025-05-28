@@ -7,15 +7,13 @@ import {
 
 import { render, screen } from "@testing-library/react";
 
-import DocumentPage from "@/app/(main)/document/[doc-id]/page";
+import DocumentPage from "@/app/(main)/document/[docId]/page";
 import LiveTable from "@/components/live-table/LiveTable";
 
-// Mock the LiveTable component
 vi.mock("@/components/live-table/LiveTable", () => ({
   default: vi.fn(({ tableId }) => <div data-testid="live-table">{tableId}</div>),
 }));
 
-// Mock the FlexTitle component
 vi.mock("@/components/flex-title", () => ({
   default: vi.fn(({ title, description }) => (
     <div data-testid="flex-title">
@@ -28,10 +26,10 @@ vi.mock("@/components/flex-title", () => ({
 describe("DocumentPage", () => {
   it("should render FlexTitle and LiveTable with correct props", async () => {
     const mockDocId = "test-doc-123";
-    render(<DocumentPage params={{ "doc-id": mockDocId }} />);
+    render(await DocumentPage({params: Promise.resolve({ docId: mockDocId })}));
 
     // Check if FlexTitle is rendered with correct title and description
-    expect(screen.getByTestId("flex-title")).toBeInTheDocument();
+    expect(await screen.findByTestId("flex-title")).toBeInTheDocument();
     expect(screen.getByText(`Document: ${mockDocId}`)).toBeInTheDocument();
     expect(
       screen.getByText(`Live collaborative table for document ${mockDocId}.`)

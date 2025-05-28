@@ -141,9 +141,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   useEffect(() => {
     if (!isTableLoaded && tableData && headers && columnWidths) {
-      console.log(
-        `Table loaded: ${tableData.length} rows, ${headers.length} columns`
-      );
       setIsTableLoaded(true);
     }
   }, [tableData, headers, isTableLoaded, columnWidths]);
@@ -258,9 +255,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         );
 
         if (result.error) {
-          console.warn(
-            `AI generation failed: ${result.error}. Falling back to default rows.`
-          );
           for (let i = 0; i < numRowsToAdd; i++) {
             const defaultRow: Record<string, string> = {};
             currentHeadersForAi.forEach((header) => {
@@ -270,7 +264,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
             defaultRowsAddedCount++;
           }
         } else if (!result.newRows || result.newRows.length === 0) {
-          console.warn(`No AI rows returned, falling back to default rows.`);
           for (let i = 0; i < numRowsToAdd; i++) {
             const defaultRow: Record<string, string> = {};
             currentHeadersForAi.forEach((header) => {
@@ -339,7 +332,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         };
       } catch (error) {
         // This catch is for errors during Yjs operations or other unexpected issues within the try block
-        console.error(`Critical error in generateAndInsertRows:`, error);
         // Fallback: attempt to insert default rows directly into Yjs
         const fallbackRowsPlain: Record<string, string>[] = [];
         for (let i = 0; i < numRowsToAdd; i++) {
@@ -353,8 +345,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         if (fallbackRowsPlain.length > 0) {
           try {
             liveTableDoc.insertRows(initialInsertIndex, fallbackRowsPlain);
-          } catch (yjsError) {
-            console.error("Failed to insert fallback rows into Yjs:", yjsError);
+          } catch {
             // If even fallback fails, we throw the original error that led to this catch block.
             // No need to throw yjsError specifically, as the primary error is more relevant to the user action.
           }
@@ -396,7 +387,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           );
         }
       } catch (error) {
-        console.error("Error during Yjs row deletion in Provider:", error);
         throw error instanceof Error ? error : new Error(String(error));
       }
       return { deletedCount };
@@ -430,9 +420,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           numColsToAdd
         );
         if (result.error) {
-          console.warn(
-            `AI column generation failed: ${result.error}. Falling back to default columns.`
-          );
           for (let i = 0; i < numColsToAdd; i++) {
             columnsToInsert.push({
               headerName: generateUniqueDefaultHeader(
@@ -448,9 +435,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           !result.generatedColumns ||
           result.generatedColumns.length === 0
         ) {
-          console.warn(
-            `No AI columns returned, falling back to default columns.`
-          );
           for (let i = 0; i < numColsToAdd; i++) {
             columnsToInsert.push({
               headerName: generateUniqueDefaultHeader(
@@ -512,7 +496,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           defaultColsAdded: defaultColsAddedCount,
         };
       } catch (error) {
-        console.error(`Critical error in generateAndInsertColumns:`, error);
+        // This catch is for errors during Yjs operations or other unexpected issues within the try block
         // Fallback: attempt to insert default columns directly into Yjs
         const fallbackColumns: { headerName: string; columnData: null }[] = [];
         for (let i = 0; i < numColsToAdd; i++) {
@@ -528,11 +512,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         if (fallbackColumns.length > 0) {
           try {
             liveTableDoc.insertColumns(initialInsertIndex, fallbackColumns);
-          } catch (yjsError) {
-            console.error(
-              "Failed to insert fallback columns into Yjs:",
-              yjsError
-            );
+          } catch {
+            // If even fallback fails, we throw the original error that led to this catch block.
+            // No need to throw yjsError specifically, as the primary error is more relevant to the user action.
           }
         }
         throw error instanceof Error ? error : new Error(String(error));
@@ -568,7 +550,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           );
         }
       } catch (error) {
-        console.error("Error during Yjs column deletion in Provider:", error);
         throw error instanceof Error ? error : new Error(String(error));
       }
       return { deletedCount };
