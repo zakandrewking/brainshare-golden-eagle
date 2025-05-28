@@ -72,9 +72,12 @@ describe("DocumentNavList", () => {
       error: errorMessage,
       mutateDocuments: mockMutateDocuments,
     });
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     render(<DocumentNavList setOpen={mockSetOpen} />);
     expect(screen.getByText("Error")).toBeInTheDocument();
-    expect(screen.getByText(errorMessage)).toBeInTheDocument();
+    expect(screen.getByText("Could not load documents. Please try again later.")).toBeInTheDocument();
+    expect(consoleErrorSpy).toHaveBeenCalledWith("Error loading documents:", errorMessage);
+    consoleErrorSpy.mockRestore();
   });
 
   it("should render 'No documents yet.' when no documents and not loading/error", () => {

@@ -62,10 +62,11 @@ export function DocumentNavList({
   }
 
   if (error) {
+    console.error("Error loading documents:", error);
     return (
       <div className="my-2 p-3 rounded-md border border-destructive bg-destructive/10 text-destructive">
         <h3 className="font-semibold">Error</h3>
-        <p className="text-sm">{error || "Could not load documents."}</p>
+        <p className="text-sm">Could not load documents. Please try again later.</p>
       </div>
     );
   }
