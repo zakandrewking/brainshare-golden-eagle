@@ -23,18 +23,33 @@ vi.mock("@/components/flex-title", () => ({
   )),
 }));
 
+vi.mock("@/components/document-settings-dropdown", () => ({
+  default: vi.fn(({ docId, documentTitle }) => (
+    <div data-testid="document-settings-dropdown">
+      <span>DocId: {docId}</span>
+      <span>Title: {documentTitle}</span>
+    </div>
+  )),
+}));
+
 vi.mock("@/app/(main)/document/[docId]/actions", () => ({
   getDocumentById: vi.fn().mockResolvedValue({
     id: "test-doc-123",
     title: "Test Document",
+    liveblocks_id: "test-room-123",
     description: "Test document description"
   }),
 }));
 
 describe("DocumentPage", () => {
-  it("should render FlexTitle and LiveTable with correct props", async () => {
+  it("should render FlexTitle, LiveTable, and DocumentSettingsDropdown with correct props", async () => {
     const mockDocId = "test-doc-123";
     render(await DocumentPage({params: Promise.resolve({ docId: mockDocId })}));
+
+    // Check if DocumentSettingsDropdown is rendered with correct props
+    expect(screen.getByTestId("document-settings-dropdown")).toBeInTheDocument();
+    expect(screen.getByText("DocId: test-doc-123")).toBeInTheDocument();
+    expect(screen.getByText("Title: Test Document")).toBeInTheDocument();
 
     // Check if FlexTitle is rendered with correct title and description
     expect(await screen.findByTestId("flex-title")).toBeInTheDocument();

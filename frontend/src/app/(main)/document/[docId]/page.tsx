@@ -1,3 +1,4 @@
+import DocumentSettingsDropdown from "@/components/document-settings-dropdown";
 import FlexTitle from "@/components/flex-title";
 import LiveTable from "@/components/live-table/LiveTable";
 import Container from "@/components/ui/container";
@@ -23,6 +24,10 @@ export default async function DocumentPage({
 
   return (
     <Container>
+      <DocumentSettingsDropdown
+        docId={docId}
+        documentTitle={document?.title}
+      />
       <FlexTitle title={pageTitle} description={pageDescription} />
       <LiveTable tableId={docId} documentTitle={documentTitleForPrompt} documentDescription={documentDescriptionForPrompt} />
     </Container>

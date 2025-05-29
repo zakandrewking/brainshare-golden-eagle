@@ -22,10 +22,6 @@ export function useDocuments() {
       throw new Error(error.message);
     }
     return data;
-  }, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    revalidateIfStale: false,
   });
 
   return {
