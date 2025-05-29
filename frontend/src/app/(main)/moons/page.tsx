@@ -8,7 +8,11 @@ export default function Moons() {
   return (
     <Container>
       <FlexTitle title={pageTitle} description={pageDescription} />
-      <LiveTable tableId="moons" />
+      <LiveTable
+        tableId="moons"
+        documentTitle={pageTitle}
+        documentDescription={pageDescription}
+      />
     </Container>
   );
 }

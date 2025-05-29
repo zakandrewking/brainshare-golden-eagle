@@ -37,12 +37,16 @@ export type GeneratedColumn = z.infer<typeof generatedColumnSchema>;
  * @param tableData The current data of the table.
  * @param headers The current headers of the table.
  * @param numCols The number of new columns to generate.
+ * @param documentTitle The title of the document.
+ * @param documentDescription The description of the document.
  * @returns A promise that resolves to an object containing an array of generated columns or an error message.
  */
 export default async function generateNewColumns(
   tableData: Record<string, unknown>[],
   headers: string[],
-  numCols: number
+  numCols: number,
+  documentTitle: string,
+  documentDescription: string
 ): Promise<{
   generatedColumns?: GeneratedColumn[];
   error?: string;
@@ -54,14 +58,16 @@ export default async function generateNewColumns(
   const existingHeadersLower = headers.map((h) => h.toLowerCase());
 
   const systemPrompt = `You are an AI assistant specializing in data enrichment for tables.
+The current document is titled "${documentTitle}" and described as: "${documentDescription}".
 You will be given existing table data (array of JSON objects), its headers, and a specific number of new columns to generate.
-For each of the ${numCols} new columns, your task is to invent a new, interesting, and relevant column header that does not already exist in the provided headers or among the other headers you are generating in this batch.
-Then, for each row in the original table, generate a corresponding value for this new column based on the data in that row and the overall table context.
+For each of the ${numCols} new columns, your task is to invent a new, interesting, and relevant column header that does not already exist in the provided headers or among the other headers you are generating in this batch. The new column should be relevant to the document's title and description.
+Then, for each row in the original table, generate a corresponding value for this new column based on the data in that row and the overall table context, keeping the document's theme in mind.
 Return an array of ${numCols} generated columns, where each element in the array is an object containing the 'headerName' and its 'columnData' (an array of values, one for each row).
 Ensure all generated headers are unique (case-insensitive) among themselves and with respect to existing headers.
 The 'columnData' array for each generated column must have the same length as the input 'tableData'.`;
 
-  const userPrompt = `Here is the existing table data:\n${JSON.stringify(
+  const userPrompt = `Here is the existing table data:
+${JSON.stringify(
     tableData,
     null,
     2

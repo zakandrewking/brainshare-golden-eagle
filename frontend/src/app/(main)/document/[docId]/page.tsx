@@ -18,10 +18,13 @@ export default async function DocumentPage({
     ? `Live collaborative table for document ${document.title}.`
     : `Live collaborative table for document ${docId}.`;
 
+  const documentTitleForPrompt = document?.title ?? docId;
+  const documentDescriptionForPrompt = document ? `Live collaborative table for document ${document.title}.` : `Live collaborative table for document ${docId}.`;
+
   return (
     <Container>
       <FlexTitle title={pageTitle} description={pageDescription} />
-      <LiveTable tableId={docId} />
+      <LiveTable tableId={docId} documentTitle={documentTitleForPrompt} documentDescription={documentDescriptionForPrompt} />
     </Container>
   );
 }

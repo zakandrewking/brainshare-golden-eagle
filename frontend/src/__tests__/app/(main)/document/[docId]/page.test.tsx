@@ -23,6 +23,14 @@ vi.mock("@/components/flex-title", () => ({
   )),
 }));
 
+vi.mock("@/app/(main)/document/[docId]/actions", () => ({
+  getDocumentById: vi.fn().mockResolvedValue({
+    id: "test-doc-123",
+    title: "Test Document",
+    description: "Test document description"
+  }),
+}));
+
 describe("DocumentPage", () => {
   it("should render FlexTitle and LiveTable with correct props", async () => {
     const mockDocId = "test-doc-123";
@@ -30,9 +38,9 @@ describe("DocumentPage", () => {
 
     // Check if FlexTitle is rendered with correct title and description
     expect(await screen.findByTestId("flex-title")).toBeInTheDocument();
-    expect(screen.getByText(`Document: ${mockDocId}`)).toBeInTheDocument();
+    expect(screen.getByText("Document: Test Document")).toBeInTheDocument();
     expect(
-      screen.getByText(`Live collaborative table for document ${mockDocId}.`)
+      screen.getByText("Live collaborative table for document Test Document.")
     ).toBeInTheDocument();
 
     // Check if LiveTable is rendered with the correct tableId
@@ -40,10 +48,14 @@ describe("DocumentPage", () => {
     expect(liveTableComponent).toBeInTheDocument();
     expect(liveTableComponent).toHaveTextContent(mockDocId);
 
-    // Check if the LiveTable mock was called with the correct tableId prop
+    // Check if the LiveTable mock was called with the correct props
     const LiveTableMock = vi.mocked(LiveTable);
     expect(LiveTableMock).toHaveBeenCalledWith(
-      expect.objectContaining({ tableId: mockDocId }),
+      expect.objectContaining({
+        tableId: mockDocId,
+        documentTitle: "Test Document",
+        documentDescription: "Live collaborative table for document Test Document."
+      }),
       undefined
     );
   });

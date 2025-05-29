@@ -62,6 +62,8 @@ describe("generateNewRows", () => {
 
   it("should call the LLM with correct prompts and process generated rows (string[][]) into Record<string,string>[]", async () => {
     const numRowsToGenerate = 2;
+    const documentTitle = "Test Document";
+    const documentDescription = "Test Description";
     // LLM now returns string[][]
     const mockLlmGeneratedRows: string[][] = [
       ["A3", "B3"],
@@ -74,11 +76,18 @@ describe("generateNewRows", () => {
     ];
     mockInvoke.mockResolvedValueOnce({ newRows: mockLlmGeneratedRows });
 
-    const expectedSystemPrompt = `You are an AI assistant specializing in data generation and table population. You will be given existing table data (if any), the table headers, and a specific number of new rows to generate. Your task is to generate realistic and contextually relevant data for these new rows, fitting the established pattern of the table. For each new row, return an array of string values. The order of these string values MUST correspond exactly to the order of the table headers provided. Return all new rows as a JSON object matching the provided schema.`;
+    const expectedSystemPrompt = `You are an AI assistant specializing in data generation and table population.
+The current document is titled "${documentTitle}" and described as: "${documentDescription}".
+You will be given existing table data (if any), the table headers, and a specific number of new rows to generate.
+Your task is to generate realistic and contextually relevant data for these new rows, fitting the established pattern of the table and the document's theme.
+For each new row, return an array of string values. The order of these string values MUST correspond exactly to the order of the table headers provided.
+Return all new rows as a JSON object matching the provided schema.`;
     const expectedUserPrompt = `Existing table data:
 ${JSON.stringify(mockTableData, null, 2)}
 
 Table Headers (in order): ${JSON.stringify(mockHeaders)}
+Document Title: ${documentTitle}
+Document Description: ${documentDescription}
 
 Please generate ${numRowsToGenerate} new row(s). For each row, provide an array of cell values. The order of values in each array must strictly match the order of the Table Headers listed above.
 `;
@@ -86,7 +95,9 @@ Please generate ${numRowsToGenerate} new row(s). For each row, provide an array 
     const result = await generateNewRowsModule.default(
       mockTableData,
       mockHeaders,
-      numRowsToGenerate
+      numRowsToGenerate,
+      documentTitle,
+      documentDescription
     );
 
     expect(MockChatOpenAIClass).toHaveBeenCalledTimes(1);
@@ -103,14 +114,22 @@ Please generate ${numRowsToGenerate} new row(s). For each row, provide an array 
     const result = await generateNewRowsModule.default(
       mockTableData,
       mockHeaders,
-      0
+      0,
+      "Test Document",
+      "Test Description"
     );
     expect(result).toEqual({ newRows: [] });
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
   it("should return an error if headers are empty", async () => {
-    const result = await generateNewRowsModule.default(mockTableData, [], 1);
+    const result = await generateNewRowsModule.default(
+      mockTableData,
+      [],
+      1,
+      "Test Document",
+      "Test Description"
+    );
     expect(result.error).toBe("Cannot generate rows without headers.");
     expect(mockInvoke).not.toHaveBeenCalled();
   });
@@ -123,7 +142,9 @@ Please generate ${numRowsToGenerate} new row(s). For each row, provide an array 
     const result = await generateNewRowsModule.default(
       mockTableData,
       mockHeaders,
-      numRowsToGenerate
+      numRowsToGenerate,
+      "Test Document",
+      "Test Description"
     );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
@@ -146,7 +167,9 @@ Please generate ${numRowsToGenerate} new row(s). For each row, provide an array 
     const result = await generateNewRowsModule.default(
       mockTableData,
       mockHeaders,
-      numRowsToGenerate
+      numRowsToGenerate,
+      "Test Document",
+      "Test Description"
     );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);

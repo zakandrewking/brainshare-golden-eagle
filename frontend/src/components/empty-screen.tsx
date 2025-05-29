@@ -1,10 +1,13 @@
+import { memo } from "react";
+
 import Image from "next/image";
 
+import { fontOrbitron } from "./fonts";
 import robotCsv from "./robot-csv.png";
 import { InternalLink } from "./ui/link";
 import { Stack } from "./ui/stack";
 
-export function EmptyScreen() {
+export const EmptyScreen = memo(function EmptyScreen() {
   return (
     <Stack direction="col" alignItems="center" className="w-full" gap={4}>
       <Image src={robotCsv} alt="robot-csv" className="w-56" priority />
@@ -18,7 +21,14 @@ export function EmptyScreen() {
         </pre>
         <div>Hello, human.</div>
       </div>
-      <div className="text-2xl font-bold my-2">Welcome to BRAINSHARE.</div>
+      <div className={`text-4xl font-bold my-2 text-center ${fontOrbitron.className}`}>
+        <span className="neon-text-cyan">
+          WELCOME TO{' '}
+        </span>
+        <span className="ml-3 neon-text-magenta">
+          BRAINSHARE.
+        </span>
+      </div>
       <div className="text-2xl font-bold">
         Let&apos;s start with:{" "}
         <InternalLink href="/planets" className="text-2xl">
@@ -28,4 +38,4 @@ export function EmptyScreen() {
       </div>
     </Stack>
   );
-}
+});

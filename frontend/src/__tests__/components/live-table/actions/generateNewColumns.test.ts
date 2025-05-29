@@ -68,6 +68,8 @@ describe("generateNewColumns", () => {
 
   it("should call the LLM with correct prompts and process generated columns", async () => {
     const numColsToGenerate = 1;
+    const documentTitle = "Test Document";
+    const documentDescription = "Test Description";
     const mockLlmGeneratedColumns = [
       {
         headerName: "NewHeader",
@@ -78,19 +80,33 @@ describe("generateNewColumns", () => {
       generatedColumns: mockLlmGeneratedColumns,
     });
 
-    const expectedSystemPrompt = `You are an AI assistant specializing in data enrichment for tables.\nYou will be given existing table data (array of JSON objects), its headers, and a specific number of new columns to generate.\nFor each of the ${numColsToGenerate} new columns, your task is to invent a new, interesting, and relevant column header that does not already exist in the provided headers or among the other headers you are generating in this batch.\nThen, for each row in the original table, generate a corresponding value for this new column based on the data in that row and the overall table context.\nReturn an array of ${numColsToGenerate} generated columns, where each element in the array is an object containing the 'headerName' and its 'columnData' (an array of values, one for each row).\nEnsure all generated headers are unique (case-insensitive) among themselves and with respect to existing headers.\nThe 'columnData' array for each generated column must have the same length as the input 'tableData'.`;
-    const expectedUserPrompt = `Here is the existing table data:\n${JSON.stringify(
+    const expectedSystemPrompt = `You are an AI assistant specializing in data enrichment for tables.
+The current document is titled "${documentTitle}" and described as: "${documentDescription}".
+You will be given existing table data (array of JSON objects), its headers, and a specific number of new columns to generate.
+For each of the ${numColsToGenerate} new columns, your task is to invent a new, interesting, and relevant column header that does not already exist in the provided headers or among the other headers you are generating in this batch. The new column should be relevant to the document's title and description.
+Then, for each row in the original table, generate a corresponding value for this new column based on the data in that row and the overall table context, keeping the document's theme in mind.
+Return an array of ${numColsToGenerate} generated columns, where each element in the array is an object containing the 'headerName' and its 'columnData' (an array of values, one for each row).
+Ensure all generated headers are unique (case-insensitive) among themselves and with respect to existing headers.
+The 'columnData' array for each generated column must have the same length as the input 'tableData'.`;
+    const expectedUserPrompt = `Here is the existing table data:
+${JSON.stringify(
       mockTableData,
       null,
       2
-    )}\n\nExisting Headers: ${JSON.stringify(
+    )}
+
+Existing Headers: ${JSON.stringify(
       mockHeaders
-    )}\n\nPlease generate ${numColsToGenerate} new column(s) with their corresponding data.`;
+    )}
+
+Please generate ${numColsToGenerate} new column(s) with their corresponding data.`;
 
     const result = await generateNewColumnsModule.default(
       mockTableData,
       mockHeaders,
-      numColsToGenerate
+      numColsToGenerate,
+      documentTitle,
+      documentDescription
     );
 
     expect(MockChatOpenAIClass).toHaveBeenCalledTimes(1);
@@ -105,7 +121,9 @@ describe("generateNewColumns", () => {
     let result = await generateNewColumnsModule.default(
       mockTableData,
       mockHeaders,
-      0
+      0,
+      "Test Document",
+      "Test Description"
     );
     expect(result.error).toBe(
       "Number of columns to generate must be positive."
@@ -115,7 +133,9 @@ describe("generateNewColumns", () => {
     result = await generateNewColumnsModule.default(
       mockTableData,
       mockHeaders,
-      -1
+      -1,
+      "Test Document",
+      "Test Description"
     );
     expect(result.error).toBe(
       "Number of columns to generate must be positive."
@@ -131,7 +151,9 @@ describe("generateNewColumns", () => {
     const result = await generateNewColumnsModule.default(
       mockTableData,
       mockHeaders,
-      numColsToGenerate
+      numColsToGenerate,
+      "Test Document",
+      "Test Description"
     );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
@@ -156,7 +178,9 @@ describe("generateNewColumns", () => {
     const result = await generateNewColumnsModule.default(
       mockTableData, // 2 rows
       mockHeaders,
-      numColsToGenerate
+      numColsToGenerate,
+      "Test Document",
+      "Test Description"
     );
     expect(mockInvoke).toHaveBeenCalledTimes(1);
     expect(result.error).toBe(
@@ -180,7 +204,9 @@ describe("generateNewColumns", () => {
     const result = await generateNewColumnsModule.default(
       [], // empty table data
       mockHeaders, // headers can still exist
-      numColsToGenerate
+      numColsToGenerate,
+      "Test Document",
+      "Test Description"
     );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
@@ -203,7 +229,9 @@ describe("generateNewColumns", () => {
     const result = await generateNewColumnsModule.default(
       mockTableData,
       mockHeaders,
-      numColsToGenerate
+      numColsToGenerate,
+      "Test Document",
+      "Test Description"
     );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
@@ -226,7 +254,9 @@ describe("generateNewColumns", () => {
     const result = await generateNewColumnsModule.default(
       mockTableData,
       mockHeaders,
-      numColsToGenerate
+      numColsToGenerate,
+      "Test Document",
+      "Test Description"
     );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
@@ -243,7 +273,9 @@ describe("generateNewColumns", () => {
     const result = await generateNewColumnsModule.default(
       mockTableData,
       mockHeaders,
-      numColsToGenerate
+      numColsToGenerate,
+      "Test Document",
+      "Test Description"
     );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
@@ -258,7 +290,9 @@ describe("generateNewColumns", () => {
     const result = await generateNewColumnsModule.default(
       mockTableData,
       mockHeaders,
-      numColsToGenerate
+      numColsToGenerate,
+      "Test Document",
+      "Test Description"
     );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
@@ -282,7 +316,9 @@ describe("generateNewColumns", () => {
     const result = await generateNewColumnsModule.default(
       mockTableData,
       mockHeaders,
-      numColsToGenerate // Request 1
+      numColsToGenerate,
+      "Test Document",
+      "Test Description"
     );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
@@ -308,7 +344,9 @@ describe("generateNewColumns", () => {
     const result = await generateNewColumnsModule.default(
       mockTableData,
       mockHeaders,
-      numColsToGenerate // Request 2, LLM returns 1
+      numColsToGenerate, // Request 2, LLM returns 1
+      "Test Document",
+      "Test Description"
     );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);

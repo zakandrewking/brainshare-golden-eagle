@@ -5,7 +5,7 @@ import { ReactNode } from "react";
 import HolyLoader from "holy-loader";
 import { type Metadata } from "next";
 
-import { fontSans } from "@/components/fonts";
+import { fontOrbitron, fontSans } from "@/components/fonts";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/utils/tailwind";
@@ -29,7 +29,8 @@ export default function RootLayout({
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased overscroll-none",
-          fontSans.variable
+          fontSans.variable,
+          fontOrbitron.variable
         )}
       >
         <Providers>

@@ -28,6 +28,8 @@ import { useUpdatedSelf } from "./useUpdatedSelf";
 export interface LiveTableContextType {
   // data
   tableId: string;
+  documentTitle: string;
+  documentDescription: string;
   tableData: Record<string, unknown>[] | undefined;
   headers: string[] | undefined;
   columnWidths: Record<string, number> | undefined;
@@ -79,6 +81,8 @@ export type { CellPosition, SelectionArea };
 interface LiveTableProviderProps {
   children: React.ReactNode;
   tableId: string;
+  documentTitle: string;
+  documentDescription: string;
 }
 
 const LiveTableContext = createContext<LiveTableContextType | undefined>(
@@ -88,6 +92,8 @@ const LiveTableContext = createContext<LiveTableContextType | undefined>(
 const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   children,
   tableId,
+  documentTitle,
+  documentDescription,
 }) => {
   // yTable & friends are not going to reactively update, so we need to observe
   // changes to them and create react state that will reactively update UI.
@@ -251,7 +257,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         const result = await generateNewRows(
           currentTableDataForAi,
           currentHeadersForAi,
-          numRowsToAdd
+          numRowsToAdd,
+          documentTitle,
+          documentDescription
         );
 
         if (result.error) {
@@ -354,7 +362,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         throw error instanceof Error ? error : new Error(String(error));
       }
     },
-    [liveTableDoc, headers, tableData]
+    [liveTableDoc, headers, tableData, documentTitle, documentDescription]
   );
 
   const deleteRows = useCallback(
@@ -417,7 +425,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         const result = await generateNewColumns(
           currentTableDataForAi,
           currentHeadersForAi,
-          numColsToAdd
+          numColsToAdd,
+          documentTitle,
+          documentDescription
         );
         if (result.error) {
           for (let i = 0; i < numColsToAdd; i++) {
@@ -520,7 +530,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         throw error instanceof Error ? error : new Error(String(error));
       }
     },
-    [liveTableDoc, headers, tableData]
+    [liveTableDoc, headers, tableData, documentTitle, documentDescription]
   );
 
   const deleteColumns = useCallback(
@@ -580,6 +590,8 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     <LiveTableContext.Provider
       value={{
         tableId,
+        documentTitle,
+        documentDescription,
         tableData,
         headers,
         columnWidths,
