@@ -44,6 +44,7 @@ vi.mock("@/app/(main)/document/[docId]/actions", () => ({
 describe("DocumentPage", () => {
   it("should render FlexTitle, LiveTable, and DocumentSettingsDropdown with correct props", async () => {
     const mockDocId = "test-doc-123";
+    const mockLiveblocksId = "test-room-123";
     render(await DocumentPage({params: Promise.resolve({ docId: mockDocId })}));
 
     // Check if DocumentSettingsDropdown is rendered with correct props
@@ -61,13 +62,13 @@ describe("DocumentPage", () => {
     // Check if LiveTable is rendered with the correct tableId
     const liveTableComponent = screen.getByTestId("live-table");
     expect(liveTableComponent).toBeInTheDocument();
-    expect(liveTableComponent).toHaveTextContent(mockDocId);
+    expect(liveTableComponent).toHaveTextContent(mockLiveblocksId);
 
     // Check if the LiveTable mock was called with the correct props
     const LiveTableMock = vi.mocked(LiveTable);
     expect(LiveTableMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        tableId: mockDocId,
+        tableId: mockLiveblocksId,
         documentTitle: "Test Document",
         documentDescription: "Live collaborative table for document Test Document."
       }),

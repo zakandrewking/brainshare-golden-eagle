@@ -29,7 +29,7 @@ export default async function DocumentPage({
         documentTitle={document?.title}
       />
       <FlexTitle title={pageTitle} description={pageDescription} />
-      <LiveTable tableId={docId} documentTitle={documentTitleForPrompt} documentDescription={documentDescriptionForPrompt} />
+      <LiveTable tableId={document?.liveblocks_id || docId} documentTitle={documentTitleForPrompt} documentDescription={documentDescriptionForPrompt} />
     </Container>
   );
 }
