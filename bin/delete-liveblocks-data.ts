@@ -1,6 +1,4 @@
-#!/usr/bin/env ts-node
-
-// Run with LIVEBLOCKS_SECRET_KEY=... bin/delete-liveblocks-data.ts
+// Run with LIVEBLOCKS_SECRET_KEY=... npx ts-node delete-liveblocks-data.ts
 
 import { Liveblocks } from '@liveblocks/node';
 
