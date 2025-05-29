@@ -15,12 +15,9 @@ export default async function DocumentPage({
   const { docId } = await params;
   const document = await getDocumentById(docId);
   const pageTitle = document ? `Document: ${document.title}` : `Document: ${docId}`;
-  const pageDescription = document
-    ? `Live collaborative table for document ${document.title}.`
-    : `Live collaborative table for document ${docId}.`;
+  const pageDescription = document?.description || `Live collaborative table for document ${document?.title}.`;
 
   const documentTitleForPrompt = document?.title ?? docId;
-  const documentDescriptionForPrompt = document ? `Live collaborative table for document ${document.title}.` : `Live collaborative table for document ${docId}.`;
 
   return (
     <Container>
@@ -29,7 +26,7 @@ export default async function DocumentPage({
         documentTitle={document?.title}
       />
       <FlexTitle title={pageTitle} description={pageDescription} />
-      <LiveTable tableId={document?.liveblocks_id || docId} documentTitle={documentTitleForPrompt} documentDescription={documentDescriptionForPrompt} />
+      <LiveTable tableId={document?.liveblocks_id || docId} documentTitle={documentTitleForPrompt} documentDescription={pageDescription} />
     </Container>
   );
 }

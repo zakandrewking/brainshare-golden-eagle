@@ -63,7 +63,7 @@ describe("generateTableInitialization", () => {
     };
     mockInvoke.mockResolvedValueOnce(mockResponse);
 
-    const result = await generateTableInitializationModule.generateTableInitialization(documentTitle);
+    const result = await generateTableInitializationModule.generateTableInitialization(documentTitle, "");
 
     expect(MockChatOpenAIClass).toHaveBeenCalledTimes(1);
     expect(mockWithStructuredOutput).toHaveBeenCalledTimes(1);
@@ -73,7 +73,7 @@ describe("generateTableInitialization", () => {
       expect.stringContaining("You are an AI assistant specializing in table design")
     );
     expect(HumanMessageSpy).toHaveBeenCalledWith(
-      expect.stringContaining(`Document Title: "${documentTitle}"`)
+      expect.stringContaining(`Document Title: "${documentTitle}. Document Description: "`)
     );
 
     expect(result).toEqual({
@@ -87,14 +87,14 @@ describe("generateTableInitialization", () => {
   });
 
   it("should return an error for empty document title", async () => {
-    const result = await generateTableInitializationModule.generateTableInitialization("");
+    const result = await generateTableInitializationModule.generateTableInitialization("", "");
 
     expect(result.error).toBe("Document title is required for generating suggestions.");
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
   it("should return an error for whitespace-only document title", async () => {
-    const result = await generateTableInitializationModule.generateTableInitialization("   ");
+    const result = await generateTableInitializationModule.generateTableInitialization("   ", "");
 
     expect(result.error).toBe("Document title is required for generating suggestions.");
     expect(mockInvoke).not.toHaveBeenCalled();
@@ -105,7 +105,7 @@ describe("generateTableInitialization", () => {
     const errorMessage = "LLM API Error";
     mockInvoke.mockRejectedValueOnce(new Error(errorMessage));
 
-    const result = await generateTableInitializationModule.generateTableInitialization(documentTitle);
+    const result = await generateTableInitializationModule.generateTableInitialization(documentTitle, "");
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
     expect(result.error).toBe(`Failed to generate table suggestions: ${errorMessage}`);
@@ -126,7 +126,7 @@ describe("generateTableInitialization", () => {
     };
     mockInvoke.mockResolvedValueOnce(mockResponse);
 
-    const result = await generateTableInitializationModule.generateTableInitialization(documentTitle);
+    const result = await generateTableInitializationModule.generateTableInitialization(documentTitle, "");
 
     expect(result).toEqual({
       primaryColumnName: "Product SKU",

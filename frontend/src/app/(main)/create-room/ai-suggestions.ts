@@ -10,7 +10,7 @@ const MODEL = "gpt-4o-mini";
 const tableInitializationSchema = z.object({
   primaryColumnName: z
     .string()
-    .describe("A concise, descriptive column name that would serve as a unique identifier for this table"),
+    .describe("A concise, descriptive column name that would serve as a unique identifier for this table. Generally this is 'name' or 'title'. Should be human readable and commonly used."),
   secondaryColumnName: z
     .string()
     .describe("A second column name that complements the primary column and is relevant to the document theme"),
@@ -29,7 +29,8 @@ const tableInitModel = new ChatOpenAI({
 }).withStructuredOutput(tableInitializationSchema);
 
 export async function generateTableInitialization(
-  documentTitle: string
+  documentTitle: string,
+  documentDescription: string
 ): Promise<{
   primaryColumnName?: string;
   secondaryColumnName?: string;
@@ -47,7 +48,7 @@ export async function generateTableInitialization(
 You will be given a document title and need to suggest appropriate column names and sample data for a new table.
 
 Your task is to:
-1. Suggest a primary column name that would serve as a good unique identifier for records in this table
+1. Suggest A concise, descriptive column name that would serve as a unique identifier for this table. Generally this is 'name' or 'title'. Should be human readable and commonly used.
 2. Suggest a secondary column name that complements the primary column and is relevant to the document's theme
 3. Provide sample values for both columns that demonstrate what kind of data would be stored
 
@@ -62,7 +63,7 @@ The sample data should be:
 - Demonstrate the expected data type and format
 - Help users understand what kind of information belongs in each column`;
 
-  const userPrompt = `Document Title: "${documentTitle}"
+  const userPrompt = `Document Title: "${documentTitle}. Document Description: ${documentDescription}"
 
 Please suggest appropriate column names and sample data for a table related to this document. The primary column should work well as a unique identifier, and the secondary column should provide complementary information that's relevant to the document's theme.`;
 

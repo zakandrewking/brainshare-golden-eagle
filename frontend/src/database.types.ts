@@ -11,18 +11,21 @@ export type Database = {
     Tables: {
       document: {
         Row: {
+          description: string | null
           id: string
           liveblocks_id: string
           title: string
           type: string
         }
         Insert: {
+          description?: string | null
           id?: string
           liveblocks_id: string
           title: string
           type: string
         }
         Update: {
+          description?: string | null
           id?: string
           liveblocks_id?: string
           title?: string

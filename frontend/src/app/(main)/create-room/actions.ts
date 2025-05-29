@@ -130,7 +130,7 @@ export async function handleCreateRoomForm(
   try {
     const { data: dbData, error: dbError } = await supabase
       .from("document")
-      .insert({ liveblocks_id: name, title: name, type: docType })
+      .insert({ liveblocks_id: name, title: name, type: docType, description: descriptionValue?.toString() })
       .select("id")
       .single();
 
@@ -164,7 +164,7 @@ export async function handleCreateRoomForm(
   }
 
   // 2. Create Liveblocks room
-  const liveblocksResult = await createLiveblocksRoom(name, docType, name);
+  const liveblocksResult = await createLiveblocksRoom(name, docType, name, descriptionValue?.toString());
 
   if (!liveblocksResult.success) {
     // Liveblocks room creation failed, attempt to delete the Supabase document
@@ -255,7 +255,8 @@ export async function getLiveblocksRooms(): Promise<GetRoomsResult> {
 export async function createLiveblocksRoom(
   roomId: string,
   docType: "text" | "table",
-  documentTitle?: string
+  documentTitle: string,
+  documentDescription?: string
 ): Promise<CreateRoomResult> {
   if (!process.env.LIVEBLOCKS_SECRET_KEY) {
     console.error("LIVEBLOCKS_SECRET_KEY is not set.");
@@ -298,7 +299,11 @@ export async function createLiveblocksRoom(
     if (docType === "table") {
       // Use V2 schema for new tables
       const yMeta = yDoc.getMap<unknown>("metaData");
-      const yColumnDefinitions = yDoc.getMap<{ id: string; name: string; width: number }>("columnDefinitions");
+      const yColumnDefinitions = yDoc.getMap<{
+        id: string;
+        name: string;
+        width: number;
+      }>("columnDefinitions");
       const yColumnOrder = yDoc.getArray<string>("columnOrder");
       const yRowData = yDoc.getMap<Y.Map<string>>("rowData");
       const yRowOrder = yDoc.getArray<string>("rowOrder");
@@ -308,28 +313,35 @@ export async function createLiveblocksRoom(
       let primaryValue = "Sample Item";
       let secondaryValue = "Sample Description";
 
-      if (documentTitle) {
-        try {
-          const aiSuggestions = await generateTableInitialization(documentTitle);
+      try {
+        if (documentTitle && documentTitle.trim().length > 0) {
+          const aiSuggestions = await generateTableInitialization(
+            documentTitle,
+            documentDescription ?? ""
+          );
 
           if (aiSuggestions.error) {
             aiSuggestionsUsed = false;
             aiSuggestionsError = aiSuggestions.error;
-            console.warn(`AI suggestions failed: ${aiSuggestions.error}. Using fallback data.`);
+            console.warn(
+              `AI suggestions failed: ${aiSuggestions.error}. Using fallback data.`
+            );
           } else {
             aiSuggestionsUsed = true;
             primaryColumnName = aiSuggestions.primaryColumnName || "Item";
-            secondaryColumnName = aiSuggestions.secondaryColumnName || "Description";
+            secondaryColumnName =
+              aiSuggestions.secondaryColumnName || "Description";
             primaryValue = aiSuggestions.sampleRow?.primaryValue || "Sample Item";
-            secondaryValue = aiSuggestions.sampleRow?.secondaryValue || "Sample Description";
+            secondaryValue =
+              aiSuggestions.sampleRow?.secondaryValue || "Sample Description";
           }
-        } catch (aiError) {
+        } else {
           aiSuggestionsUsed = false;
-          aiSuggestionsError = `AI service error: ${(aiError as Error).message}`;
-          console.warn(`AI suggestions error: ${aiError}. Using fallback data.`);
         }
-      } else {
+      } catch (aiError) {
         aiSuggestionsUsed = false;
+        aiSuggestionsError = `AI service error: ${(aiError as Error).message}`;
+        console.warn(`AI suggestions error: ${aiError}. Using fallback data.`);
       }
 
       // Create V2 schema data
@@ -344,13 +356,13 @@ export async function createLiveblocksRoom(
         yColumnDefinitions.set(col1Id, {
           id: col1Id,
           name: primaryColumnName,
-          width: 150
+          width: 150,
         });
 
         yColumnDefinitions.set(col2Id, {
           id: col2Id,
           name: secondaryColumnName,
-          width: 150
+          width: 150,
         });
 
         // Set column order
@@ -381,7 +393,7 @@ export async function createLiveblocksRoom(
       success: true,
       data: newRoom,
       aiSuggestionsUsed,
-      aiSuggestionsError
+      aiSuggestionsError,
     };
   } catch (err: unknown) {
     console.error(`Failed to initialize Yjs data for new room ${roomId}:`, err);

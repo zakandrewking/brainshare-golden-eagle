@@ -8,7 +8,7 @@ export async function getDocumentById(docId: string) {
 
   const { data, error } = await supabase
     .from("document")
-    .select("id, title, liveblocks_id")
+    .select("id, title, liveblocks_id, description")
     .eq("id", docId)
     .single();
 

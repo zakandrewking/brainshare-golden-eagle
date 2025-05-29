@@ -8,6 +8,13 @@
       "when": 1748464291042,
       "tag": "0000_faithful_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1748556652032,
+      "tag": "0001_chubby_mimic",
+      "breakpoints": true
     }
   ]
 }

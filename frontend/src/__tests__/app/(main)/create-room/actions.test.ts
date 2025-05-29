@@ -280,6 +280,7 @@ describe("Room Creation Actions", () => {
         liveblocks_id: "test-room",
         title: "test-room",
         type: "text",
+        description: "A test room",
       });
       expect(mockLiveblocksCreateRoom).toHaveBeenCalled();
       expect(mockLiveblocksSendYjs).toHaveBeenCalled();
@@ -400,7 +401,7 @@ describe("Room Creation Actions", () => {
       mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
       mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
 
-      const result = await createLiveblocksRoom(roomId, "text");
+      const result = await createLiveblocksRoom(roomId, "text", roomId);
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -423,7 +424,7 @@ describe("Room Creation Actions", () => {
       mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
       mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
 
-      const result = await createLiveblocksRoom(roomId, "table");
+      const result = await createLiveblocksRoom(roomId, "table", roomId);
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -464,14 +465,14 @@ describe("Room Creation Actions", () => {
       mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
       mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
 
-      const result = await createLiveblocksRoom(roomId, "table", documentTitle);
+      const result = await createLiveblocksRoom(roomId, "table", documentTitle, "");
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.aiSuggestionsUsed).toBe(true);
         expect(result.aiSuggestionsError).toBeUndefined();
       }
-      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle);
+      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle, "");
       // Expect V2 schema calls
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
@@ -492,14 +493,14 @@ describe("Room Creation Actions", () => {
       mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
       mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
 
-      const result = await createLiveblocksRoom(roomId, "table", documentTitle);
+      const result = await createLiveblocksRoom(roomId, "table", documentTitle, "");
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.aiSuggestionsUsed).toBe(false);
         expect(result.aiSuggestionsError).toBe("AI service unavailable");
       }
-      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle);
+      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle, "");
       // Expect V2 schema calls
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
@@ -516,7 +517,7 @@ describe("Room Creation Actions", () => {
       mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
       mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
 
-      const result = await createLiveblocksRoom(roomId, "table");
+      const result = await createLiveblocksRoom(roomId, "table", "", "");
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -542,14 +543,14 @@ describe("Room Creation Actions", () => {
       mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
       mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
 
-      const result = await createLiveblocksRoom(roomId, "table", documentTitle);
+      const result = await createLiveblocksRoom(roomId, "table", documentTitle, "");
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.aiSuggestionsUsed).toBe(false);
         expect(result.aiSuggestionsError).toBe("AI service error: Network timeout");
       }
-      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle);
+      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle, "");
       // Expect V2 schema calls
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
@@ -562,7 +563,7 @@ describe("Room Creation Actions", () => {
     it("should return error if LIVEBLOCKS_SECRET_KEY is not set", async () => {
       const currentLiveblocksSecret = process.env.LIVEBLOCKS_SECRET_KEY;
       delete process.env.LIVEBLOCKS_SECRET_KEY;
-      const result = await createLiveblocksRoom("no-secret-room", "text");
+      const result = await createLiveblocksRoom("no-secret-room", "text", "no-secret-room");
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toBe("Server configuration error.");
@@ -575,7 +576,7 @@ describe("Room Creation Actions", () => {
       const errorMessage = "Room with id 'duplicate-room' already exists.";
       mockLiveblocksCreateRoom.mockRejectedValueOnce(new Error(errorMessage));
 
-      const result = await createLiveblocksRoom(roomId, "text");
+      const result = await createLiveblocksRoom(roomId, "text", roomId);
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -595,7 +596,7 @@ describe("Room Creation Actions", () => {
       mockLiveblocksSendYjs.mockRejectedValueOnce(new Error(yjsErrorMessage));
       mockLiveblocksDeleteRoom.mockResolvedValueOnce(undefined);
 
-      const result = await createLiveblocksRoom(roomId, "text");
+      const result = await createLiveblocksRoom(roomId, "text", roomId);
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -619,7 +620,7 @@ describe("Room Creation Actions", () => {
         new Error(deleteErrorMessage)
       );
 
-      const result = await createLiveblocksRoom(roomId, "text");
+      const result = await createLiveblocksRoom(roomId, "text", roomId);
 
       expect(result.success).toBe(false);
       if (!result.success) {

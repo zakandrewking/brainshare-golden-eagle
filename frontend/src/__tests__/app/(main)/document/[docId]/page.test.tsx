@@ -56,7 +56,7 @@ describe("DocumentPage", () => {
     expect(await screen.findByTestId("flex-title")).toBeInTheDocument();
     expect(screen.getByText("Document: Test Document")).toBeInTheDocument();
     expect(
-      screen.getByText("Live collaborative table for document Test Document.")
+      screen.getByText("Test document description")
     ).toBeInTheDocument();
 
     // Check if LiveTable is rendered with the correct tableId
@@ -70,7 +70,7 @@ describe("DocumentPage", () => {
       expect.objectContaining({
         tableId: mockLiveblocksId,
         documentTitle: "Test Document",
-        documentDescription: "Live collaborative table for document Test Document."
+        documentDescription: "Test document description"
       }),
       undefined
     );

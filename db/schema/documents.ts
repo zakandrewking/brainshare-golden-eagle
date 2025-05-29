@@ -13,6 +13,7 @@ export const documents = pgTable(
     title: text("title").notNull(),
     liveblocks_id: text("liveblocks_id").notNull(),
     type: text("type").notNull(),
+    description: text("description"),
   },
   (table) => [
     check("document_type_check", sql`${table.type} IN ('text', 'table')`),
