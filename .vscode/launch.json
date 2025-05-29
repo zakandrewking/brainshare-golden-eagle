@@ -13,6 +13,17 @@
       "webRoot": "${workspaceFolder}/frontend"
     },
     {
+      "name": "Frontend (prod db)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      // brew install homebrew/cask-versions/google-chrome-canary
+      "runtimeExecutable": "canary",
+      "preLaunchTask": "[npm] dev (prod db)",
+      "sourceMaps": true,
+      "webRoot": "${workspaceFolder}/frontend"
+    },
+    {
       "name": "Backend",
       "type": "go",
       "request": "launch",
