@@ -18,7 +18,7 @@ import {
   getLiveblocksRooms,
   handleCreateRoomForm,
   nukeAllLiveblocksRooms,
-} from "./actions";
+} from "@/app/(main)/create-room/actions";
 
 // Environment stubs (ensure these are at the very top if they affect module imports)
 vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test_anon_key");
@@ -63,6 +63,17 @@ mockSupabaseDelete.mockReturnValue({
 vi.mock("@supabase/ssr", () => ({
   createServerClient: vi.fn(() => mockSupabaseClient),
 }));
+
+// Mock AI suggestions
+// eslint-disable-next-line no-var
+var mockGenerateTableInitialization: ReturnType<typeof vi.fn>;
+vi.mock("@/app/(main)/create-room/ai-suggestions", () => {
+  const actualMock = vi.fn();
+  mockGenerateTableInitialization = actualMock;
+  return {
+    generateTableInitialization: actualMock,
+  };
+});
 
 // Declare top-level variables for mock functions using var for hoisting
 // eslint-disable-next-line no-var
@@ -131,6 +142,7 @@ const mockYDocInstanceGetMapReturn = {
   has: vi.fn(() => false),
   size: 0,
   toJSON: vi.fn(() => ({})),
+  clear: vi.fn(),
 };
 
 // mockYDocInstance holds the spies that will be returned by Y.Doc()
@@ -138,6 +150,7 @@ const mockYDocInstance = {
   getArray: vi.fn(() => mockYDocInstanceGetArrayReturn),
   getXmlFragment: vi.fn(() => mockYDocInstanceGetXmlFragmentReturn),
   getMap: vi.fn(() => mockYDocInstanceGetMapReturn),
+  transact: vi.fn((fn) => fn()), // Execute the transaction function immediately
   // Add other Y.Doc methods if they are called and need to be mocked
 };
 
@@ -145,12 +158,7 @@ vi.mock("yjs", async () => {
   const actualYjs = await vi.importActual<typeof Y>("yjs");
   return {
     ...actualYjs,
-    // Mock Y.Doc to return our predefined instance with spies
     Doc: vi.fn(() => {
-      // Reset the spies on mockYDocInstance's methods each time a new Doc is "created"
-      // This is important if tests create multiple Y.Doc instances or if state needs to be clean.
-      // However, for tests asserting calls on these, clearing in beforeEach is usually better.
-      // For now, let's rely on beforeEach for clearing.
       mockYDocInstance.getArray.mockReturnValue(mockYDocInstanceGetArrayReturn);
       mockYDocInstance.getXmlFragment.mockReturnValue(
         mockYDocInstanceGetXmlFragmentReturn
@@ -158,11 +166,10 @@ vi.mock("yjs", async () => {
       mockYDocInstance.getMap.mockReturnValue(mockYDocInstanceGetMapReturn);
       return mockYDocInstance;
     }),
-    encodeStateAsUpdate: vi.fn(() => new Uint8Array([1, 2, 3])), // Example mock
-    // Keep other actual Yjs exports if they are used directly and not on Y.Doc instances
+    Map: vi.fn(() => mockYDocInstanceGetMapReturn),
+    encodeStateAsUpdate: vi.fn(() => new Uint8Array([1, 2, 3])),
     XmlElement: actualYjs.XmlElement,
     XmlText: actualYjs.XmlText,
-    Map: actualYjs.Map,
     Array: actualYjs.Array,
   };
 });
@@ -201,6 +208,7 @@ describe("Room Creation Actions", () => {
     mockYDocInstance.getArray.mockClear();
     mockYDocInstance.getXmlFragment.mockClear();
     mockYDocInstance.getMap.mockClear();
+    mockYDocInstance.transact.mockClear();
 
     mockYDocInstanceGetArrayReturn.push.mockClear();
     mockYDocInstanceGetArrayReturn.insert.mockClear();
@@ -220,6 +228,7 @@ describe("Room Creation Actions", () => {
     mockYDocInstanceGetMapReturn.delete.mockClear();
     mockYDocInstanceGetMapReturn.has.mockClear().mockReturnValue(false);
     mockYDocInstanceGetMapReturn.toJSON.mockClear().mockReturnValue({});
+    mockYDocInstanceGetMapReturn.clear.mockClear();
 
     // Re-assign default return values for the main instance methods,
     // as vi.clearAllMocks() might also clear these if not careful,
@@ -262,6 +271,9 @@ describe("Room Creation Actions", () => {
         );
         expect(result.createdRoomData).toEqual(roomData);
         expect(result.documentId).toBe(mockSupabaseDocId);
+        // For text documents, AI suggestions are not used
+        expect(result.aiSuggestionsUsed).toBeUndefined();
+        expect(result.aiSuggestionsError).toBeUndefined();
       }
       expect(mockSupabaseClient.from).toHaveBeenCalledWith("document");
       expect(mockSupabaseInsert).toHaveBeenCalledWith({
@@ -425,7 +437,126 @@ describe("Room Creation Actions", () => {
         roomId,
         expect.any(Uint8Array)
       );
-      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("tableData");
+      // Expect V2 schema calls
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("rowData");
+      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("columnOrder");
+      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("rowOrder");
+      expect(mockYDocInstance.transact).toHaveBeenCalled();
+    });
+
+    it("should use AI suggestions for table initialization when document title is provided", async () => {
+      const roomId = "ai-table-test";
+      const documentTitle = "Employee Directory";
+      const roomData = createMockRoomData(roomId);
+
+      const mockAiSuggestions = {
+        primaryColumnName: "Employee ID",
+        secondaryColumnName: "Full Name",
+        sampleRow: {
+          primaryValue: "EMP001",
+          secondaryValue: "John Smith",
+        },
+      };
+
+      mockGenerateTableInitialization.mockResolvedValueOnce(mockAiSuggestions);
+      mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
+      mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
+
+      const result = await createLiveblocksRoom(roomId, "table", documentTitle);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.aiSuggestionsUsed).toBe(true);
+        expect(result.aiSuggestionsError).toBeUndefined();
+      }
+      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle);
+      // Expect V2 schema calls
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("rowData");
+      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("columnOrder");
+      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("rowOrder");
+      expect(mockYDocInstance.transact).toHaveBeenCalled();
+    });
+
+    it("should fall back to default values when AI suggestions fail", async () => {
+      const roomId = "ai-fallback-test";
+      const documentTitle = "Test Document";
+      const roomData = createMockRoomData(roomId);
+
+      mockGenerateTableInitialization.mockResolvedValueOnce({
+        error: "AI service unavailable",
+      });
+      mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
+      mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
+
+      const result = await createLiveblocksRoom(roomId, "table", documentTitle);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.aiSuggestionsUsed).toBe(false);
+        expect(result.aiSuggestionsError).toBe("AI service unavailable");
+      }
+      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle);
+      // Expect V2 schema calls
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("rowData");
+      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("columnOrder");
+      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("rowOrder");
+      expect(mockYDocInstance.transact).toHaveBeenCalled();
+    });
+
+    it("should use fallback values when no document title is provided", async () => {
+      const roomId = "no-title-test";
+      const roomData = createMockRoomData(roomId);
+
+      mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
+      mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
+
+      const result = await createLiveblocksRoom(roomId, "table");
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.aiSuggestionsUsed).toBe(false);
+        expect(result.aiSuggestionsError).toBeUndefined();
+      }
+      expect(mockGenerateTableInitialization).not.toHaveBeenCalled();
+      // Expect V2 schema calls
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("rowData");
+      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("columnOrder");
+      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("rowOrder");
+      expect(mockYDocInstance.transact).toHaveBeenCalled();
+    });
+
+    it("should handle AI suggestions exceptions gracefully", async () => {
+      const roomId = "ai-exception-test";
+      const documentTitle = "Test Document";
+      const roomData = createMockRoomData(roomId);
+
+      mockGenerateTableInitialization.mockRejectedValueOnce(new Error("Network timeout"));
+      mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
+      mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
+
+      const result = await createLiveblocksRoom(roomId, "table", documentTitle);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.aiSuggestionsUsed).toBe(false);
+        expect(result.aiSuggestionsError).toBe("AI service error: Network timeout");
+      }
+      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle);
+      // Expect V2 schema calls
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
+      expect(mockYDocInstance.getMap).toHaveBeenCalledWith("rowData");
+      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("columnOrder");
+      expect(mockYDocInstance.getArray).toHaveBeenCalledWith("rowOrder");
+      expect(mockYDocInstance.transact).toHaveBeenCalled();
     });
 
     it("should return error if LIVEBLOCKS_SECRET_KEY is not set", async () => {

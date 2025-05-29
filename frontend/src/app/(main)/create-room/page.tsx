@@ -71,6 +71,14 @@ export default function CreateRoom() {
       form.reset();
       mutate("/api/documents");
       setIsSubmitting(false);
+
+      // Handle AI suggestions feedback
+      if (state.aiSuggestionsError) {
+        toast.error(`AI suggestions failed: ${state.aiSuggestionsError}. Using default column names.`);
+      } else if (state.aiSuggestionsUsed) {
+        toast.success("AI-powered column suggestions applied successfully!");
+      }
+
       if (state.documentId) {
         router.push(`/document/${state.documentId}`);
       }

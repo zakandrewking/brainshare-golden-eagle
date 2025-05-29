@@ -7,6 +7,8 @@ import { Liveblocks, RoomData } from "@liveblocks/node";
 
 import { createClient } from "@/utils/supabase/server";
 
+import { generateTableInitialization } from "./ai-suggestions";
+
 interface ActionResultSuccess {
   success: true;
   data: RoomData[];
@@ -21,6 +23,8 @@ type GetRoomsResult = ActionResultSuccess | ActionResultError;
 interface CreateRoomResultSuccess {
   success: true;
   data: RoomData; // Return the created room data
+  aiSuggestionsUsed?: boolean; // Whether AI suggestions were successfully used
+  aiSuggestionsError?: string; // Error message if AI suggestions failed
 }
 interface CreateRoomResultError {
   success: false;
@@ -93,6 +97,8 @@ export interface HandleCreateRoomFormState {
   };
   createdRoomData?: RoomData; // Optionally return created room data
   documentId?: string; // Add document ID for navigation
+  aiSuggestionsUsed?: boolean; // Whether AI suggestions were successfully used
+  aiSuggestionsError?: string; // Error message if AI suggestions failed
 }
 
 export async function handleCreateRoomForm(
@@ -158,7 +164,7 @@ export async function handleCreateRoomForm(
   }
 
   // 2. Create Liveblocks room
-  const liveblocksResult = await createLiveblocksRoom(name, docType);
+  const liveblocksResult = await createLiveblocksRoom(name, docType, name);
 
   if (!liveblocksResult.success) {
     // Liveblocks room creation failed, attempt to delete the Supabase document
@@ -201,6 +207,8 @@ export async function handleCreateRoomForm(
     }' (Type: ${docType.toUpperCase()}) and database record created successfully!`,
     createdRoomData: liveblocksResult.data,
     documentId: supabaseDocId,
+    aiSuggestionsUsed: liveblocksResult.aiSuggestionsUsed,
+    aiSuggestionsError: liveblocksResult.aiSuggestionsError,
   };
 }
 
@@ -246,7 +254,8 @@ export async function getLiveblocksRooms(): Promise<GetRoomsResult> {
 // Function to create a room
 export async function createLiveblocksRoom(
   roomId: string,
-  docType: "text" | "table"
+  docType: "text" | "table",
+  documentTitle?: string
 ): Promise<CreateRoomResult> {
   if (!process.env.LIVEBLOCKS_SECRET_KEY) {
     console.error("LIVEBLOCKS_SECRET_KEY is not set.");
@@ -283,34 +292,97 @@ export async function createLiveblocksRoom(
   // 2. Create default Yjs content and send initial update
   try {
     const yDoc = new Y.Doc();
+    let aiSuggestionsUsed: boolean | undefined;
+    let aiSuggestionsError: string | undefined;
 
-    // Conditional seeding based on docType
     if (docType === "table") {
-      // Create a Y.Array named 'tableData' to represent the table rows
-      const yTable = yDoc.getArray<Y.Map<unknown>>("tableData");
-      // Create the first row as a Y.Map
-      const firstRow = new Y.Map<unknown>();
-      // Set the value of the first cell (column 'col0')
-      firstRow.set("col0", "Hello️ ");
-      firstRow.set("col1", "World 🌎");
-      // Add the first row to the table array
-      yTable.push([firstRow]);
+      // Use V2 schema for new tables
+      const yMeta = yDoc.getMap<unknown>("metaData");
+      const yColumnDefinitions = yDoc.getMap<{ id: string; name: string; width: number }>("columnDefinitions");
+      const yColumnOrder = yDoc.getArray<string>("columnOrder");
+      const yRowData = yDoc.getMap<Y.Map<string>>("rowData");
+      const yRowOrder = yDoc.getArray<string>("rowOrder");
+
+      let primaryColumnName = "Item";
+      let secondaryColumnName = "Description";
+      let primaryValue = "Sample Item";
+      let secondaryValue = "Sample Description";
+
+      if (documentTitle) {
+        try {
+          const aiSuggestions = await generateTableInitialization(documentTitle);
+
+          if (aiSuggestions.error) {
+            aiSuggestionsUsed = false;
+            aiSuggestionsError = aiSuggestions.error;
+            console.warn(`AI suggestions failed: ${aiSuggestions.error}. Using fallback data.`);
+          } else {
+            aiSuggestionsUsed = true;
+            primaryColumnName = aiSuggestions.primaryColumnName || "Item";
+            secondaryColumnName = aiSuggestions.secondaryColumnName || "Description";
+            primaryValue = aiSuggestions.sampleRow?.primaryValue || "Sample Item";
+            secondaryValue = aiSuggestions.sampleRow?.secondaryValue || "Sample Description";
+          }
+        } catch (aiError) {
+          aiSuggestionsUsed = false;
+          aiSuggestionsError = `AI service error: ${(aiError as Error).message}`;
+          console.warn(`AI suggestions error: ${aiError}. Using fallback data.`);
+        }
+      } else {
+        aiSuggestionsUsed = false;
+      }
+
+      // Create V2 schema data
+      yDoc.transact(() => {
+        // Set schema version
+        yMeta.set("schemaVersion", 2);
+
+        // Create column definitions
+        const col1Id = crypto.randomUUID();
+        const col2Id = crypto.randomUUID();
+
+        yColumnDefinitions.set(col1Id, {
+          id: col1Id,
+          name: primaryColumnName,
+          width: 150
+        });
+
+        yColumnDefinitions.set(col2Id, {
+          id: col2Id,
+          name: secondaryColumnName,
+          width: 150
+        });
+
+        // Set column order
+        yColumnOrder.push([col1Id, col2Id]);
+
+        // Create initial row
+        const rowId = crypto.randomUUID();
+        const rowMap = new Y.Map<string>();
+        rowMap.set(col1Id, primaryValue);
+        rowMap.set(col2Id, secondaryValue);
+        yRowData.set(rowId, rowMap);
+
+        // Set row order
+        yRowOrder.push([rowId]);
+      });
     } else {
-      // Default to text seeding (original logic)
+      // For text documents, AI suggestions are not applicable
       const yXmlFragment = yDoc.getXmlFragment("default");
       const paragraph = new Y.XmlElement("paragraph");
-      paragraph.insert(0, [new Y.XmlText("Hello World 🌎️")]); // Keep emoji here too?
+      paragraph.insert(0, [new Y.XmlText("Hello World 🌎️")]);
       yXmlFragment.insert(0, [paragraph]);
     }
 
-    // Encode the state as an update message
     const yUpdate = Y.encodeStateAsUpdate(yDoc);
-
-    // Initialize the Yjs document with the default content
     await liveblocks.sendYjsBinaryUpdate(roomId, yUpdate);
 
-    // Return the created room data (metadata)
-    return { success: true, data: newRoom };
+    return {
+      success: true,
+      data: newRoom,
+      aiSuggestionsUsed,
+      aiSuggestionsError
+    };
   } catch (err: unknown) {
     console.error(`Failed to initialize Yjs data for new room ${roomId}:`, err);
     // Attempt to clean up the created room if initialization fails
