@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  HousePlus,
+  Grid2x2Plus,
 } from "lucide-react";
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -101,8 +101,8 @@ function NavigationButtonWithDrawer() {
                 className="w-full my-4 justify-center"
                 setOpen={setWillOpen}
               >
-                <HousePlus className="mr-2" size={16} />
-                Create a room
+                <Grid2x2Plus className="mr-2" size={16} />
+                Create a doc
               </NavButton>
 
               <NavButton

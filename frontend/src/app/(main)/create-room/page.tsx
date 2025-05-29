@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
@@ -51,6 +53,8 @@ export default function CreateRoom() {
     FormData
   >(handleCreateRoomForm, null);
   const { mutate } = useSWRConfig();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -66,9 +70,12 @@ export default function CreateRoom() {
       toast.success(state.message);
       form.reset();
       mutate("/api/documents");
-      if (state.createdRoomData) {
+      setIsSubmitting(false);
+      if (state.documentId) {
+        router.push(`/document/${state.documentId}`);
       }
     } else if (state?.errors) {
+      setIsSubmitting(false);
       if (state.errors.name) {
         form.setError("name", {
           type: "server",
@@ -91,7 +98,11 @@ export default function CreateRoom() {
         toast.error(state.errors._form.join(", "));
       }
     }
-  }, [state, form, mutate]);
+  }, [state, form, mutate, router]);
+
+  const handleSubmit = () => {
+    setIsSubmitting(true);
+  };
 
   return (
     <Container>
@@ -100,10 +111,10 @@ export default function CreateRoom() {
         description="An open space to collaborate and jot down ideas"
       />
       <Stack direction="col" className="w-full mt-8" gap={6}>
-        <form action={formAction} className="space-y-6 w-full">
+        <form action={formAction} onSubmit={handleSubmit} className="space-y-6 w-full">
           <div>
             <Label htmlFor="name">Room Name</Label>
-            <Input id="name" {...form.register("name")} />
+            <Input id="name" {...form.register("name")} disabled={isSubmitting} />
             {form.formState.errors.name && (
               <p className="text-sm text-red-500 mt-1">
                 {form.formState.errors.name.message}
@@ -112,7 +123,7 @@ export default function CreateRoom() {
           </div>
           <div>
             <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea id="description" {...form.register("description")} />
+            <Textarea id="description" {...form.register("description")} disabled={isSubmitting} />
             {form.formState.errors.description && (
               <p className="text-sm text-red-500 mt-1">
                 {form.formState.errors.description.message}
@@ -129,12 +140,12 @@ export default function CreateRoom() {
                 })
               }
               name="docType"
+              disabled={isSubmitting}
             >
               <SelectTrigger id="docType" className="w-full">
                 <SelectValue placeholder="Select document type" />
               </SelectTrigger>
               <SelectContent>
-                {/* <SelectItem value="text">Text Document</SelectItem> */}
                 <SelectItem value="table">Table Document</SelectItem>
               </SelectContent>
             </Select>
@@ -144,8 +155,15 @@ export default function CreateRoom() {
               </p>
             )}
           </div>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Creating..." : "Create Room"}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Room"
+            )}
           </Button>
         </form>
       </Stack>

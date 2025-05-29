@@ -92,6 +92,7 @@ export interface HandleCreateRoomFormState {
     _form?: string[]; // For general form errors not tied to a specific field
   };
   createdRoomData?: RoomData; // Optionally return created room data
+  documentId?: string; // Add document ID for navigation
 }
 
 export async function handleCreateRoomForm(
@@ -199,6 +200,7 @@ export async function handleCreateRoomForm(
       liveblocksResult.data.id
     }' (Type: ${docType.toUpperCase()}) and database record created successfully!`,
     createdRoomData: liveblocksResult.data,
+    documentId: supabaseDocId,
   };
 }
 

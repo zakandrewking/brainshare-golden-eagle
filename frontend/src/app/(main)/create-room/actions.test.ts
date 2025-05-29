@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
 import type { RoomData } from "@liveblocks/node";
@@ -254,6 +261,7 @@ describe("Room Creation Actions", () => {
           "Room 'test-room' (Type: TEXT) and database record created successfully!"
         );
         expect(result.createdRoomData).toEqual(roomData);
+        expect(result.documentId).toBe(mockSupabaseDocId);
       }
       expect(mockSupabaseClient.from).toHaveBeenCalledWith("document");
       expect(mockSupabaseInsert).toHaveBeenCalledWith({
