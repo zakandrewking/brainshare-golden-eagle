@@ -1,6 +1,6 @@
 import {
-  Orbitron,
   Rajdhani as FontTitle,
+  Tilt_Neon,
   Ubuntu as FontSans,
 } from "next/font/google";
 
@@ -17,9 +17,9 @@ export const fontTitle = FontTitle({
   fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
 
-export const fontOrbitron = Orbitron({
+export const fontOrbitron = Tilt_Neon({
   subsets: ["latin"],
-  weight: ["400", "700", "900"],
+  weight: ["400"],
   variable: "--font-orbitron",
   fallback: ["monospace"],
 });
