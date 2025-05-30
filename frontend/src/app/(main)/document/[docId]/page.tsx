@@ -1,9 +1,5 @@
-import DocumentSettingsDropdown from "@/components/document-settings-dropdown";
-import FlexTitle from "@/components/flex-title";
-import LiveTable from "@/components/live-table/LiveTable";
-import Container from "@/components/ui/container";
-
 import { getDocumentById } from "./actions";
+import DocumentPageClient from "./document-page-client";
 
 interface DocumentPageProps {
   params: Promise<{ docId: string }>;
@@ -13,20 +9,13 @@ export default async function DocumentPage({
   params,
 }: DocumentPageProps) {
   const { docId } = await params;
-  const document = await getDocumentById(docId);
-  const pageTitle = document ? `Document: ${document.title}` : `Document: ${docId}`;
-  const pageDescription = document?.description || `Live collaborative table for document ${document?.title}.`;
 
-  const documentTitleForPrompt = document?.title ?? docId;
+  let document = null;
+  try {
+    document = await getDocumentById(docId);
+  } catch (error) {
+    console.error("Failed to fetch document:", error);
+  }
 
-  return (
-    <Container>
-      <DocumentSettingsDropdown
-        docId={docId}
-        documentTitle={document?.title}
-      />
-      <FlexTitle title={pageTitle} description={pageDescription} />
-      <LiveTable tableId={document?.liveblocks_id || docId} documentTitle={documentTitleForPrompt} documentDescription={pageDescription} />
-    </Container>
-  );
+  return <DocumentPageClient docId={docId} initialDocument={document} />;
 }

@@ -8,26 +8,20 @@ import {
 import { render, screen } from "@testing-library/react";
 
 import DocumentPage from "@/app/(main)/document/[docId]/page";
-import LiveTable from "@/components/live-table/LiveTable";
 
-vi.mock("@/components/live-table/LiveTable", () => ({
-  default: vi.fn(({ tableId }) => <div data-testid="live-table">{tableId}</div>),
-}));
-
-vi.mock("@/components/flex-title", () => ({
-  default: vi.fn(({ title, description }) => (
-    <div data-testid="flex-title">
-      <h1>{title}</h1>
-      <p>{description}</p>
-    </div>
-  )),
-}));
-
-vi.mock("@/components/document-settings-dropdown", () => ({
-  default: vi.fn(({ docId, documentTitle }) => (
-    <div data-testid="document-settings-dropdown">
+vi.mock("@/app/(main)/document/[docId]/document-page-client", () => ({
+  default: vi.fn(({ docId, initialDocument }) => (
+    <div data-testid="document-page-client">
       <span>DocId: {docId}</span>
-      <span>Title: {documentTitle}</span>
+      {initialDocument ? (
+        <div>
+          <span>Title: {initialDocument.title}</span>
+          <span>Description: {initialDocument.description}</span>
+          <span>LiveblocksId: {initialDocument.liveblocks_id}</span>
+        </div>
+      ) : (
+        <span>No document</span>
+      )}
     </div>
   )),
 }));
@@ -42,37 +36,26 @@ vi.mock("@/app/(main)/document/[docId]/actions", () => ({
 }));
 
 describe("DocumentPage", () => {
-  it("should render FlexTitle, LiveTable, and DocumentSettingsDropdown with correct props", async () => {
+  it("should render DocumentPageClient with correct props when document exists", async () => {
     const mockDocId = "test-doc-123";
-    const mockLiveblocksId = "test-room-123";
     render(await DocumentPage({params: Promise.resolve({ docId: mockDocId })}));
 
-    // Check if DocumentSettingsDropdown is rendered with correct props
-    expect(screen.getByTestId("document-settings-dropdown")).toBeInTheDocument();
+    expect(screen.getByTestId("document-page-client")).toBeInTheDocument();
     expect(screen.getByText("DocId: test-doc-123")).toBeInTheDocument();
     expect(screen.getByText("Title: Test Document")).toBeInTheDocument();
+    expect(screen.getByText("Description: Test document description")).toBeInTheDocument();
+    expect(screen.getByText("LiveblocksId: test-room-123")).toBeInTheDocument();
+  });
 
-    // Check if FlexTitle is rendered with correct title and description
-    expect(await screen.findByTestId("flex-title")).toBeInTheDocument();
-    expect(screen.getByText("Document: Test Document")).toBeInTheDocument();
-    expect(
-      screen.getByText("Test document description")
-    ).toBeInTheDocument();
+  it("should render DocumentPageClient with null document when getDocumentById fails", async () => {
+    const { getDocumentById } = await import("@/app/(main)/document/[docId]/actions");
+    vi.mocked(getDocumentById).mockRejectedValueOnce(new Error("Document not found"));
 
-    // Check if LiveTable is rendered with the correct tableId
-    const liveTableComponent = screen.getByTestId("live-table");
-    expect(liveTableComponent).toBeInTheDocument();
-    expect(liveTableComponent).toHaveTextContent(mockLiveblocksId);
+    const mockDocId = "nonexistent-doc";
+    render(await DocumentPage({params: Promise.resolve({ docId: mockDocId })}));
 
-    // Check if the LiveTable mock was called with the correct props
-    const LiveTableMock = vi.mocked(LiveTable);
-    expect(LiveTableMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tableId: mockLiveblocksId,
-        documentTitle: "Test Document",
-        documentDescription: "Test document description"
-      }),
-      undefined
-    );
+    expect(screen.getByTestId("document-page-client")).toBeInTheDocument();
+    expect(screen.getByText("DocId: nonexistent-doc")).toBeInTheDocument();
+    expect(screen.getByText("No document")).toBeInTheDocument();
   });
 });

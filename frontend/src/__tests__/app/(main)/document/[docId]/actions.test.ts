@@ -10,6 +10,7 @@ import { deleteLiveblocksRoom } from "@/app/(main)/create-room/actions";
 import {
   deleteDocument,
   getDocumentById,
+  updateDocument,
 } from "@/app/(main)/document/[docId]/actions";
 
 const mockSupabase = {
@@ -223,6 +224,106 @@ describe("Document Actions", () => {
 
       expect(result).toEqual({
         error: "An unknown error occurred while deleting the document.",
+      });
+    });
+  });
+
+  describe("updateDocument", () => {
+    it("should return success when update is successful", async () => {
+      mockSupabase.from.mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
+            error: null,
+          }),
+        }),
+      });
+
+      const result = await updateDocument("test-doc-123", {
+        title: "Updated Title",
+        description: "Updated Description",
+      });
+
+      expect(result).toEqual({ success: true });
+      expect(mockSupabase.from).toHaveBeenCalledWith("document");
+    });
+
+    it("should return error when database update fails", async () => {
+      const mockError = { message: "Database error" };
+
+      mockSupabase.from.mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
+            error: mockError,
+          }),
+        }),
+      });
+
+      const result = await updateDocument("test-doc-123", {
+        title: "Updated Title",
+      });
+
+      expect(result).toEqual({
+        error: "Failed to update document: Database error",
+      });
+    });
+
+    it("should handle partial updates (title only)", async () => {
+      mockSupabase.from.mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
+            error: null,
+          }),
+        }),
+      });
+
+      const result = await updateDocument("test-doc-123", {
+        title: "Updated Title Only",
+      });
+
+      expect(result).toEqual({ success: true });
+    });
+
+    it("should handle partial updates (description only)", async () => {
+      mockSupabase.from.mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
+            error: null,
+          }),
+        }),
+      });
+
+      const result = await updateDocument("test-doc-123", {
+        description: "Updated Description Only",
+      });
+
+      expect(result).toEqual({ success: true });
+    });
+
+    it("should return error when an exception is thrown", async () => {
+      mockSupabase.from.mockImplementation(() => {
+        throw new Error("Network error");
+      });
+
+      const result = await updateDocument("test-doc-123", {
+        title: "Updated Title",
+      });
+
+      expect(result).toEqual({
+        error: "Failed to update document: Network error",
+      });
+    });
+
+    it("should return generic error when unknown error occurs", async () => {
+      mockSupabase.from.mockImplementation(() => {
+        throw "Unknown error";
+      });
+
+      const result = await updateDocument("test-doc-123", {
+        title: "Updated Title",
+      });
+
+      expect(result).toEqual({
+        error: "An unknown error occurred while updating the document.",
       });
     });
   });

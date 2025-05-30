@@ -57,3 +57,33 @@ export async function deleteDocument(docId: string): Promise<{
     return { error: "An unknown error occurred while deleting the document." };
   }
 }
+
+export async function updateDocument(
+  docId: string,
+  updates: { title?: string; description?: string }
+): Promise<{
+  success?: boolean;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("document")
+      .update(updates)
+      .eq("id", docId);
+
+    if (error) {
+      console.error("Error updating document:", error);
+      return { error: `Failed to update document: ${error.message}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating document:", error);
+    if (error instanceof Error) {
+      return { error: `Failed to update document: ${error.message}` };
+    }
+    return { error: "An unknown error occurred while updating the document." };
+  }
+}
