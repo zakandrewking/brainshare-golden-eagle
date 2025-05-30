@@ -16,7 +16,6 @@ import {
   type CellPosition,
   type SelectionArea,
   useSelectedCells,
-  useSelectionStore,
 } from "@/stores/selectionStore";
 
 import generateNewColumns, {
@@ -156,7 +155,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   useUpdatedSelf(yProvider);
 
   // selection store
-  const setSelectedCell = useSelectionStore((state) => state.setSelectedCell);
   const selectedCells = useSelectedCells();
 
   // --- Load status ---
@@ -171,20 +169,18 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   const handleCellFocus = useCallback(
     (rowIndex: number, colIndex: number) => {
-      setSelectedCell({ rowIndex, colIndex });
       yProvider.awareness.setLocalStateField("selectedCell", {
         rowIndex,
         colIndex,
       });
     },
-    [setSelectedCell, yProvider.awareness]
+    [yProvider.awareness]
   );
 
   // Function to handle cell blur
   const handleCellBlur = useCallback(() => {
-    setSelectedCell(null);
     yProvider.awareness.setLocalStateField("selectedCell", null);
-  }, [setSelectedCell, yProvider.awareness]);
+  }, [yProvider.awareness]);
 
   // Header editing functions
   const handleHeaderDoubleClick = useCallback(

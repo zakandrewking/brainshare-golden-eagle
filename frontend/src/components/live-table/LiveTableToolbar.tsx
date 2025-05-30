@@ -116,6 +116,7 @@ const LiveTableToolbar: React.FC = () => {
     deleteColumns,
     headers,
     tableData,
+    isCellLocked,
   } = useLiveTable();
 
   const selectedCell = useSelectionStore((state) => state.selectedCell);
@@ -159,6 +160,16 @@ const LiveTableToolbar: React.FC = () => {
       ...new Set(selectedCells.map((cell) => cell.rowIndex)),
     ];
     return uniqueIndices.sort((a, b) => a - b);
+  };
+
+  const hasAnySelectedCellLocked = (): boolean => {
+    if (!selectedCells || selectedCells.length === 0) {
+      if (selectedCell) {
+        return isCellLocked(selectedCell.rowIndex, selectedCell.colIndex);
+      }
+      return false;
+    }
+    return selectedCells.some((cell) => isCellLocked(cell.rowIndex, cell.colIndex));
   };
 
   const handleAddRowRelative = useCallback((direction: "above" | "below") => {
@@ -434,8 +445,8 @@ const LiveTableToolbar: React.FC = () => {
   // Button enable/disable conditions
   const canAddRows = isTableLoaded && !isAnyOperationPending && headers && headers.length > 0;
   const canAddColumns = isTableLoaded && !isAnyOperationPending;
-  const canDeleteRow = isTableLoaded && !isAnyOperationPending && selectedRowIndices.length > 0;
-  const canDeleteColumn = isTableLoaded && !isAnyOperationPending && uniqueSelectedColIndices.length > 0;
+  const canDeleteRow = isTableLoaded && !isAnyOperationPending && selectedRowIndices.length > 0 && !hasAnySelectedCellLocked();
+  const canDeleteColumn = isTableLoaded && !isAnyOperationPending && uniqueSelectedColIndices.length > 0 && !hasAnySelectedCellLocked();
   const canDownload = isTableLoaded && headers && headers.length > 0 && tableData && tableData.length > 0;
 
   const isAddColumnLeftPending = isPending && pendingOperation === "add-column-left";
@@ -549,6 +560,7 @@ const LiveTableToolbar: React.FC = () => {
     handleAddColumnRelative,
     handleDeleteColumns,
     handleDownloadCsv,
+    hasAnySelectedCellLocked,
   ]);
 
   // Calculate which buttons should be visible

@@ -169,11 +169,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
     const selectedCellForTest = { rowIndex: selectedRowIndex, colIndex: 0 };
 
     const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue({
-      ...currentMockData,
-      selectedCells: [selectedCellForTest],
-      isCellSelected: vi.fn((rI) => rI === selectedRowIndex),
-    });
+    vi.mocked(useLiveTable).mockReturnValue(currentMockData);
     vi.mocked(useSelectionStore).mockReturnValue(selectedCellForTest);
     vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
 
@@ -237,11 +233,9 @@ describe("LiveTableToolbar - Delete Rows", () => {
 
   it("should not delete any row if no cells are selected and button should be disabled", () => {
     const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue({
-      ...currentMockData,
-    });
-    vi.mocked(useSelectionStore).mockReturnValue(currentMockData.selectedCell);
-    vi.mocked(useSelectedCells).mockReturnValue(currentMockData.selectedCells);
+    vi.mocked(useLiveTable).mockReturnValue(currentMockData);
+    vi.mocked(useSelectionStore).mockReturnValue(null);
+    vi.mocked(useSelectedCells).mockReturnValue([]);
 
     render(
       <TooltipProvider>
@@ -250,9 +244,43 @@ describe("LiveTableToolbar - Delete Rows", () => {
     );
 
     const deleteButton = findDeleteRowButton();
+    fireEvent.mouseDown(deleteButton!);
+
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).toBeDisabled();
     expect(deleteButton).toHaveAttribute("aria-label", "Delete Row");
+
+    const initialRowCount = liveTableDocInstance.yRowOrder.length;
+    expect(liveTableDocInstance.yRowOrder.length).toBe(initialRowCount);
+    expect(mockDeleteRows).not.toHaveBeenCalled();
+  });
+
+  it("should not delete any row if cells are locked", () => {
+    const rowIndicesToDelete = [0, 2];
+    const selectedCellsForTest = rowIndicesToDelete.map((rowIndex) => ({
+      rowIndex,
+      colIndex: 0,
+    }));
+    const currentMockData = useLiveTable();
+    vi.mocked(useLiveTable).mockReturnValue({
+      ...currentMockData,
+      isCellLocked: vi.fn().mockReturnValue(true),
+    });
+    vi.mocked(useSelectionStore).mockReturnValue(selectedCellsForTest[0]);
+    vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
+
+    render(
+      <TooltipProvider>
+        <LiveTableToolbar />
+      </TooltipProvider>
+    );
+
+    const deleteButton = findDeleteRowButton();
+    fireEvent.mouseDown(deleteButton!);
+
+    expect(deleteButton).toBeInTheDocument();
+    expect(deleteButton).toBeDisabled();
+    expect(deleteButton).toHaveAttribute("aria-label", "Delete 2 Rows");
 
     const initialRowCount = liveTableDocInstance.yRowOrder.length;
     expect(liveTableDocInstance.yRowOrder.length).toBe(initialRowCount);

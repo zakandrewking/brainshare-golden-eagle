@@ -6,16 +6,6 @@ import { getYjsProviderForRoom } from "@liveblocks/yjs";
 
 import { DEFAULT_COL_WIDTH } from "./config";
 
-// export type EditLockType =
-//   | "cell-range"
-//   | "cell-range-columns-locked"
-//   | "cell-range-rows-locked";
-
-// export interface EditLock {
-//   type: EditLockType;
-//   evidence: string;
-// }
-
 export interface SortingConfig {
   // key is the columnId (in V2) or header string (in V1)
   column: string;

@@ -296,4 +296,36 @@ describe("LiveTableToolbar - Delete Column", () => {
     expect(liveTableDocInstance.yColumnOrder.length).toBe(initialColCount);
     expect(mockDeleteColumns).not.toHaveBeenCalled();
   });
+
+  it("should not delete any column if cells are locked", () => {
+    const colIndicesToDelete = [0, 2];
+    const selectedCellsForTest = colIndicesToDelete.map((colIndex) => ({
+      rowIndex: 0,
+      colIndex,
+    }));
+    const currentMockData = useLiveTable();
+    vi.mocked(useLiveTable).mockReturnValue({
+      ...currentMockData,
+      isCellLocked: vi.fn().mockReturnValue(true),
+    });
+    vi.mocked(useSelectionStore).mockReturnValue(selectedCellsForTest[0]);
+    vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
+
+    render(
+      <TooltipProvider>
+        <LiveTableToolbar />
+      </TooltipProvider>
+    );
+
+    const deleteButton = findDeleteColumnButton();
+    fireEvent.mouseDown(deleteButton!);
+
+    expect(deleteButton).toBeInTheDocument();
+    expect(deleteButton).toBeDisabled();
+    expect(deleteButton).toHaveAttribute("aria-label", "Delete 2 Columns");
+
+    const initialColCount = liveTableDocInstance.yColumnOrder.length;
+    expect(liveTableDocInstance.yColumnOrder.length).toBe(initialColCount);
+    expect(mockDeleteColumns).not.toHaveBeenCalled();
+  });
 });

@@ -148,10 +148,9 @@ const TableCell: React.FC<TableCellProps> = ({
             setEditingCell(null);
           }
         }}
-        disabled={isLocked}
         className={`w-full h-full p-2 border-none focus:outline-none ${
           isLocked
-            ? "cursor-not-allowed bg-gray-300 dark:bg-gray-700"
+            ? "bg-gray-300 dark:bg-gray-700"
             : isEditing
             ? "focus:ring-2 focus:ring-yellow-400"
             : "focus:ring-2 focus:ring-blue-300"
