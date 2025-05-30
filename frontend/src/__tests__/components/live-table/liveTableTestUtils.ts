@@ -164,6 +164,10 @@ export const getLiveTableMockValues = (
       .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
     deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     reorderColumn: vi.fn(),
+    // awareness
+    awarenessStates: new Map(),
+    cursorsData: [],
+    getCursorsForCell: vi.fn().mockReturnValue(undefined),
     ...overrides,
   };
 

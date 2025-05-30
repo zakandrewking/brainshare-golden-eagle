@@ -16,13 +16,18 @@ import {
   type CellPosition,
   type SelectionArea,
   useSelectedCells,
+  useSelectionStore,
 } from "@/stores/selectionStore";
 
 import generateNewColumns, {
   GeneratedColumn,
 } from "./actions/generateNewColumns";
 import generateNewRows from "./actions/generateNewRows";
-import { initializeLiveblocksRoom } from "./LiveTableDoc";
+import {
+  type AwarenessState,
+  type CursorDataForCell,
+  initializeLiveblocksRoom,
+} from "./LiveTableDoc";
 import { useUpdatedSelf } from "./useUpdatedSelf";
 
 export interface LiveTableContextType {
@@ -82,6 +87,10 @@ export interface LiveTableContextType {
   deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
   // column reordering
   reorderColumn: (fromIndex: number, toIndex: number) => void;
+  // awareness
+  awarenessStates: Map<number, AwarenessState> | undefined;
+  cursorsData: CursorDataForCell[] | undefined;
+  getCursorsForCell: (rowIndex: number, colIndex: number) => CursorDataForCell | undefined;
 }
 
 export type { CellPosition, SelectionArea };
@@ -127,6 +136,14 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     undefined
   );
 
+  // Awareness state
+  const [awarenessStates, setAwarenessStates] = useState<
+    Map<number, AwarenessState> | undefined
+  >(undefined);
+  const [cursorsData, setCursorsData] = useState<
+    CursorDataForCell[] | undefined
+  >(undefined);
+
   // Header editing state
   const [editingHeaderIndex, setEditingHeaderIndex] = useState<number | null>(
     null
@@ -149,6 +166,8 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   liveTableDoc.headersUpdateCallback = setHeaders;
   liveTableDoc.columnWidthsUpdateCallback = setColumnWidths;
   liveTableDoc.lockedCellsUpdateCallback = setLockedCells;
+  liveTableDoc.awarenessStatesUpdateCallback = setAwarenessStates;
+  liveTableDoc.cursorsDataUpdateCallback = setCursorsData;
   const undoManager = useMemo(() => liveTableDoc.undoManager, [liveTableDoc]);
 
   // update self info in awareness
@@ -156,6 +175,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   // selection store
   const selectedCells = useSelectedCells();
+  const selectionArea = useSelectionStore((state) => state.selectionArea);
 
   // --- Load status ---
 
@@ -164,6 +184,51 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       setIsTableLoaded(true);
     }
   }, [tableData, headers, isTableLoaded, columnWidths]);
+
+  // --- Awareness Management ---
+
+  // Memoized function to update React state with awareness changes
+  const updateAwarenessStateCallback = useCallback(() => {
+    const currentStates = new Map(yProvider.awareness.getStates() as Map<number, AwarenessState>);
+    liveTableDoc.updateAwarenessState(currentStates);
+  }, [yProvider.awareness, liveTableDoc]);
+
+  // Set up the awareness observer
+  useEffect(() => {
+    liveTableDoc.updateAwarenessStateObserver = updateAwarenessStateCallback;
+  }, [liveTableDoc, updateAwarenessStateCallback]);
+
+  // Effect to subscribe to awareness changes
+  useEffect(() => {
+    // Initial load of awareness states
+    updateAwarenessStateCallback();
+
+    // Listen for awareness changes
+    yProvider.awareness.on("update", updateAwarenessStateCallback);
+
+    // Cleanup on unmount
+    return () => {
+      yProvider.awareness.off("update", updateAwarenessStateCallback);
+    };
+  }, [updateAwarenessStateCallback, yProvider.awareness]);
+
+  // Update awareness when local selection changes
+  useEffect(() => {
+    yProvider.awareness.setLocalStateField("selectionArea", {
+      startCell: selectionArea.startCell ? { ...selectionArea.startCell } : null,
+      endCell: selectionArea.endCell ? { ...selectionArea.endCell } : null,
+    });
+  }, [selectedCells, yProvider.awareness, selectionArea]);
+
+  // Helper to find cursors for a specific cell from the pre-computed data
+  const getCursorsForCell = useCallback((
+    rowIndex: number,
+    colIndex: number
+  ): CursorDataForCell | undefined => {
+    return cursorsData?.find(
+      (data) => data.rowIndex === rowIndex && data.colIndex === colIndex
+    );
+  }, [cursorsData]);
 
   // --- Awareness & Focus ---
 
@@ -695,6 +760,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         generateAndInsertColumns,
         deleteColumns,
         reorderColumn,
+        awarenessStates,
+        cursorsData,
+        getCursorsForCell,
       }}
     >
       {children}

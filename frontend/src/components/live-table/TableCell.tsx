@@ -29,6 +29,7 @@ const TableCell: React.FC<TableCellProps> = ({
     setEditingCell,
     handleCellFocus,
     isCellLocked,
+    getCursorsForCell,
   } = useLiveTable();
 
   const selectedCell = useSelectionStore((state) => state.selectedCell);
@@ -43,6 +44,27 @@ const TableCell: React.FC<TableCellProps> = ({
   const isEditing =
     editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
   const isLocked = isCellLocked(rowIndex, colIndex);
+
+  // Get cursors for this cell (other users' selections)
+  const cursorsForCell = getCursorsForCell(rowIndex, colIndex);
+  const hasOtherUserCursors = cursorsForCell && cursorsForCell.cursors.length > 0;
+
+  // Determine border color based on selection/cursors
+  let borderColor = "transparent";
+  let borderWidth = "1px";
+
+  if (isSelected) {
+    borderColor = "blue";
+    borderWidth = "2px";
+  } else if (isInSelection) {
+    borderColor = "rgba(59, 130, 246, 0.5)";
+    borderWidth = "1px";
+  } else if (hasOtherUserCursors) {
+    // Use the first user's color for the border
+    const firstUserColor = cursorsForCell.cursors[0]?.user?.color ?? "gray";
+    borderColor = firstUserColor;
+    borderWidth = "2px";
+  }
 
   const handleCellMouseDown = useCallback(
     (event: React.MouseEvent) => {
@@ -117,17 +139,15 @@ const TableCell: React.FC<TableCellProps> = ({
       data-locked={isLocked ? "true" : "false"}
       data-testid="table-cell"
       style={{
-        boxShadow: isSelected
-          ? "inset 0 0 0 2px blue"
-          : isInSelection
-          ? "inset 0 0 0 1px rgba(59, 130, 246, 0.5)"
-          : undefined,
+        boxShadow: `inset 0 0 0 ${borderWidth} ${borderColor}`,
         backgroundColor: isLocked
           ? "rgba(128, 128, 128, 0.2)"
           : isEditing
           ? "rgba(255, 255, 200, 0.2)"
           : isInSelection
           ? "rgba(59, 130, 246, 0.1)"
+          : hasOtherUserCursors
+          ? `${cursorsForCell.cursors[0]?.user?.color}20` // 20 for low opacity
           : undefined,
       }}
       onMouseDown={handleCellMouseDown}

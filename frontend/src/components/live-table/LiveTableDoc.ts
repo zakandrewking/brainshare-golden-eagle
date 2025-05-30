@@ -35,6 +35,36 @@ export interface LockRange {
   cells: CellLock[]; // Array of locked cells using stable IDs
 }
 
+// Awareness-related types
+export interface CellPosition {
+  rowIndex: number;
+  colIndex: number;
+}
+
+export interface SelectionArea {
+  startCell: CellPosition | null;
+  endCell: CellPosition | null;
+}
+
+export interface AwarenessState {
+  user?: {
+    name: string;
+    color: string;
+  };
+  selectedCell?: CellPosition | null;
+  selectionArea?: SelectionArea | null;
+}
+
+export interface CursorInfo {
+  user?: { name: string; color: string };
+}
+
+export interface CursorDataForCell {
+  rowIndex: number;
+  colIndex: number;
+  cursors: CursorInfo[];
+}
+
 const CURRENT_SCHEMA_VERSION = 2;
 
 export class LiveTableDoc {
@@ -76,6 +106,14 @@ export class LiveTableDoc {
     | ((lockedCells: Set<string>) => void)
     | undefined;
 
+  // Awareness-related callbacks
+  public awarenessStatesUpdateCallback:
+    | ((awarenessStates: Map<number, AwarenessState>) => void)
+    | undefined;
+  public cursorsDataUpdateCallback:
+    | ((cursorsData: CursorDataForCell[]) => void)
+    | undefined;
+
   // public editLocks: Y.Map<EditLock>;
 
   // undo/redo manager
@@ -92,6 +130,8 @@ export class LiveTableDoc {
   public updateV2RowOrderObserver: () => void;
   // Lock Observers
   public updateLockedCellsObserver: () => void;
+  // Awareness Observers
+  public updateAwarenessStateObserver: () => void;
 
   constructor(yDoc: Y.Doc) {
     this.yDoc = yDoc;
@@ -149,6 +189,10 @@ export class LiveTableDoc {
 
     // Lock observers
     this.updateLockedCellsObserver = this.updateLockedCellsState.bind(this);
+    // Awareness Observers
+    this.updateAwarenessStateObserver = () => {
+      // This will be implemented in LiveTableProvider where we have access to awareness
+    };
   }
 
   public _migrateToV2IfNeeded(force: boolean = false) {
@@ -772,6 +816,82 @@ export class LiveTableDoc {
    */
   getActiveLocks(): LockRange[] {
     return Array.from(this.yActiveLocks.values());
+  }
+
+  /**
+   * Updates awareness states for React components.
+   * This method should be called when awareness changes.
+   */
+  updateAwarenessState(awarenessStates: Map<number, AwarenessState>) {
+    if (this.awarenessStatesUpdateCallback) {
+      this.awarenessStatesUpdateCallback(awarenessStates);
+    }
+
+    // Also update cursors data
+    this.updateCursorsData(awarenessStates);
+  }
+
+  /**
+   * Computes and updates cursor data for all cells based on awareness states.
+   */
+  updateCursorsData(awarenessStates: Map<number, AwarenessState>) {
+    if (!this.cursorsDataUpdateCallback) return;
+
+    const cursorsData: CursorDataForCell[] = [];
+    const rowCount = this.yRowOrder.length;
+    const colCount = this.yColumnOrder.length;
+
+    // Pre-compute cursors for all cells
+    for (let r = 0; r < rowCount; r++) {
+      for (let c = 0; c < colCount; c++) {
+        const cellCursors: CursorInfo[] = [];
+
+        awarenessStates.forEach((state) => {
+          // Check if this user has a selection that includes this cell
+          if (this.isCellInUserSelection(r, c, state)) {
+            cellCursors.push({
+              user: state.user,
+            });
+          }
+        });
+
+        if (cellCursors.length > 0) {
+          cursorsData.push({ rowIndex: r, colIndex: c, cursors: cellCursors });
+        }
+      }
+    }
+
+    this.cursorsDataUpdateCallback(cursorsData);
+  }
+
+  /**
+   * Checks if a cell is within a user's selection area.
+   */
+  private isCellInUserSelection(
+    rowIndex: number,
+    colIndex: number,
+    state: AwarenessState
+  ): boolean {
+    // Check single cell selection
+    if (state.selectedCell &&
+        state.selectedCell.rowIndex === rowIndex &&
+        state.selectedCell.colIndex === colIndex) {
+      return true;
+    }
+
+    // Check selection area
+    if (state.selectionArea?.startCell && state.selectionArea?.endCell) {
+      const { startCell, endCell } = state.selectionArea;
+      const minRow = Math.min(startCell.rowIndex, endCell.rowIndex);
+      const maxRow = Math.max(startCell.rowIndex, endCell.rowIndex);
+      const minCol = Math.min(startCell.colIndex, endCell.colIndex);
+      const maxCol = Math.max(startCell.colIndex, endCell.colIndex);
+
+      return rowIndex >= minRow && rowIndex <= maxRow &&
+             colIndex >= minCol && colIndex <= maxCol;
+    }
+
+    return false;
   }
 }
 
