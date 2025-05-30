@@ -11,7 +11,11 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
 import {
@@ -167,7 +171,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
     const currentMockData = useLiveTable();
     vi.mocked(useLiveTable).mockReturnValue({
       ...currentMockData,
-      selectedCell: selectedCellForTest,
       selectedCells: [selectedCellForTest],
       isCellSelected: vi.fn((rI) => rI === selectedRowIndex),
     });
@@ -190,7 +193,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
     const rowIdShouldExist = initialRowOrder[selectedRowIndex]; // rowId1
     expect(liveTableDocInstance.yRowData.has(rowIdShouldExist)).toBe(true);
 
-    fireEvent.click(deleteButton!);
+    fireEvent.mouseDown(deleteButton!);
 
     expect(mockDeleteRows).toHaveBeenCalledTimes(1);
     expect(mockDeleteRows).toHaveBeenCalledWith([selectedRowIndex]);
@@ -224,7 +227,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
     const initialRowCount = liveTableDocInstance.yRowOrder.length;
     expect(initialRowCount).toBe(initialRowOrder.length);
 
-    fireEvent.click(deleteButton!);
+    fireEvent.mouseDown(deleteButton!);
 
     expect(mockDeleteRows).toHaveBeenCalledTimes(1);
     expect(mockDeleteRows).toHaveBeenCalledWith(

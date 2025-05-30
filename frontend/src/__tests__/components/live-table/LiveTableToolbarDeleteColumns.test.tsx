@@ -11,7 +11,11 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import {
   type CellValue,
@@ -217,7 +221,7 @@ describe("LiveTableToolbar - Delete Column", () => {
       expect(rowMap.has(columnIdToDelete)).toBe(true);
     });
 
-    fireEvent.click(deleteButton!);
+    fireEvent.mouseDown(deleteButton!);
 
     expect(mockDeleteColumns).toHaveBeenCalledTimes(1);
     expect(mockDeleteColumns).toHaveBeenCalledWith([colIndexToDelete]);
@@ -258,7 +262,7 @@ describe("LiveTableToolbar - Delete Column", () => {
       expect(liveTableDocInstance.yColumnDefinitions.has(id)).toBe(true)
     );
 
-    fireEvent.click(deleteButton!);
+    fireEvent.mouseDown(deleteButton!);
 
     expect(mockDeleteColumns).toHaveBeenCalledTimes(1);
     expect(mockDeleteColumns).toHaveBeenCalledWith(

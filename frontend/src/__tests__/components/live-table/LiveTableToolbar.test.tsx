@@ -1,9 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
-import generateNewColumns from "@/components/live-table/actions/generateNewColumns";
+import generateNewColumns
+  from "@/components/live-table/actions/generateNewColumns";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
@@ -48,7 +61,6 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      selectedCell: { rowIndex: 0, colIndex: 0 },
       generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
@@ -104,7 +116,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       name: "Add Column to the Left",
     });
     await act(async () => {
-      fireEvent.click(addLeftButton);
+      fireEvent.mouseDown(addLeftButton);
       await vi.runAllTimersAsync();
     });
 
@@ -130,7 +142,6 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       yDoc: testYDoc,
       yHeaders: testYHeaders,
       yTable: testYTable,
-      selectedCell: mockSelectedCell,
       selectedCells: [mockSelectedCell],
       headers: testYHeaders.toArray(),
       tableData: testYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
@@ -146,7 +157,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     });
 
     await act(async () => {
-      fireEvent.click(addRightButton);
+      fireEvent.mouseDown(addRightButton);
       await vi.runAllTimersAsync();
     });
 
@@ -172,7 +183,6 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       yDoc: testYDoc,
       yHeaders: testYHeaders,
       yTable: testYTable,
-      selectedCell: { rowIndex: 0, colIndex: 0 },
       selectedCells: [{ rowIndex: 0, colIndex: 0 }],
       headers: testYHeaders.toArray(),
       tableData: testYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
@@ -188,7 +198,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     });
 
     await act(async () => {
-      fireEvent.click(addLeftButton);
+      fireEvent.mouseDown(addLeftButton);
       await vi.runAllTimersAsync();
     });
 
@@ -213,7 +223,6 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       yDoc: testYDoc,
       yHeaders: testYHeaders,
       yTable: testYTable,
-      selectedCell: { rowIndex: 0, colIndex: 0 },
       selectedCells: [
         { rowIndex: 0, colIndex: 0 },
         { rowIndex: 0, colIndex: 1 },
@@ -237,7 +246,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       name: "Add 2 Columns to the Left",
     });
     await act(async () => {
-      fireEvent.click(addColumnLeftButton);
+      fireEvent.mouseDown(addColumnLeftButton);
       await vi.runAllTimersAsync();
     });
 
@@ -287,7 +296,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
 
     const mockData = getLiveTableMockValues({
       undoManager: mockUndoManager,
-      selectedCell: { rowIndex: 0, colIndex: 0 },
       selectedCells: [{ rowIndex: 0, colIndex: 0 }],
       tableData: mockYTable.toArray().map((r) => r.toJSON()),
       headers: mockYHeaders.toArray(),
@@ -334,7 +342,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     render(<LiveTableToolbar />);
     const button = screen.getByRole("button", { name: "Add Row Above" });
     await act(async () => {
-      fireEvent.click(button);
+      fireEvent.mouseDown(button);
       await vi.runAllTimersAsync();
     });
 
@@ -387,7 +395,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      selectedCell: primarySelectedCell,
       selectedCells: selectedCellsData,
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
@@ -401,7 +408,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     render(<LiveTableToolbar />);
     const button = screen.getByRole("button", { name: "Add 2 Rows Above" });
     await act(async () => {
-      fireEvent.click(button);
+      fireEvent.mouseDown(button);
       await vi.runAllTimersAsync();
     });
 
@@ -425,7 +432,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
 
     const mockData = getLiveTableMockValues({
       undoManager: mockUndoManager,
-      selectedCell: primarySelectedCell,
       selectedCells: selectedCellsData,
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
@@ -467,7 +473,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     render(<LiveTableToolbar />);
     const button = screen.getByRole("button", { name: "Add Row Above" });
     await act(async () => {
-      fireEvent.click(button);
+      fireEvent.mouseDown(button);
       await vi.runAllTimersAsync();
     });
 
@@ -536,15 +542,12 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      selectedCell: { rowIndex: 0, colIndex: 0 },
       selectedCells: [{ rowIndex: 0, colIndex: 0 }],
       headers: mockYHeaders.toArray(),
       tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
-    vi.mocked(useSelectionStore).mockReturnValue(mockData.selectedCell);
-    vi.mocked(useSelectedCells).mockReturnValue(mockData.selectedCells);
 
     vi.mocked(generateNewColumns).mockReset();
   });
@@ -565,7 +568,6 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       yDoc: mockYDoc,
       yHeaders: mockYHeaders,
       yTable: mockYTable,
-      selectedCell: { rowIndex: 0, colIndex: 0 },
       selectedCells: [
         { rowIndex: 0, colIndex: 0 },
         { rowIndex: 0, colIndex: 1 },
@@ -576,8 +578,11 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
-    vi.mocked(useSelectionStore).mockReturnValue(mockData.selectedCell);
-    vi.mocked(useSelectedCells).mockReturnValue(mockData.selectedCells);
+
+    vi.mocked(useSelectedCells).mockReturnValue([
+      { rowIndex: 0, colIndex: 0 },
+      { rowIndex: 0, colIndex: 1 },
+    ]);
 
     vi.mocked(generateNewColumns).mockResolvedValueOnce({
       generatedColumns: [
@@ -592,7 +597,7 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
     });
 
     await act(async () => {
-      fireEvent.click(addLeftButton);
+      fireEvent.mouseDown(addLeftButton);
       await vi.runAllTimersAsync();
     });
 
@@ -615,7 +620,6 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       yDoc: mockYDoc,
       yHeaders: mockYHeaders,
       yTable: mockYTable,
-      selectedCell: { rowIndex: 0, colIndex: 1 },
       selectedCells: [
         { rowIndex: 0, colIndex: 0 },
         { rowIndex: 0, colIndex: 1 },
@@ -625,14 +629,14 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       undoManager: mockUndoManager,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
-
     vi.mocked(useLiveTable).mockReturnValue(mockData);
-    vi.mocked(useSelectionStore).mockReturnValue(mockData.selectedCell);
-    vi.mocked(useSelectedCells).mockReturnValue(mockData.selectedCells);
 
-    vi.mocked(generateNewColumns).mockResolvedValueOnce({
-      error: "AI multi-column error",
-    });
+    vi.mocked(useSelectedCells).mockReturnValue([
+      { rowIndex: 0, colIndex: 0 },
+      { rowIndex: 0, colIndex: 1 },
+    ]);
+
+    vi.mocked(generateNewColumns).mockRejectedValueOnce(new Error("AI failed"));
 
     render(<LiveTableToolbar />);
     const addRightButton = screen.getByRole("button", {
@@ -640,7 +644,7 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
     });
 
     await act(async () => {
-      fireEvent.click(addRightButton);
+      fireEvent.mouseDown(addRightButton);
       await vi.runAllTimersAsync();
     });
 

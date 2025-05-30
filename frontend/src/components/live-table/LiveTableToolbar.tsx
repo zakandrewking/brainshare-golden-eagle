@@ -1,5 +1,8 @@
 import React, {
+  useCallback,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -12,6 +15,7 @@ import {
   Columns3,
   Download,
   Loader2,
+  MoreVertical,
   Redo,
   Rows3,
   Trash2,
@@ -20,6 +24,13 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -41,6 +52,60 @@ type PendingOperation =
   | "add-column-right"
   | null;
 
+// Button type constants
+const BUTTON_TYPES = {
+  UNDO: "undo",
+  REDO: "redo",
+  ADD_ROW_ABOVE: "add-row-above",
+  ADD_ROW_BELOW: "add-row-below",
+  DELETE_ROWS: "delete-rows",
+  ADD_COL_LEFT: "add-column-left",
+  ADD_COL_RIGHT: "add-column-right",
+  DELETE_COLS: "delete-columns",
+  AI_FILL: "ai-fill",
+  LOCK: "lock",
+  DOWNLOAD: "download",
+} as const;
+
+// Static button configuration
+const BUTTON_ORDER = [
+  BUTTON_TYPES.UNDO,
+  BUTTON_TYPES.REDO,
+  "separator-1",
+  BUTTON_TYPES.ADD_ROW_ABOVE,
+  BUTTON_TYPES.ADD_ROW_BELOW,
+  BUTTON_TYPES.DELETE_ROWS,
+  "separator-2",
+  BUTTON_TYPES.ADD_COL_LEFT,
+  BUTTON_TYPES.ADD_COL_RIGHT,
+  BUTTON_TYPES.DELETE_COLS,
+  "separator-3",
+  BUTTON_TYPES.AI_FILL,
+  "separator-4",
+  BUTTON_TYPES.LOCK,
+  "separator-5",
+  BUTTON_TYPES.DOWNLOAD,
+];
+
+const ESTIMATED_WIDTHS: Record<string, number> = {
+  [BUTTON_TYPES.UNDO]: 36,
+  [BUTTON_TYPES.REDO]: 36,
+  [BUTTON_TYPES.ADD_ROW_ABOVE]: 36,
+  [BUTTON_TYPES.ADD_ROW_BELOW]: 36,
+  [BUTTON_TYPES.DELETE_ROWS]: 52,
+  [BUTTON_TYPES.ADD_COL_LEFT]: 48,
+  [BUTTON_TYPES.ADD_COL_RIGHT]: 48,
+  [BUTTON_TYPES.DELETE_COLS]: 64,
+  [BUTTON_TYPES.AI_FILL]: 100,
+  [BUTTON_TYPES.LOCK]: 36,
+  [BUTTON_TYPES.DOWNLOAD]: 36,
+  "separator-1": 16,
+  "separator-2": 16,
+  "separator-3": 16,
+  "separator-4": 16,
+  "separator-5": 16,
+};
+
 const LiveTableToolbar: React.FC = () => {
   const {
     undoManager,
@@ -61,6 +126,12 @@ const LiveTableToolbar: React.FC = () => {
     useState<PendingOperation>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [visibleButtonIds, setVisibleButtonIds] = useState<string[]>(BUTTON_ORDER);
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const measuredWidthsRef = useRef<Record<string, number>>({});
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isTableEmptyOfRows = !tableData || tableData.length === 0;
   // For disabling buttons, check for any pending operations
@@ -90,7 +161,7 @@ const LiveTableToolbar: React.FC = () => {
     return uniqueIndices.sort((a, b) => a - b);
   };
 
-  const handleAddRowRelative = (direction: "above" | "below") => {
+  const handleAddRowRelative = useCallback((direction: "above" | "below") => {
     if (!isTableLoaded || isAnyOperationPending) return;
     if (!headers || headers.length === 0) {
       toast.info("Cannot add rows: No columns are defined yet.");
@@ -145,9 +216,9 @@ const LiveTableToolbar: React.FC = () => {
         setPendingOperation(null);
       }
     });
-  };
+  }, [isTableLoaded, isAnyOperationPending, headers, tableData, selectedCell, getSelectedRowIndices, generateAndInsertRows]);
 
-  const handleDeleteRows = () => {
+  const handleDeleteRows = useCallback(() => {
     const uniqueRowIndicesToDelete = getSelectedRowIndices().sort(
       (a, b) => b - a
     );
@@ -166,9 +237,9 @@ const LiveTableToolbar: React.FC = () => {
         );
       }
     });
-  };
+  }, [deleteRows, getSelectedRowIndices]);
 
-  const handleAddColumnRelative = (direction: "left" | "right") => {
+  const handleAddColumnRelative = useCallback((direction: "left" | "right") => {
     if (!isTableLoaded || isAnyOperationPending) return;
 
     let numColsToAdd = 1;
@@ -215,9 +286,9 @@ const LiveTableToolbar: React.FC = () => {
         setPendingOperation(null);
       }
     });
-  };
+  }, [isTableLoaded, isAnyOperationPending, headers, selectedCell, getUniqueSelectedColumnIndices, selectedCells, generateAndInsertColumns]);
 
-  const handleDeleteColumns = () => {
+  const handleDeleteColumns = useCallback(() => {
     const uniqueColIndicesToDelete = getUniqueSelectedColumnIndices().sort(
       (a, b) => b - a
     );
@@ -239,10 +310,10 @@ const LiveTableToolbar: React.FC = () => {
         );
       }
     });
-  };
+  }, [deleteColumns, getUniqueSelectedColumnIndices]);
 
   // --- CSV Download Handler ---
-  const handleDownloadCsv = () => {
+  const handleDownloadCsv = useCallback(() => {
     if (!isTableLoaded || !headers || headers.length === 0 || !tableData) {
       console.warn("CSV Download aborted: No headers or table data.");
       return;
@@ -291,22 +362,19 @@ const LiveTableToolbar: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
+  }, [isTableLoaded, headers, tableData]);
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (undoManager && canUndo) {
       undoManager.undo();
     }
-  };
+  }, [undoManager, canUndo]);
 
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     if (undoManager && canRedo) {
       undoManager.redo();
     }
-  };
-
-  // Update conditions based on isTableLoaded
-  // const canOperateOnSelection = !!selectedCell && isTableLoaded; Removed as it's unused
+  }, [undoManager, canRedo]);
 
   const selectedRowIndices = getSelectedRowIndices();
   const uniqueSelectedColIndices = getUniqueSelectedColumnIndices();
@@ -373,6 +441,268 @@ const LiveTableToolbar: React.FC = () => {
   const isAddColumnLeftPending = isPending && pendingOperation === "add-column-left";
   const isAddColumnRightPending = isPending && pendingOperation === "add-column-right";
 
+  // Memoize button configurations
+  const buttonConfigs = useMemo(() => ({
+    [BUTTON_TYPES.UNDO]: {
+      icon: <Undo className="h-4 w-4" />,
+      label: "Undo (Ctrl+Z)",
+      onClick: handleUndo,
+      disabled: !canUndo || isAnyOperationPending,
+    },
+    [BUTTON_TYPES.REDO]: {
+      icon: <Redo className="h-4 w-4" />,
+      label: "Redo (Ctrl+Y / Ctrl+Shift+Z)",
+      onClick: handleRedo,
+      disabled: !canRedo || isAnyOperationPending,
+    },
+    [BUTTON_TYPES.ADD_ROW_ABOVE]: {
+      icon: isPending && pendingOperation === "add-row-above" ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <ArrowUpFromLine className="h-4 w-4" />
+      ),
+      label: addRowAboveButtonLabel,
+      onClick: () => handleAddRowRelative("above"),
+      disabled: !canAddRows,
+    },
+    [BUTTON_TYPES.ADD_ROW_BELOW]: {
+      icon: isPending && pendingOperation === "add-row-below" ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <ArrowDownToLine className="h-4 w-4" />
+      ),
+      label: addRowBelowButtonLabel,
+      onClick: () => handleAddRowRelative("below"),
+      disabled: !canAddRows,
+    },
+    [BUTTON_TYPES.DELETE_ROWS]: {
+      icon: (
+        <>
+          <Trash2 className="h-4 w-4 mr-1" />
+          <Rows3 className="h-4 w-4" />
+        </>
+      ),
+      label: deleteRowsButtonLabel,
+      onClick: handleDeleteRows,
+      disabled: !canDeleteRow,
+    },
+    [BUTTON_TYPES.ADD_COL_LEFT]: {
+      icon: isAddColumnLeftPending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <ArrowLeftFromLine className="h-4 w-4" />
+      ),
+      label: addColLeftButtonLabel,
+      onClick: () => handleAddColumnRelative("left"),
+      disabled: !canAddColumns || isAddColumnRightPending,
+    },
+    [BUTTON_TYPES.ADD_COL_RIGHT]: {
+      icon: isAddColumnRightPending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <ArrowRightFromLine className="h-4 w-4" />
+      ),
+      label: addColRightButtonLabel,
+      onClick: () => handleAddColumnRelative("right"),
+      disabled: !canAddColumns || isAddColumnLeftPending,
+    },
+    [BUTTON_TYPES.DELETE_COLS]: {
+      icon: (
+        <>
+          <Trash2 className="h-4 w-4 mr-1" />
+          <Columns3 className="h-4 w-4" />
+        </>
+      ),
+      label: deleteColButtonLabel,
+      onClick: handleDeleteColumns,
+      disabled: !canDeleteColumn,
+    },
+    [BUTTON_TYPES.DOWNLOAD]: {
+      icon: <Download className="h-4 w-4" />,
+      label: "Download CSV",
+      onClick: handleDownloadCsv,
+      disabled: !canDownload || isAnyOperationPending,
+    },
+  }), [
+    canUndo,
+    canRedo,
+    isAnyOperationPending,
+    isPending,
+    pendingOperation,
+    addRowAboveButtonLabel,
+    addRowBelowButtonLabel,
+    deleteRowsButtonLabel,
+    addColLeftButtonLabel,
+    addColRightButtonLabel,
+    deleteColButtonLabel,
+    canAddRows,
+    canAddColumns,
+    canDeleteRow,
+    canDeleteColumn,
+    canDownload,
+    isAddColumnLeftPending,
+    isAddColumnRightPending,
+    handleUndo,
+    handleRedo,
+    handleAddRowRelative,
+    handleDeleteRows,
+    handleAddColumnRelative,
+    handleDeleteColumns,
+    handleDownloadCsv,
+  ]);
+
+  // Calculate which buttons should be visible
+  const calculateVisibleButtons = useCallback(() => {
+    if (!toolbarRef.current) return;
+
+    const toolbarWidth = toolbarRef.current.offsetWidth;
+    const overflowButtonWidth = 48; // Width of the overflow button
+    const padding = 16; // Toolbar padding (8px on each side)
+    const gapWidth = 4; // Gap between buttons
+
+    let currentWidth = 0;
+    const visible: string[] = [];
+    let hasHiddenButtons = false;
+
+    // Calculate total width needed for all buttons
+    let totalWidthNeeded = 0;
+    for (let i = 0; i < BUTTON_ORDER.length; i++) {
+      const buttonId = BUTTON_ORDER[i];
+      const buttonWidth = measuredWidthsRef.current[buttonId] || ESTIMATED_WIDTHS[buttonId] || 36;
+      totalWidthNeeded += buttonWidth;
+      if (i > 0) totalWidthNeeded += gapWidth; // Add gap except for first button
+    }
+
+    // If all buttons fit, show them all
+    if (totalWidthNeeded + padding <= toolbarWidth) {
+      setShowOverflowMenu(false);
+      setVisibleButtonIds(BUTTON_ORDER);
+      return;
+    }
+
+    // Otherwise, calculate which buttons can fit with overflow button
+    const availableWidth = toolbarWidth - padding - overflowButtonWidth - gapWidth; // Reserve space for overflow button and gap
+
+    for (let i = 0; i < BUTTON_ORDER.length; i++) {
+      const buttonId = BUTTON_ORDER[i];
+      const buttonWidth = measuredWidthsRef.current[buttonId] || ESTIMATED_WIDTHS[buttonId] || 36;
+      const widthWithGap = buttonWidth + (i > 0 ? gapWidth : 0);
+
+      if (currentWidth + widthWithGap <= availableWidth) {
+        visible.push(buttonId);
+        currentWidth += widthWithGap;
+      } else {
+        hasHiddenButtons = true;
+        break;
+      }
+    }
+
+    // Only update state if values have changed
+    setShowOverflowMenu((prev) => {
+      if (prev !== hasHiddenButtons) return hasHiddenButtons;
+      return prev;
+    });
+
+    setVisibleButtonIds((prev) => {
+      if (JSON.stringify(prev) !== JSON.stringify(visible)) return visible;
+      return prev;
+    });
+  }, []);
+
+  // Initial measurement of button widths
+  useEffect(() => {
+    const measureButtons = () => {
+      const toolbar = toolbarRef.current;
+      if (!toolbar) return;
+
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.visibility = 'hidden';
+      tempContainer.style.display = 'flex';
+      tempContainer.style.gap = '4px';
+      tempContainer.style.padding = '4px'; // Match toolbar padding
+      tempContainer.className = 'rounded-md border border-input bg-transparent';
+      document.body.appendChild(tempContainer);
+
+      BUTTON_ORDER.forEach((buttonId) => {
+        if (buttonId.startsWith('separator-')) {
+          // Separators: 1px width + 8px margin (4px on each side)
+          measuredWidthsRef.current[buttonId] = 17; // 1 + 8 + 8
+        } else if (buttonId === BUTTON_TYPES.AI_FILL) {
+          // AI Fill button is wider - measure more accurately
+          measuredWidthsRef.current[buttonId] = 120;
+        } else if (buttonId === BUTTON_TYPES.LOCK) {
+          // Lock button
+          measuredWidthsRef.current[buttonId] = 40;
+        } else {
+          // Regular buttons - create a temporary button to measure
+          const tempButton = document.createElement('button');
+          tempButton.className = 'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 px-3';
+
+          // Add icon placeholder
+          const iconSpan = document.createElement('span');
+          iconSpan.style.width = '16px';
+          iconSpan.style.height = '16px';
+          iconSpan.style.display = 'inline-block';
+          tempButton.appendChild(iconSpan);
+
+          tempContainer.appendChild(tempButton);
+
+          // Force layout calculation
+          void tempContainer.offsetHeight;
+
+          const computedStyle = window.getComputedStyle(tempButton);
+          const width = tempButton.offsetWidth +
+                       parseFloat(computedStyle.marginLeft) +
+                       parseFloat(computedStyle.marginRight);
+
+          measuredWidthsRef.current[buttonId] = Math.ceil(width);
+          tempContainer.removeChild(tempButton);
+        }
+      });
+
+      document.body.removeChild(tempContainer);
+      calculateVisibleButtons();
+    };
+
+    // Delay measurement to ensure styles are loaded
+    const timeoutId = setTimeout(measureButtons, 100);
+    return () => clearTimeout(timeoutId);
+  }, [calculateVisibleButtons]);
+
+  // Set up ResizeObserver with debouncing
+  useEffect(() => {
+    // Check if ResizeObserver is available (not available in some test environments)
+    if (typeof ResizeObserver === 'undefined') {
+      // Fallback: show all buttons if ResizeObserver is not available
+      setVisibleButtonIds(BUTTON_ORDER);
+      setShowOverflowMenu(false);
+      return;
+    }
+
+    const handleResize = () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      resizeTimeoutRef.current = setTimeout(() => {
+        calculateVisibleButtons();
+      }, 100);
+    };
+
+    const observer = new ResizeObserver(handleResize);
+
+    if (toolbarRef.current) {
+      observer.observe(toolbarRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+    };
+  }, [calculateVisibleButtons]);
+
   // Effect to listen to UndoManager stack changes
   useEffect(() => {
     if (!undoManager) return;
@@ -396,193 +726,98 @@ const LiveTableToolbar: React.FC = () => {
     };
   }, [undoManager]);
 
+  const renderButton = (buttonId: string, isInDropdown = false) => {
+    if (buttonId.startsWith('separator-')) {
+      if (isInDropdown) {
+        return <DropdownMenuSeparator key={buttonId} />;
+      }
+      return <Separator key={buttonId} orientation="vertical" className="h-6 mx-1" />;
+    }
+
+    if (buttonId === BUTTON_TYPES.AI_FILL) {
+      if (isInDropdown) {
+        return <div key={buttonId} className="px-2 py-1.5"><AiFillSelectionButton /></div>;
+      }
+      return <AiFillSelectionButton key={buttonId} />;
+    }
+
+    if (buttonId === BUTTON_TYPES.LOCK) {
+      if (isInDropdown) {
+        return <div key={buttonId} className="px-2 py-1.5"><LockButton /></div>;
+      }
+      return <LockButton key={buttonId} />;
+    }
+
+    const config = buttonConfigs[buttonId as keyof typeof buttonConfigs];
+    if (!config) return null;
+
+    if (isInDropdown) {
+      return (
+        <DropdownMenuItem
+          key={buttonId}
+          onClick={config.onClick}
+          disabled={config.disabled}
+        >
+          {config.icon}
+          <span className="ml-2">{config.label}</span>
+        </DropdownMenuItem>
+      );
+    }
+
+    return (
+      <Tooltip key={buttonId}>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={config.label}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              config.onClick();
+            }}
+            disabled={config.disabled}
+          >
+            {config.icon}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{config.label}</TooltipContent>
+      </Tooltip>
+    );
+  };
+
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="flex overflow-hidden items-center gap-1 rounded-md border border-input bg-transparent p-1 mb-2">
-        {/* Undo/Redo Buttons */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="Undo"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleUndo();
-              }}
-              disabled={!canUndo || isAnyOperationPending}
-            >
-              <Undo className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="Redo"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleRedo();
-              }}
-              disabled={!canRedo || isAnyOperationPending}
-            >
-              <Redo className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Redo (Ctrl+Y / Ctrl+Shift+Z)</TooltipContent>
-        </Tooltip>
+      <div
+        ref={toolbarRef}
+        className="relative flex overflow-hidden items-center gap-1 rounded-md border border-input bg-transparent p-1 mb-2"
+      >
+        {/* Visible buttons */}
+        <div className="flex items-center gap-1 flex-1">
+          {visibleButtonIds.map((buttonId) => renderButton(buttonId))}
+        </div>
 
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        {/* Row Operations */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label={addRowAboveButtonLabel}
-              onClick={() => {
-                handleAddRowRelative("above");
-              }}
-              disabled={!canAddRows}
-            >
-              {isPending && pendingOperation === "add-row-above" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowUpFromLine className="h-4 w-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{addRowAboveButtonLabel}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label={addRowBelowButtonLabel}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleAddRowRelative("below");
-              }}
-              disabled={!canAddRows}
-            >
-              {isPending && pendingOperation === "add-row-below" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowDownToLine className="h-4 w-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{addRowBelowButtonLabel}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDeleteRows}
-              disabled={!canDeleteRow}
-              aria-label={deleteRowsButtonLabel}
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              <Rows3 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{deleteRowsButtonLabel}</TooltipContent>
-        </Tooltip>
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        {/* Column Operations */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleAddColumnRelative("left")}
-              aria-label={addColLeftButtonLabel}
-              disabled={!canAddColumns || isAddColumnRightPending}
-              className="h-9 rounded-md px-3"
-            >
-              {isAddColumnLeftPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowLeftFromLine className="h-4 w-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{addColLeftButtonLabel}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleAddColumnRelative("right")}
-              aria-label={addColRightButtonLabel}
-              disabled={!canAddColumns || isAddColumnLeftPending}
-              className="h-9 rounded-md px-3"
-            >
-              {isAddColumnRightPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowRightFromLine className="h-4 w-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{addColRightButtonLabel}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDeleteColumns}
-              disabled={!canDeleteColumn}
-              aria-label={deleteColButtonLabel}
-              className="h-9 rounded-md px-3"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              <Columns3 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{deleteColButtonLabel}</TooltipContent>
-        </Tooltip>
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        {/* AI Fill Selection Button */}
-        <AiFillSelectionButton />
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        {/* Lock Button */}
-        <LockButton />
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        {/* Download Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              onMouseDown={(e) => {
-                // Use onMouseDown to prevent focus issues
-                e.preventDefault();
-                handleDownloadCsv();
-              }}
-              disabled={!canDownload || isAnyOperationPending}
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Download CSV</TooltipContent>
-        </Tooltip>
+        {/* Overflow menu - positioned absolutely to the right */}
+        {showOverflowMenu && (
+          <div className="absolute right-1 top-1 bottom-1 bg-inherit">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="More options"
+                  className="h-full"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {BUTTON_ORDER
+                  .filter((buttonId) => !visibleButtonIds.includes(buttonId))
+                  .map((buttonId) => renderButton(buttonId, true))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );
