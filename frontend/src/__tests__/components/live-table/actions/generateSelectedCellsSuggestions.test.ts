@@ -66,6 +66,9 @@ describe("generateSelectedCellsSuggestions", () => {
     ["A2", "B2"],
   ];
 
+  const mockDocumentTitle = "Test Document";
+  const mockDocumentDescription = "A test document for testing purposes";
+
   const mockSuggestions = [
     { rowIndex: 0, colIndex: 0, suggestion: "New A1" },
     { rowIndex: 0, colIndex: 1, suggestion: "New B1" },
@@ -87,22 +90,28 @@ describe("generateSelectedCellsSuggestions", () => {
     // Arrange
     mockInvoke.mockResolvedValueOnce({ suggestions: mockSuggestions });
 
-    const expectedSystemPrompt = `You are an AI assistant specializing in data enrichment. You will be given a table represented as an array of JSON objects, the table headers, and a set of selected cells with their current values. Your task is to provide concise and relevant suggestions for each of the selected cells, based on the overall table context and patterns in the data. Return the suggestions as a JSON object matching the provided schema.`;
+    const expectedSystemPrompt = `You are an AI assistant specializing in data enrichment for tables.
+The current document is titled "${mockDocumentTitle}" and described as: "${mockDocumentDescription}".
+You will be given a table represented as an array of JSON objects, the table headers, and a set of selected cells with their current values. Your task is to provide concise and relevant suggestions for each of the selected cells, based on the overall table context, patterns in the data, and the document's theme. Return the suggestions as a JSON object matching the provided schema.`;
     const expectedUserPrompt = `Here is the table data:
 ${JSON.stringify(mockTableData, null, 2)}
 
 Table Headers: ${JSON.stringify(mockHeaders)}
 Selected Cells: ${JSON.stringify(mockSelectedCells)}
 Selected Cells Data: ${JSON.stringify(mockSelectedCellsData)}
+Document Title: ${mockDocumentTitle}
+Document Description: ${mockDocumentDescription}
 
-Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data and context.`;
+Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data, context, and the document's theme.`;
 
     // Act
     const result = await generateSelectedCellsSuggestionsModule.default(
       mockTableData,
       mockHeaders,
       mockSelectedCells,
-      mockSelectedCellsData
+      mockSelectedCellsData,
+      mockDocumentTitle,
+      mockDocumentDescription
     );
 
     // Assert
@@ -132,7 +141,9 @@ Please provide suggestions for each of the selected cells. Generate improvements
       mockTableData,
       mockHeaders,
       [], // Empty selection
-      []
+      [],
+      mockDocumentTitle,
+      mockDocumentDescription
     );
 
     // Assert
@@ -147,22 +158,28 @@ Please provide suggestions for each of the selected cells. Generate improvements
     const errorMessage = "LLM API Error";
     mockInvoke.mockRejectedValueOnce(new Error(errorMessage));
 
-    const expectedSystemPrompt = `You are an AI assistant specializing in data enrichment. You will be given a table represented as an array of JSON objects, the table headers, and a set of selected cells with their current values. Your task is to provide concise and relevant suggestions for each of the selected cells, based on the overall table context and patterns in the data. Return the suggestions as a JSON object matching the provided schema.`;
+    const expectedSystemPrompt = `You are an AI assistant specializing in data enrichment for tables.
+The current document is titled "${mockDocumentTitle}" and described as: "${mockDocumentDescription}".
+You will be given a table represented as an array of JSON objects, the table headers, and a set of selected cells with their current values. Your task is to provide concise and relevant suggestions for each of the selected cells, based on the overall table context, patterns in the data, and the document's theme. Return the suggestions as a JSON object matching the provided schema.`;
     const expectedUserPrompt = `Here is the table data:
 ${JSON.stringify(mockTableData, null, 2)}
 
 Table Headers: ${JSON.stringify(mockHeaders)}
 Selected Cells: ${JSON.stringify(mockSelectedCells)}
 Selected Cells Data: ${JSON.stringify(mockSelectedCellsData)}
+Document Title: ${mockDocumentTitle}
+Document Description: ${mockDocumentDescription}
 
-Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data and context.`;
+Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data, context, and the document's theme.`;
 
     // Act
     const result = await generateSelectedCellsSuggestionsModule.default(
       mockTableData,
       mockHeaders,
       mockSelectedCells,
-      mockSelectedCellsData
+      mockSelectedCellsData,
+      mockDocumentTitle,
+      mockDocumentDescription
     );
 
     // Assert

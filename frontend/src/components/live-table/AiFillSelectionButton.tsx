@@ -6,12 +6,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSelectedCells } from "@/stores/selectionStore";
 
-import generateSelectedCellsSuggestions from "./actions/generateSelectedCellsSuggestions";
+import generateSelectedCellsSuggestions
+  from "./actions/generateSelectedCellsSuggestions";
 import { useLiveTable } from "./LiveTableProvider";
 
 export function AiFillSelectionButton() {
   const [isLoading, setIsLoading] = useState(false);
-  const { tableData, headers, handleCellChange } = useLiveTable();
+  const { tableData, headers, handleCellChange, documentTitle, documentDescription } = useLiveTable();
 
   const selectedCells = useSelectedCells();
 
@@ -64,7 +65,9 @@ export function AiFillSelectionButton() {
             dataToUse,
             headersToUse,
             selectedCells,
-            selectedCellsData
+            selectedCellsData,
+            documentTitle,
+            documentDescription
           );
 
           if (result.error) {

@@ -1,11 +1,27 @@
 import { toast } from "sonner";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
-import * as generateSelectedCellsSuggestionsModule from "@/components/live-table/actions/generateSelectedCellsSuggestions";
-import { AiFillSelectionButton } from "@/components/live-table/AiFillSelectionButton";
-import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
+import * as generateSelectedCellsSuggestionsModule
+  from "@/components/live-table/actions/generateSelectedCellsSuggestions";
+import {
+  AiFillSelectionButton,
+} from "@/components/live-table/AiFillSelectionButton";
+import * as LiveTableProviderModule
+  from "@/components/live-table/LiveTableProvider";
 import * as SelectionStoreModule from "@/stores/selectionStore";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
@@ -52,6 +68,9 @@ describe("AiFillSelectionButton", () => {
     ["A2", "B2"],
   ];
 
+  const mockDocumentTitle = "Test Document";
+  const mockDocumentDescription = "A test document for testing purposes";
+
   const mockSuggestions = [
     { rowIndex: 0, colIndex: 0, suggestion: "New A1" },
     { rowIndex: 0, colIndex: 1, suggestion: "New B1" },
@@ -69,6 +88,8 @@ describe("AiFillSelectionButton", () => {
       tableData: mockTableData,
       headers: mockHeaders,
       handleCellChange: mockHandleCellChange,
+      documentTitle: mockDocumentTitle,
+      documentDescription: mockDocumentDescription,
     } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
 
     vi.mocked(SelectionStoreModule.useSelectedCells).mockReturnValue(
@@ -125,7 +146,9 @@ describe("AiFillSelectionButton", () => {
       mockTableData,
       mockHeaders,
       mockSelectedCells,
-      mockSelectedCellsData
+      mockSelectedCellsData,
+      mockDocumentTitle,
+      mockDocumentDescription
     );
 
     expect(toast.promise).toHaveBeenCalled();

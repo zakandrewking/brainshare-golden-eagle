@@ -27,7 +27,9 @@ export default async function generateSelectedCellsSuggestions(
   tableData: Record<string, unknown>[],
   headers: string[],
   selectedCells: { rowIndex: number; colIndex: number }[],
-  selectedCellsData: string[][]
+  selectedCellsData: string[][],
+  documentTitle: string,
+  documentDescription: string
 ): Promise<{
   suggestions?: { rowIndex: number; colIndex: number; suggestion: string }[];
   error?: string;
@@ -36,7 +38,9 @@ export default async function generateSelectedCellsSuggestions(
     return { error: "No cells selected." };
   }
 
-  const systemPrompt = `You are an AI assistant specializing in data enrichment. You will be given a table represented as an array of JSON objects, the table headers, and a set of selected cells with their current values. Your task is to provide concise and relevant suggestions for each of the selected cells, based on the overall table context and patterns in the data. Return the suggestions as a JSON object matching the provided schema.`;
+  const systemPrompt = `You are an AI assistant specializing in data enrichment for tables.
+The current document is titled "${documentTitle}" and described as: "${documentDescription}".
+You will be given a table represented as an array of JSON objects, the table headers, and a set of selected cells with their current values. Your task is to provide concise and relevant suggestions for each of the selected cells, based on the overall table context, patterns in the data, and the document's theme. Return the suggestions as a JSON object matching the provided schema.`;
 
   const userPrompt = `Here is the table data:
 ${JSON.stringify(tableData, null, 2)}
@@ -44,8 +48,10 @@ ${JSON.stringify(tableData, null, 2)}
 Table Headers: ${JSON.stringify(headers)}
 Selected Cells: ${JSON.stringify(selectedCells)}
 Selected Cells Data: ${JSON.stringify(selectedCellsData)}
+Document Title: ${documentTitle}
+Document Description: ${documentDescription}
 
-Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data and context.`;
+Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data, context, and the document's theme.`;
 
   try {
     const response = await selectedCellsModel.invoke([
