@@ -1,6 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { MoreHorizontal } from "lucide-react";
 
@@ -45,6 +50,7 @@ const LiveTable: React.FC = () => {
     handleHeaderBlur,
     handleHeaderKeyDown,
     handleColumnResize,
+    reorderColumn,
   } = useLiveTable();
 
   const selectedCell = useSelectionStore((state) => state.selectedCell);
@@ -56,7 +62,96 @@ const LiveTable: React.FC = () => {
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
+  const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(null);
+  const [dragInsertPosition, setDragInsertPosition] = useState<number | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+
+  const handleColumnDragStart = useCallback(
+    (event: React.DragEvent, columnIndex: number) => {
+      setDraggedColumnIndex(columnIndex);
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", columnIndex.toString());
+
+      // Add visual feedback
+      if (event.currentTarget instanceof HTMLElement) {
+        event.currentTarget.style.opacity = "0.5";
+      }
+    },
+    []
+  );
+
+  const handleColumnDragEnd = useCallback(
+    (event: React.DragEvent) => {
+      setDraggedColumnIndex(null);
+      setDragInsertPosition(null);
+
+      // Reset visual feedback
+      if (event.currentTarget instanceof HTMLElement) {
+        event.currentTarget.style.opacity = "1";
+      }
+    },
+    []
+  );
+
+  const handleColumnDragOver = useCallback(
+    (event: React.DragEvent, columnIndex: number) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+
+      if (draggedColumnIndex === null || draggedColumnIndex === columnIndex) {
+        return;
+      }
+
+      // Calculate which side of the column we're closer to
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const mouseX = event.clientX;
+      const columnCenter = rect.left + rect.width / 2;
+
+      let insertPosition: number;
+      if (mouseX < columnCenter) {
+        // Insert before this column
+        insertPosition = columnIndex;
+      } else {
+        // Insert after this column
+        insertPosition = columnIndex + 1;
+      }
+
+      setDragInsertPosition(insertPosition);
+    },
+    [draggedColumnIndex]
+  );
+
+  const handleColumnDragLeave = useCallback(
+    (event: React.DragEvent) => {
+      // Only clear if we're leaving the header entirely
+      if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+        setDragInsertPosition(null);
+      }
+    },
+    []
+  );
+
+  const handleColumnDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      const draggedIndex = draggedColumnIndex;
+
+      if (draggedIndex !== null && dragInsertPosition !== null) {
+        // dragInsertPosition is already the correct final position for reorderColumn
+        // The reorderColumn method handles the removal and insertion correctly
+        const targetIndex = dragInsertPosition;
+
+        // Only reorder if the target position is different from current position
+        if (targetIndex !== draggedIndex && targetIndex >= 0) {
+          reorderColumn(draggedIndex, targetIndex);
+        }
+      }
+
+      setDraggedColumnIndex(null);
+      setDragInsertPosition(null);
+    },
+    [draggedColumnIndex, dragInsertPosition, reorderColumn]
+  );
 
   const handleMouseDown = useCallback(
     (
@@ -215,7 +310,43 @@ const LiveTable: React.FC = () => {
           style={{ tableLayout: "fixed" }}
         >
           <thead>
-            <tr>
+            <tr
+              onDragOver={(e) => {
+                e.preventDefault();
+                // Handle drag over the header row itself (for dropping at the end)
+                if (draggedColumnIndex !== null && headers) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const mouseX = e.clientX;
+
+                  // If we're past the last column, set insert position to end
+                  if (mouseX > rect.right - 50) { // 50px buffer
+                    setDragInsertPosition(headers.length);
+                  }
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+
+                // Only handle drops that are specifically on the header row itself, not on column headers
+                // Check if the drop target is a column header (th element with data-header attribute)
+                const isColumnHeaderDrop = (e.target as HTMLElement).closest('th[data-header]');
+                if (isColumnHeaderDrop) {
+                  return;
+                }
+
+                // Handle drop on the header row (for end position)
+                if (draggedColumnIndex !== null && dragInsertPosition !== null) {
+                  const targetIndex = dragInsertPosition;
+
+                  if (targetIndex !== draggedColumnIndex && targetIndex >= 0) {
+                    reorderColumn(draggedColumnIndex, targetIndex);
+                  }
+                }
+
+                setDraggedColumnIndex(null);
+                setDragInsertPosition(null);
+              }}
+            >
               <th
                 className="border border-slate-300 p-0 text-center"
                 style={{
@@ -228,18 +359,38 @@ const LiveTable: React.FC = () => {
               {headers?.map((header, index) => {
                 const width = columnWidths?.[header] ?? DEFAULT_COL_WIDTH;
                 const isEditing = editingHeaderIndex === index;
+                const isDragging = draggedColumnIndex === index;
+                const showInsertBefore = dragInsertPosition === index;
+                const showInsertAfter = dragInsertPosition === index + 1;
                 return (
                   <th
                     key={`${header}-${index}`}
                     data-header={header}
-                    className="border border-slate-300 p-0 text-left relative group overflow-hidden"
+                    draggable={!isEditing}
+                    onDragStart={(e) => handleColumnDragStart(e, index)}
+                    onDragEnd={handleColumnDragEnd}
+                    onDragOver={(e) => handleColumnDragOver(e, index)}
+                    onDragLeave={handleColumnDragLeave}
+                    onDrop={handleColumnDrop}
+                    className={`border border-slate-300 p-0 text-left relative group overflow-hidden ${
+                      isDragging ? "opacity-50" : ""
+                    }`}
                     style={{
                       width: `${width}px`,
                       minWidth: `${width}px`,
                       maxWidth: `${width}px`,
                       verticalAlign: "top",
+                      cursor: isEditing ? "text" : "grab",
                     }}
                   >
+                    {/* Insert indicator before column */}
+                    {showInsertBefore && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 z-10" />
+                    )}
+                    {/* Insert indicator after column */}
+                    {showInsertAfter && (
+                      <div className="absolute right-0 top-0 bottom-0 w-1 bg-blue-500 z-10" />
+                    )}
                     <div className="flex items-start justify-between">
                       {isEditing ? (
                         <Input
@@ -256,17 +407,15 @@ const LiveTable: React.FC = () => {
                         <div
                           className="p-2 cursor-text flex-grow break-words flex items-center"
                           onDoubleClick={() => handleHeaderDoubleClick(index)}
+                          style={{ cursor: "grab" }}
+                          onMouseDown={(e) => {
+                            // Prevent drag when clicking on resize handle
+                            if ((e.target as HTMLElement).closest('.cursor-col-resize')) {
+                              e.stopPropagation();
+                            }
+                          }}
                         >
                           {header}
-                          {/* {sortConfig?.key === header && (
-                            <span className="ml-2">
-                              {sortConfig.direction === "asc" ? (
-                                <ArrowUp className="h-4 w-4" />
-                              ) : (
-                                <ArrowDown className="h-4 w-4" />
-                              )}
-                            </span>
-                          )} */}
                         </div>
                       )}
                       <DropdownMenu>
@@ -302,6 +451,17 @@ const LiveTable: React.FC = () => {
               })}
             </tr>
           </thead>
+          {/* Insert indicator after the last column */}
+          {dragInsertPosition === headers?.length && (
+            <div
+              className="absolute top-0 bottom-0 w-1 bg-blue-500 z-20"
+              style={{
+                right: '0px',
+                height: '100%',
+                pointerEvents: 'none'
+              }}
+            />
+          )}
           <tbody>
             {tableData?.map((row, rowIndex) => (
               <tr key={rowIndex}>

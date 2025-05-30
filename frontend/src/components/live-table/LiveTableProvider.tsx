@@ -74,6 +74,8 @@ export interface LiveTableContextType {
     defaultColsAdded: number;
   }>;
   deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
+  // column reordering
+  reorderColumn: (fromIndex: number, toIndex: number) => void;
 }
 
 export type { CellPosition, SelectionArea };
@@ -567,6 +569,13 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [liveTableDoc]
   );
 
+  const reorderColumn = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      liveTableDoc.reorderColumn(fromIndex, toIndex);
+    },
+    [liveTableDoc]
+  );
+
   // Helper for unique default header names
   function generateUniqueDefaultHeader(
     base: string,
@@ -613,6 +622,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         deleteRows,
         generateAndInsertColumns,
         deleteColumns,
+        reorderColumn,
       }}
     >
       {children}

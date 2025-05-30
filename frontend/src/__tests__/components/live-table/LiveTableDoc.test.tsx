@@ -1,4 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
@@ -223,6 +229,92 @@ describe("LiveTableDoc - V2 Operations on Clean V2 State", () => {
       const existingRowData = liveTableDoc.yRowData.get(rowId1);
       expect(existingRowData?.has(colIdToDelete)).toBe(false);
       expect(liveTableDoc.yColumnOrder.get(0)).toBe(colId2);
+    });
+  });
+
+  describe("reorderColumn (V2)", () => {
+    it("should reorder columns correctly", () => {
+      // Initial order: [colId1, colId2]
+      expect(liveTableDoc.yColumnOrder.get(0)).toBe(colId1);
+      expect(liveTableDoc.yColumnOrder.get(1)).toBe(colId2);
+
+      // Move first column to second position
+      liveTableDoc.reorderColumn(0, 1);
+
+      // New order should be: [colId2, colId1]
+      expect(liveTableDoc.yColumnOrder.get(0)).toBe(colId2);
+      expect(liveTableDoc.yColumnOrder.get(1)).toBe(colId1);
+    });
+
+    it("should handle moving column to earlier position", () => {
+      // Initial order: [colId1, colId2]
+      // Move second column to first position
+      liveTableDoc.reorderColumn(1, 0);
+
+      // New order should be: [colId2, colId1]
+      expect(liveTableDoc.yColumnOrder.get(0)).toBe(colId2);
+      expect(liveTableDoc.yColumnOrder.get(1)).toBe(colId1);
+    });
+
+    it("should handle the specific case of moving between columns 3 and 4", () => {
+      // Set up a table with 5 columns: [A, B, C, D, E]
+      const colA = crypto.randomUUID() as ColumnId;
+      const colB = crypto.randomUUID() as ColumnId;
+      const colC = crypto.randomUUID() as ColumnId;
+      const colD = crypto.randomUUID() as ColumnId;
+      const colE = crypto.randomUUID() as ColumnId;
+
+      yDoc.transact(() => {
+        // Clear existing data
+        liveTableDoc.yColumnOrder.delete(0, liveTableDoc.yColumnOrder.length);
+        liveTableDoc.yColumnDefinitions.clear();
+
+        // Set up 5 columns
+        liveTableDoc.yColumnDefinitions.set(colA, { id: colA, name: "A", width: 150 });
+        liveTableDoc.yColumnDefinitions.set(colB, { id: colB, name: "B", width: 150 });
+        liveTableDoc.yColumnDefinitions.set(colC, { id: colC, name: "C", width: 150 });
+        liveTableDoc.yColumnDefinitions.set(colD, { id: colD, name: "D", width: 150 });
+        liveTableDoc.yColumnDefinitions.set(colE, { id: colE, name: "E", width: 150 });
+        liveTableDoc.yColumnOrder.push([colA, colB, colC, colD, colE]);
+      });
+
+      // Initial order: [A, B, C, D, E] (indices 0, 1, 2, 3, 4)
+      expect(liveTableDoc.yColumnOrder.get(0)).toBe(colA);
+      expect(liveTableDoc.yColumnOrder.get(1)).toBe(colB);
+      expect(liveTableDoc.yColumnOrder.get(2)).toBe(colC);
+      expect(liveTableDoc.yColumnOrder.get(3)).toBe(colD);
+      expect(liveTableDoc.yColumnOrder.get(4)).toBe(colE);
+
+      // Move column A (index 0) to between columns C and D (final position should be index 3)
+      // This simulates dragging A to after column C
+      liveTableDoc.reorderColumn(0, 3);
+
+      // Expected order: [B, C, D, A, E]
+      expect(liveTableDoc.yColumnOrder.get(0)).toBe(colB);
+      expect(liveTableDoc.yColumnOrder.get(1)).toBe(colC);
+      expect(liveTableDoc.yColumnOrder.get(2)).toBe(colD);
+      expect(liveTableDoc.yColumnOrder.get(3)).toBe(colA);
+      expect(liveTableDoc.yColumnOrder.get(4)).toBe(colE);
+    });
+
+    it("should do nothing when moving to same position", () => {
+      const originalOrder = liveTableDoc.yColumnOrder.toArray();
+
+      liveTableDoc.reorderColumn(0, 0);
+
+      expect(liveTableDoc.yColumnOrder.toArray()).toEqual(originalOrder);
+    });
+
+    it("should handle invalid indices gracefully", () => {
+      const originalOrder = liveTableDoc.yColumnOrder.toArray();
+
+      // Test out of bounds indices
+      liveTableDoc.reorderColumn(-1, 0);
+      liveTableDoc.reorderColumn(0, -1);
+      liveTableDoc.reorderColumn(10, 0);
+      liveTableDoc.reorderColumn(0, 10);
+
+      expect(liveTableDoc.yColumnOrder.toArray()).toEqual(originalOrder);
     });
   });
 

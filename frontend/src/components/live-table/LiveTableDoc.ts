@@ -235,6 +235,7 @@ export class LiveTableDoc {
   updateHeadersState() {
     const currentHeaders: string[] = [];
     const colDefs = Object.fromEntries(this.yColumnDefinitions.entries());
+
     this.yColumnOrder.forEach((columnId) => {
       const def = colDefs[columnId];
       if (def) {
@@ -324,7 +325,6 @@ export class LiveTableDoc {
     this.yDoc.transact(() => {
       const columnId = this.yColumnOrder.get(index);
       if (!columnId) {
-        console.error(`editHeader: No columnId found at index ${index}`);
         return;
       }
       const definition = this.yColumnDefinitions.get(columnId);
@@ -334,10 +334,6 @@ export class LiveTableDoc {
           name: newHeaderName,
         };
         this.yColumnDefinitions.set(columnId, updatedDefinition);
-      } else {
-        console.error(
-          `editHeader: No column definition found for columnId ${columnId}`
-        );
       }
     });
   }
@@ -379,10 +375,6 @@ export class LiveTableDoc {
             if (columnId) {
               newRowYMap.set(columnId, cellVal);
               assignedColumnIds.push(columnId);
-            } else {
-              // console.warn(
-              //   `ColumnId not found for headerName \"${headerName}\". This data will be skipped for this cell.`
-              // );
             }
           }
         }
@@ -420,18 +412,9 @@ export class LiveTableDoc {
           this.yRowOrder.delete(rowIndex, 1);
           this.yRowData.delete(rowId);
           deletedCount++;
-        } else {
-          // console.warn(
-          //   `LiveTableDoc.deleteRows: Attempted to delete non-existent row at index ${rowIndex}. Row order length: ${this.yRowOrder.length}`
-          // );
         }
       });
     });
-    if (deletedCount < rowIndices.length) {
-      // console.warn(
-      //   `LiveTableDoc.deleteRows: Attempted to delete ${rowIndices.length} rows, but only ${deletedCount} were valid and deleted.`
-      // );
-    }
     return deletedCount;
   }
 
@@ -533,18 +516,9 @@ export class LiveTableDoc {
             rowMap.delete(columnId);
           });
           deletedCount++;
-        } else {
-          // console.warn(
-          //   `LiveTableDoc.deleteColumns: Attempted to delete non-existent column at index ${colIndex}. Column order length: ${this.yColumnOrder.length}`
-          // );
         }
       });
     });
-    if (deletedCount < colIndices.length) {
-      // console.warn(
-      //   `LiveTableDoc.deleteColumns: Attempted to delete ${colIndices.length} columns, but only ${deletedCount} were valid and deleted.`
-      // );
-    }
     return deletedCount;
   }
 
@@ -572,15 +546,7 @@ export class LiveTableDoc {
             width: newWidth,
           };
           this.yColumnDefinitions.set(columnIdToUpdate, updatedDefinition);
-        } else {
-          // console.warn(
-          //   `LiveTableDoc.updateColumnWidth: No definition found for ID derived from header '${headerName}'.`
-          // );
         }
-      } else {
-        // console.warn(
-        //   `LiveTableDoc.updateColumnWidth: No column found with header name '${headerName}'.`
-        // );
       }
     });
   }
@@ -595,7 +561,6 @@ export class LiveTableDoc {
     this.yDoc.transact(() => {
       const rowId = this.yRowOrder.get(rowIndex);
       if (!rowId) {
-        // console.warn(`LiveTableDoc.updateCell: Invalid rowIndex ${rowIndex}.`);
         return;
       }
 
@@ -608,9 +573,6 @@ export class LiveTableDoc {
       }
 
       if (!columnIdToUpdate) {
-        // console.warn(
-        //   `LiveTableDoc.updateCell: No column found with header name '${headerName}'.`
-        // );
         return;
       }
 
@@ -620,11 +582,38 @@ export class LiveTableDoc {
         // For V1 compatibility where empty string meant delete, we don't do that here.
         // CellValue is string, so empty string is a valid value.
         yRowMap.set(columnIdToUpdate, newValue);
-      } else {
-        // console.warn(
-        //   `LiveTableDoc.updateCell: No row data found for rowId ${rowId}.`
-        // );
       }
+    });
+  }
+
+  /**
+   * Reorders a column by moving it from one position to another.
+   * @param fromIndex - The current index of the column to move.
+   * @param toIndex - The target index where the column should be moved.
+   */
+  reorderColumn(fromIndex: number, toIndex: number): void {
+    if (fromIndex === toIndex) {
+      return;
+    }
+    if (fromIndex < 0 || fromIndex >= this.yColumnOrder.length) {
+      return;
+    }
+    if (toIndex < 0 || toIndex >= this.yColumnOrder.length) {
+      return;
+    }
+
+    this.yDoc.transact(() => {
+      const columnId = this.yColumnOrder.get(fromIndex);
+      if (!columnId) {
+        return;
+      }
+
+      // Remove the column from its current position
+      this.yColumnOrder.delete(fromIndex, 1);
+
+      // Insert it at the new position
+      // After removing the element, we insert at the toIndex directly
+      this.yColumnOrder.insert(toIndex, [columnId]);
     });
   }
 }
