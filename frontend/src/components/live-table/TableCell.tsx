@@ -28,6 +28,7 @@ const TableCell: React.FC<TableCellProps> = ({
     handleCellBlur,
     setEditingCell,
     handleCellFocus,
+    isCellLocked,
   } = useLiveTable();
 
   const selectedCell = useSelectionStore((state) => state.selectedCell);
@@ -41,6 +42,7 @@ const TableCell: React.FC<TableCellProps> = ({
     selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;
   const isEditing =
     editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
+  const isLocked = isCellLocked(rowIndex, colIndex);
 
   const handleCellMouseDown = useCallback(
     (event: React.MouseEvent) => {
@@ -82,6 +84,11 @@ const TableCell: React.FC<TableCellProps> = ({
 
   const handleCellDoubleClick = useCallback(
     (event: React.MouseEvent) => {
+      // Don't allow editing locked cells
+      if (isLocked) {
+        return;
+      }
+
       // First, set the editing state
       setEditingCell({ rowIndex, colIndex });
 
@@ -97,7 +104,7 @@ const TableCell: React.FC<TableCellProps> = ({
         }
       }
     },
-    [rowIndex, colIndex, setEditingCell, handleCellFocus]
+    [rowIndex, colIndex, setEditingCell, handleCellFocus, isLocked]
   );
 
   return (
@@ -107,6 +114,7 @@ const TableCell: React.FC<TableCellProps> = ({
       data-col-index={colIndex}
       data-selected={isInSelection ? "true" : "false"}
       data-editing={isEditing ? "true" : "false"}
+      data-locked={isLocked ? "true" : "false"}
       data-testid="table-cell"
       style={{
         boxShadow: isSelected
@@ -114,7 +122,9 @@ const TableCell: React.FC<TableCellProps> = ({
           : isInSelection
           ? "inset 0 0 0 1px rgba(59, 130, 246, 0.5)"
           : undefined,
-        backgroundColor: isEditing
+        backgroundColor: isLocked
+          ? "rgba(128, 128, 128, 0.2)"
+          : isEditing
           ? "rgba(255, 255, 200, 0.2)"
           : isInSelection
           ? "rgba(59, 130, 246, 0.1)"
@@ -126,15 +136,23 @@ const TableCell: React.FC<TableCellProps> = ({
       <input
         type="text"
         value={String(value ?? "")}
-        onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
+        onChange={(e) => {
+          // Don't allow changes to locked cells
+          if (!isLocked) {
+            handleCellChange(rowIndex, header, e.target.value);
+          }
+        }}
         onBlur={() => {
           handleCellBlur();
           if (isEditing) {
             setEditingCell(null);
           }
         }}
+        disabled={isLocked}
         className={`w-full h-full p-2 border-none focus:outline-none ${
-          isEditing
+          isLocked
+            ? "cursor-not-allowed bg-gray-300 dark:bg-gray-700"
+            : isEditing
             ? "focus:ring-2 focus:ring-yellow-400"
             : "focus:ring-2 focus:ring-blue-300"
         } bg-transparent`}

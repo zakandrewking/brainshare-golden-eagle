@@ -15,6 +15,7 @@ import { useRoom } from "@liveblocks/react/suspense";
 import {
   type CellPosition,
   type SelectionArea,
+  useSelectedCells,
   useSelectionStore,
 } from "@/stores/selectionStore";
 
@@ -34,6 +35,12 @@ export interface LiveTableContextType {
   headers: string[] | undefined;
   columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
+  // locks
+  lockedCells: Set<string> | undefined;
+  lockSelectedRange: () => string | null;
+  unlockRange: (lockId: string) => boolean;
+  unlockAll: () => void;
+  isCellLocked: (rowIndex: number, colIndex: number) => boolean;
   // undo
   undoManager: UndoManager;
   // mouse & keyboard events
@@ -116,6 +123,11 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   >(undefined);
   const [isTableLoaded, setIsTableLoaded] = useState<boolean>(false);
 
+  // Locked cells state
+  const [lockedCells, setLockedCells] = useState<Set<string> | undefined>(
+    undefined
+  );
+
   // Header editing state
   const [editingHeaderIndex, setEditingHeaderIndex] = useState<number | null>(
     null
@@ -137,6 +149,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   liveTableDoc.tableDataUpdateCallback = setTableData;
   liveTableDoc.headersUpdateCallback = setHeaders;
   liveTableDoc.columnWidthsUpdateCallback = setColumnWidths;
+  liveTableDoc.lockedCellsUpdateCallback = setLockedCells;
   const undoManager = useMemo(() => liveTableDoc.undoManager, [liveTableDoc]);
 
   // update self info in awareness
@@ -144,6 +157,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   // selection store
   const setSelectedCell = useSelectionStore((state) => state.setSelectedCell);
+  const selectedCells = useSelectedCells();
 
   // --- Load status ---
 
@@ -576,6 +590,63 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [liveTableDoc]
   );
 
+  // Lock-related methods
+  const lockSelectedRange = useCallback(() => {
+    if (selectedCells.length === 0) {
+      toast.info("No cells selected to lock.");
+      return null;
+    }
+
+    // Find the bounds of the selection
+    const rowIndices = selectedCells.map(cell => cell.rowIndex);
+    const colIndices = selectedCells.map(cell => cell.colIndex);
+
+    const minRowIndex = Math.min(...rowIndices);
+    const maxRowIndex = Math.max(...rowIndices);
+    const minColIndex = Math.min(...colIndices);
+    const maxColIndex = Math.max(...colIndices);
+
+    const lockId = liveTableDoc.lockCellRange(
+      minRowIndex,
+      maxRowIndex,
+      minColIndex,
+      maxColIndex
+    );
+
+    if (lockId) {
+      toast.success(`Locked ${selectedCells.length} cell(s).`);
+    } else {
+      toast.error("Failed to lock the selected range.");
+    }
+
+    return lockId;
+  }, [selectedCells, liveTableDoc]);
+
+  const unlockRange = useCallback(
+    (lockId: string) => {
+      const success = liveTableDoc.unlockRange(lockId);
+      if (success) {
+        toast.success("Range unlocked successfully.");
+      } else {
+        toast.error("Failed to unlock range.");
+      }
+      return success;
+    },
+    [liveTableDoc]
+  );
+
+  const unlockAll = useCallback(() => {
+    liveTableDoc.unlockAll();
+    toast.success("All locks removed.");
+  }, [liveTableDoc]);
+
+  const isCellLocked = useCallback(
+    (rowIndex: number, colIndex: number) => {
+      return liveTableDoc.isCellLocked(rowIndex, colIndex);
+    },
+    [liveTableDoc]
+  );
+
   // Helper for unique default header names
   function generateUniqueDefaultHeader(
     base: string,
@@ -605,6 +676,11 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         headers,
         columnWidths,
         isTableLoaded,
+        lockedCells,
+        lockSelectedRange,
+        unlockRange,
+        unlockAll,
+        isCellLocked,
         handleCellChange,
         undoManager,
         handleCellFocus,

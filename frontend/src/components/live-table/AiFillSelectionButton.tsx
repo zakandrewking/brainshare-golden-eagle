@@ -17,13 +17,13 @@ export function AiFillSelectionButton() {
   const selectedCells = useSelectedCells();
 
   const handleClick = async () => {
-    if (selectedCells.length === 0) return;
+    if (!selectedCells || selectedCells.length === 0) return;
 
     setIsLoading(true);
 
     // Get the current data for selected cells
     const selectedCellsData = (() => {
-      if (!tableData || !headers || selectedCells.length === 0) {
+      if (!tableData || !headers || !selectedCells || selectedCells.length === 0) {
         return [];
       }
 
@@ -105,7 +105,7 @@ export function AiFillSelectionButton() {
       variant="outline"
       size="sm"
       onClick={handleClick}
-      disabled={selectedCells.length === 0 || isLoading}
+      disabled={!selectedCells || selectedCells.length === 0 || isLoading}
     >
       <Wand2 className="mr-2 h-4 w-4" />
       AI Fill Selection

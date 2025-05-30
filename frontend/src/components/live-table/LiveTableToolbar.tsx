@@ -31,6 +31,7 @@ import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
 
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import { useLiveTable } from "./LiveTableProvider";
+import LockButton from "./LockButton";
 
 // Define the possible pending operations
 type PendingOperation =
@@ -556,6 +557,11 @@ const LiveTableToolbar: React.FC = () => {
 
         {/* AI Fill Selection Button */}
         <AiFillSelectionButton />
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
+        {/* Lock Button */}
+        <LockButton />
 
         <Separator orientation="vertical" className="h-6 mx-1" />
 

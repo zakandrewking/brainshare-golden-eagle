@@ -9,12 +9,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSelectedCells } from "@/stores/selectionStore";
+
+import { useLiveTable } from "./LiveTableProvider";
 
 export function LockButton() {
+  const { lockSelectedRange } = useLiveTable();
+  const selectedCells = useSelectedCells();
+
   const handleClick = () => {
-    // Placeholder for opening the modal
-    console.log("Lock button clicked, modal should open.");
+    lockSelectedRange();
   };
+
+  const isDisabled = !selectedCells || selectedCells.length === 0;
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -24,12 +31,15 @@ export function LockButton() {
             variant="ghost"
             size="sm"
             onClick={handleClick}
-            aria-label="Table Lock Options"
+            disabled={isDisabled}
+            aria-label="Lock Selected Cells"
           >
             <Lock className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Table Lock Options</TooltipContent>
+        <TooltipContent>
+          {isDisabled ? "Select cells to lock" : "Lock Selected Cells"}
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );

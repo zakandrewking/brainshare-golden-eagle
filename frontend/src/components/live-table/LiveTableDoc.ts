@@ -34,6 +34,17 @@ export interface ColumnDefinition {
   width: number;
 }
 
+// Lock-related types
+export interface CellLock {
+  rowId: RowId;
+  columnId: ColumnId;
+}
+
+export interface LockRange {
+  id: string; // Unique identifier for this lock
+  cells: CellLock[]; // Array of locked cells using stable IDs
+}
+
 const CURRENT_SCHEMA_VERSION = 2;
 
 export class LiveTableDoc {
@@ -60,12 +71,19 @@ export class LiveTableDoc {
   // Array of RowIds, defines display order
   public yRowOrder: Y.Array<RowId>;
 
+  // -- Lock Properties --
+  // Map of lock ranges keyed by lock ID
+  public yActiveLocks: Y.Map<LockRange>;
+
   public tableDataUpdateCallback:
     | ((data: Record<string, unknown>[]) => void)
     | undefined;
   public headersUpdateCallback: ((headers: string[]) => void) | undefined;
   public columnWidthsUpdateCallback:
     | ((widths: Record<string, number>) => void)
+    | undefined;
+  public lockedCellsUpdateCallback:
+    | ((lockedCells: Set<string>) => void)
     | undefined;
 
   // public editLocks: Y.Map<EditLock>;
@@ -82,6 +100,8 @@ export class LiveTableDoc {
   public updateV2ColumnDefinitionsObserver: () => void;
   public updateV2ColumnOrderObserver: () => void;
   public updateV2RowOrderObserver: () => void;
+  // Lock Observers
+  public updateLockedCellsObserver: () => void;
 
   constructor(yDoc: Y.Doc) {
     this.yDoc = yDoc;
@@ -100,6 +120,9 @@ export class LiveTableDoc {
     this.yColumnOrder = yDoc.getArray<ColumnId>("columnOrder");
     this.yRowOrder = yDoc.getArray<RowId>("rowOrder");
 
+    // Locks
+    this.yActiveLocks = yDoc.getMap<LockRange>("activeLocks");
+
     this._migrateToV2IfNeeded();
 
     // undo manager
@@ -108,6 +131,7 @@ export class LiveTableDoc {
       this.yColumnDefinitions,
       this.yColumnOrder,
       this.yRowOrder,
+      this.yActiveLocks,
     ];
     this.undoManager = new UndoManager(itemsToTrack, {
       captureTimeout: 500,
@@ -132,6 +156,9 @@ export class LiveTableDoc {
       this.updateColWidthsState();
       this.updateTableState();
     };
+
+    // Lock observers
+    this.updateLockedCellsObserver = this.updateLockedCellsState.bind(this);
   }
 
   public _migrateToV2IfNeeded(force: boolean = false) {
@@ -297,11 +324,13 @@ export class LiveTableDoc {
     this.yColumnDefinitions.observeDeep(this.updateV2ColumnDefinitionsObserver);
     this.yColumnOrder.observe(this.updateV2ColumnOrderObserver);
     this.yRowOrder.observe(this.updateV2RowOrderObserver);
+    this.yActiveLocks.observe(this.updateLockedCellsObserver);
 
     // Manually trigger initial state propagation
     this.updateTableState();
     this.updateHeadersState();
     this.updateColWidthsState();
+    this.updateLockedCellsState();
   }
 
   /**
@@ -314,6 +343,7 @@ export class LiveTableDoc {
     );
     this.yColumnOrder.unobserve(this.updateV2ColumnOrderObserver);
     this.yRowOrder.unobserve(this.updateV2RowOrderObserver);
+    this.yActiveLocks.unobserve(this.updateLockedCellsObserver);
   }
 
   /**
@@ -615,6 +645,140 @@ export class LiveTableDoc {
       // After removing the element, we insert at the toIndex directly
       this.yColumnOrder.insert(toIndex, [columnId]);
     });
+  }
+
+  /**
+   * Updates the locked cells state for React components.
+   */
+  updateLockedCellsState() {
+    const lockedCells = new Set<string>();
+
+    this.yActiveLocks.forEach((lockRange) => {
+      lockRange.cells.forEach((cellLock) => {
+        // Convert rowId and columnId to display indices
+        const rowIndex = this.yRowOrder.toArray().indexOf(cellLock.rowId);
+        const colIndex = this.yColumnOrder.toArray().indexOf(cellLock.columnId);
+
+        if (rowIndex >= 0 && colIndex >= 0) {
+          lockedCells.add(`${rowIndex}-${colIndex}`);
+        }
+      });
+    });
+
+    if (this.lockedCellsUpdateCallback) {
+      this.lockedCellsUpdateCallback(lockedCells);
+    }
+  }
+
+  /**
+   * Locks a range of cells based on display indices.
+   * @param startRowIndex - Starting row index (display order)
+   * @param endRowIndex - Ending row index (display order)
+   * @param startColIndex - Starting column index (display order)
+   * @param endColIndex - Ending column index (display order)
+   * @returns The lock ID if successful, null if failed
+   */
+  lockCellRange(
+    startRowIndex: number,
+    endRowIndex: number,
+    startColIndex: number,
+    endColIndex: number,
+  ): string | null {
+    // Normalize the range
+    const minRowIndex = Math.min(startRowIndex, endRowIndex);
+    const maxRowIndex = Math.max(startRowIndex, endRowIndex);
+    const minColIndex = Math.min(startColIndex, endColIndex);
+    const maxColIndex = Math.max(startColIndex, endColIndex);
+
+    // Convert display indices to stable IDs
+    const cells: CellLock[] = [];
+    for (let rowIndex = minRowIndex; rowIndex <= maxRowIndex; rowIndex++) {
+      const rowId = this.yRowOrder.get(rowIndex);
+      if (!rowId) continue;
+
+      for (let colIndex = minColIndex; colIndex <= maxColIndex; colIndex++) {
+        const columnId = this.yColumnOrder.get(colIndex);
+        if (!columnId) continue;
+
+        cells.push({ rowId, columnId });
+      }
+    }
+
+    if (cells.length === 0) {
+      return null;
+    }
+
+    const lockId = crypto.randomUUID();
+    const lockRange: LockRange = {
+      id: lockId,
+      cells,
+    };
+
+    this.yDoc.transact(() => {
+      this.yActiveLocks.set(lockId, lockRange);
+    });
+
+    return lockId;
+  }
+
+  /**
+   * Unlocks a specific lock range.
+   * @param lockId - The ID of the lock to remove
+   * @returns True if the lock was removed, false if not found
+   */
+  unlockRange(lockId: string): boolean {
+    if (!this.yActiveLocks.has(lockId)) {
+      return false;
+    }
+
+    this.yDoc.transact(() => {
+      this.yActiveLocks.delete(lockId);
+    });
+
+    return true;
+  }
+
+  /**
+   * Unlocks all locks.
+   */
+  unlockAll(): void {
+    this.yDoc.transact(() => {
+      this.yActiveLocks.clear();
+    });
+  }
+
+  /**
+   * Checks if a specific cell (by display indices) is locked.
+   * @param rowIndex - Row index in display order
+   * @param colIndex - Column index in display order
+   * @returns True if the cell is locked
+   */
+  isCellLocked(rowIndex: number, colIndex: number): boolean {
+    const rowId = this.yRowOrder.get(rowIndex);
+    const columnId = this.yColumnOrder.get(colIndex);
+
+    if (!rowId || !columnId) {
+      return false;
+    }
+
+    for (const lockRange of this.yActiveLocks.values()) {
+      const isLocked = lockRange.cells.some(
+        (cell) => cell.rowId === rowId && cell.columnId === columnId
+      );
+      if (isLocked) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Gets all active locks.
+   * @returns Array of all lock ranges
+   */
+  getActiveLocks(): LockRange[] {
+    return Array.from(this.yActiveLocks.values());
   }
 }
 

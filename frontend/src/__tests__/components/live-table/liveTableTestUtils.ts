@@ -7,7 +7,9 @@ import type {
   ColumnId,
   RowId,
 } from "@/components/live-table/LiveTableDoc";
-import { LiveTableDoc } from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
+import {
+  LiveTableDoc,
+} from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
 import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
 
 // Define a more specific type for overrides that allows yColWidths (Y.Map)
@@ -127,52 +129,20 @@ export const getLiveTableMockValues = (
   liveTableDoc.updateHeadersState();
   liveTableDoc.updateColWidthsState();
 
-  // Calculate selectedCells if selectionArea is provided and selectedCells is not directly overridden
-  let calculatedSelectedCells: LiveTableProvider.CellPosition[] =
-    overrides.selectedCells || [];
-  const areaForSelectedCellsCalculation = overrides.selectionArea || {
-    startCell: null,
-    endCell: null,
-  };
-
-  if (
-    !overrides.selectedCells &&
-    areaForSelectedCellsCalculation.startCell &&
-    areaForSelectedCellsCalculation.endCell
-  ) {
-    const cells: LiveTableProvider.CellPosition[] = [];
-    const startRow = Math.min(
-      areaForSelectedCellsCalculation.startCell.rowIndex,
-      areaForSelectedCellsCalculation.endCell.rowIndex
-    );
-    const endRow = Math.max(
-      areaForSelectedCellsCalculation.startCell.rowIndex,
-      areaForSelectedCellsCalculation.endCell.rowIndex
-    );
-    const startCol = Math.min(
-      areaForSelectedCellsCalculation.startCell.colIndex,
-      areaForSelectedCellsCalculation.endCell.colIndex
-    );
-    const endCol = Math.max(
-      areaForSelectedCellsCalculation.startCell.colIndex,
-      areaForSelectedCellsCalculation.endCell.colIndex
-    );
-    for (let rowIndex = startRow; rowIndex <= endRow; rowIndex++) {
-      for (let colIndex = startCol; colIndex <= endCol; colIndex++) {
-        cells.push({ rowIndex, colIndex });
-      }
-    }
-    calculatedSelectedCells = cells;
-  }
-
   const defaultMockValue: ReturnType<typeof LiveTableProvider.useLiveTable> = {
     undoManager: liveTableDoc.undoManager,
     isTableLoaded: true,
-    selectedCell: null,
     tableId: "test-table",
+    documentTitle: "Test Document",
+    documentDescription: "Test Description",
     tableData: currentTableData,
     headers: currentHeaders,
     columnWidths: currentColWidths,
+    lockedCells: new Set<string>(),
+    lockSelectedRange: vi.fn().mockReturnValue("mock-lock-id"),
+    unlockRange: vi.fn().mockReturnValue(true),
+    unlockAll: vi.fn(),
+    isCellLocked: vi.fn().mockReturnValue(false),
     handleCellChange: vi.fn(),
     handleCellFocus: vi.fn(),
     handleCellBlur: vi.fn(),
@@ -183,14 +153,6 @@ export const getLiveTableMockValues = (
     handleHeaderBlur: vi.fn(),
     handleHeaderKeyDown: vi.fn(),
     handleColumnResize: vi.fn(),
-    selectionArea: areaForSelectedCellsCalculation, // Use the same area used for calculation or the default
-    isSelecting: false,
-    selectedCells: calculatedSelectedCells, // Use calculated or directly overridden
-    handleSelectionStart: vi.fn(),
-    handleSelectionMove: vi.fn(),
-    handleSelectionEnd: vi.fn(),
-    isCellSelected: vi.fn().mockReturnValue(false),
-    clearSelection: vi.fn(),
     editingCell: null,
     setEditingCell: vi.fn(),
     generateAndInsertRows: vi
@@ -201,6 +163,7 @@ export const getLiveTableMockValues = (
       .fn()
       .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
     deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
+    reorderColumn: vi.fn(),
     ...overrides,
   };
 
