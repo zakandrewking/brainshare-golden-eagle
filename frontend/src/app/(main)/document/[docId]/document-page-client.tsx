@@ -43,7 +43,7 @@ export default function DocumentPageClient({
     );
   }
 
-  const pageTitle = `Document: ${document.title}`;
+  const pageTitle = document.title;
   const pageDescription = document.description || `Live collaborative table for document ${document.title}.`;
   const documentTitleForPrompt = document.title;
 
