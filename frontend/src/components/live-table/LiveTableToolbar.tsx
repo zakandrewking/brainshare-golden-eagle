@@ -398,7 +398,7 @@ const LiveTableToolbar: React.FC = () => {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="flex flex-wrap items-center gap-1 rounded-md border border-input bg-transparent p-1 mb-2">
+      <div className="flex overflow-hidden items-center gap-1 rounded-md border border-input bg-transparent p-1 mb-2">
         {/* Undo/Redo Buttons */}
         <Tooltip>
           <TooltipTrigger asChild>
