@@ -48,6 +48,11 @@ const mockLiveTableContext: LiveTableContextType = {
   generateAndInsertColumns: vi.fn(),
   deleteColumns: vi.fn(),
   reorderColumn: vi.fn(),
+  lockedCells: new Set<string>(),
+  lockSelectedRange: vi.fn(),
+  unlockRange: vi.fn(),
+  unlockAll: vi.fn(),
+  isCellLocked: vi.fn(() => false),
 };
 
 // Mock the LiveTableProvider
@@ -140,7 +145,7 @@ describe("LiveTableDisplay - Column Reordering", () => {
 
     // Verify reorderColumn was called exactly once
     expect(mockLiveTableContext.reorderColumn).toHaveBeenCalledTimes(1);
-    expect(mockLiveTableContext.reorderColumn).toHaveBeenCalledWith(0, 3); // Column A (index 0) to after Column C (index 3)
+    expect(mockLiveTableContext.reorderColumn).toHaveBeenCalledWith(0, 2); // Column A (index 0) to final position 2 (after Column C)
   });
 
   it("should correctly calculate insertion positions for column reordering", () => {

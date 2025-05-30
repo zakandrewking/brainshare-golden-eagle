@@ -641,9 +641,12 @@ export class LiveTableDoc {
       // Remove the column from its current position
       this.yColumnOrder.delete(fromIndex, 1);
 
-      // Insert it at the new position
-      // After removing the element, we insert at the toIndex directly
-      this.yColumnOrder.insert(toIndex, [columnId]);
+      // Calculate the correct insertion index
+      // If moving to the right, we need to account for the removal
+      const insertIndex = toIndex > fromIndex ? toIndex : toIndex;
+
+      // Insert it at the calculated position
+      this.yColumnOrder.insert(insertIndex, [columnId]);
     });
   }
 

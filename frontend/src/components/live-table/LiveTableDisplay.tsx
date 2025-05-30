@@ -137,9 +137,17 @@ const LiveTable: React.FC = () => {
       const draggedIndex = draggedColumnIndex;
 
       if (draggedIndex !== null && dragInsertPosition !== null) {
-        // dragInsertPosition is already the correct final position for reorderColumn
-        // The reorderColumn method handles the removal and insertion correctly
-        const targetIndex = dragInsertPosition;
+        // Convert insertion position to final position index
+        // dragInsertPosition is where we want to insert in the current array
+        // But reorderColumn expects the final position after the move
+        let targetIndex = dragInsertPosition;
+
+        // If we're moving to the right and the insertion position is after the dragged element,
+        // we need to subtract 1 because after removing the dragged element,
+        // all positions to the right shift left by 1
+        if (dragInsertPosition > draggedIndex) {
+          targetIndex = dragInsertPosition - 1;
+        }
 
         // Only reorder if the target position is different from current position
         if (targetIndex !== draggedIndex && targetIndex >= 0) {
