@@ -1,3 +1,12 @@
+/**
+ * This is the top-level provider for the LiveTable component. It manages the
+ * LiveTableDoc and the LiveTableContext.
+ *
+ * This component is primarily responsible for setting up the LiveTableDoc,
+ * based on the lifecycle of page. It should NOT be used to manage state that
+ * changes frequently, because that will cause the entire table to re-render.
+ */
+
 import React, {
   createContext,
   useCallback,
@@ -12,6 +21,7 @@ import { UndoManager } from "yjs";
 
 import { useRoom } from "@liveblocks/react/suspense";
 
+import { DataStoreProvider } from "@/stores/dataStore";
 import {
   type CellPosition,
   type SelectionArea,
@@ -765,7 +775,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         getCursorsForCell,
       }}
     >
-      {children}
+      <DataStoreProvider liveTableDoc={liveTableDoc}>
+        {children}
+      </DataStoreProvider>
     </LiveTableContext.Provider>
   );
 };

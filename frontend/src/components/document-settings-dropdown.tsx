@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { MoreVertical, Trash2 } from "lucide-react";
+import { Settings, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -79,7 +79,7 @@ export default function DocumentSettingsDropdown({
             className="absolute top-3 right-3"
             data-testid="settings-dropdown-trigger"
           >
-            <MoreVertical className="h-4 w-4" />
+            <Settings size={16} />
             <span className="sr-only">Document settings</span>
           </Button>
         </DropdownMenuTrigger>
@@ -90,7 +90,7 @@ export default function DocumentSettingsDropdown({
             asChild
           >
             <Button variant="destructive" size="sm">
-              <Trash2 className="mr-2 h-4 w-4" />
+              <Trash2 size={16} className="mr-2" />
               Delete document
             </Button>
           </DropdownMenuItem>

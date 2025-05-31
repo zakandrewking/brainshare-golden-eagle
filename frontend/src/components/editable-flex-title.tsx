@@ -169,8 +169,8 @@ export default function EditableFlexTitle({
 
       <Dialog>
         <DialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0">
-            <Info className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="flex-shrink-0">
+            <Info size={16} />
             <span className="sr-only">View description</span>
           </Button>
         </DialogTrigger>
