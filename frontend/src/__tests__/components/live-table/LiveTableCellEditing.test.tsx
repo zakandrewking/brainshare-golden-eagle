@@ -11,7 +11,11 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
@@ -29,6 +33,7 @@ import {
 } from "@/components/live-table/LiveTableProvider";
 import {
   type SelectionState,
+  useSelectedCells,
   useSelectionStore,
 } from "@/stores/selectionStore";
 
@@ -184,5 +189,252 @@ describe("LiveTableDisplay Cell Editing", () => {
 
     expect(mockHandleCellBlur).toHaveBeenCalled();
     expect(mockStartSelection).toHaveBeenCalledWith(1, 0);
+  });
+
+  it("enters edit mode immediately when typing a character on selected cell", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<LiveTableDisplay />);
+
+    // First select a cell by clicking on it
+    const cellInputJohnDoe = screen.getByDisplayValue("John Doe");
+    const tdJohnDoe = cellInputJohnDoe.closest("td");
+    await user.click(tdJohnDoe!);
+    expect(mockStartSelection).toHaveBeenCalledWith(0, 0);
+
+    // Clear previous calls
+    mockSetEditingCell.mockClear();
+    mockHandleCellChange.mockClear();
+    mockHandleCellFocus.mockClear();
+
+    // Mock the selection state to simulate a single cell being selected
+    vi.mocked(useSelectionStore).mockImplementation(
+      <TState = SelectionState,>(
+        selector?: (state: SelectionState) => TState
+      ): TState | SelectionState => {
+        const state: SelectionState = {
+          selectedCell: { rowIndex: 0, colIndex: 0 },
+          selectionArea: {
+            startCell: { rowIndex: 0, colIndex: 0 },
+            endCell: { rowIndex: 0, colIndex: 0 },
+          },
+          isSelecting: false,
+          setSelectedCell: vi.fn(),
+          startSelection: mockStartSelection,
+          moveSelection: vi.fn(),
+          endSelection: vi.fn(),
+          clearSelection: vi.fn(),
+        };
+        if (selector) {
+          return selector(state);
+        }
+        return state;
+      }
+    );
+
+    // Mock useSelectedCells to return single cell
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
+
+    rerender(<LiveTableDisplay />);
+
+    // Type a character
+    fireEvent.keyDown(document, { key: "A" });
+
+    // Should enter edit mode and append the character to existing content
+    expect(mockSetEditingCell).toHaveBeenCalledWith({
+      rowIndex: 0,
+      colIndex: 0,
+    });
+    expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
+    const headerNameForFirstCol = initialColumnDefinitions[0].name; // "name"
+    expect(mockHandleCellChange).toHaveBeenCalledWith(
+      0,
+      headerNameForFirstCol,
+      "John DoeA" // Appended to existing content
+    );
+  });
+
+  it("enters edit mode and removes last character when pressing backspace on selected cell", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<LiveTableDisplay />);
+
+    // First select a cell by clicking on it
+    const cellInputJohnDoe = screen.getByDisplayValue("John Doe");
+    const tdJohnDoe = cellInputJohnDoe.closest("td");
+    await user.click(tdJohnDoe!);
+    expect(mockStartSelection).toHaveBeenCalledWith(0, 0);
+
+    // Clear previous calls
+    mockSetEditingCell.mockClear();
+    mockHandleCellChange.mockClear();
+    mockHandleCellFocus.mockClear();
+
+    // Mock the selection state to simulate a single cell being selected
+    vi.mocked(useSelectionStore).mockImplementation(
+      <TState = SelectionState,>(
+        selector?: (state: SelectionState) => TState
+      ): TState | SelectionState => {
+        const state: SelectionState = {
+          selectedCell: { rowIndex: 0, colIndex: 0 },
+          selectionArea: {
+            startCell: { rowIndex: 0, colIndex: 0 },
+            endCell: { rowIndex: 0, colIndex: 0 },
+          },
+          isSelecting: false,
+          setSelectedCell: vi.fn(),
+          startSelection: mockStartSelection,
+          moveSelection: vi.fn(),
+          endSelection: vi.fn(),
+          clearSelection: vi.fn(),
+        };
+        if (selector) {
+          return selector(state);
+        }
+        return state;
+      }
+    );
+
+    // Mock useSelectedCells to return single cell
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
+
+    rerender(<LiveTableDisplay />);
+
+    // Press backspace
+    fireEvent.keyDown(document, { key: "Backspace" });
+
+    // Should enter edit mode and remove the last character
+    expect(mockSetEditingCell).toHaveBeenCalledWith({
+      rowIndex: 0,
+      colIndex: 0,
+    });
+    expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
+    const headerNameForFirstCol = initialColumnDefinitions[0].name; // "name"
+    expect(mockHandleCellChange).toHaveBeenCalledWith(
+      0,
+      headerNameForFirstCol,
+      "John Do" // Removed last character
+    );
+  });
+
+  it("does not enter edit mode when typing if multiple cells are selected", async () => {
+    const { rerender } = render(<LiveTableDisplay />);
+
+    // Clear previous calls
+    mockSetEditingCell.mockClear();
+    mockHandleCellChange.mockClear();
+    mockHandleCellFocus.mockClear();
+
+    // Mock the selection state to simulate multiple cells being selected
+    vi.mocked(useSelectionStore).mockImplementation(
+      <TState = SelectionState,>(
+        selector?: (state: SelectionState) => TState
+      ): TState | SelectionState => {
+        const state: SelectionState = {
+          selectedCell: { rowIndex: 0, colIndex: 0 },
+          selectionArea: {
+            startCell: { rowIndex: 0, colIndex: 0 },
+            endCell: { rowIndex: 1, colIndex: 1 },
+          },
+          isSelecting: false,
+          setSelectedCell: vi.fn(),
+          startSelection: mockStartSelection,
+          moveSelection: vi.fn(),
+          endSelection: vi.fn(),
+          clearSelection: vi.fn(),
+        };
+        if (selector) {
+          return selector(state);
+        }
+        return state;
+      }
+    );
+
+    // Mock useSelectedCells to return multiple cells
+    vi.mocked(useSelectedCells).mockReturnValue([
+      { rowIndex: 0, colIndex: 0 },
+      { rowIndex: 0, colIndex: 1 },
+      { rowIndex: 1, colIndex: 0 },
+      { rowIndex: 1, colIndex: 1 },
+    ]);
+
+    rerender(<LiveTableDisplay />);
+
+    // Type a character
+    fireEvent.keyDown(document, { key: "A" });
+
+    // Should NOT enter edit mode when multiple cells are selected
+    expect(mockSetEditingCell).not.toHaveBeenCalled();
+    expect(mockHandleCellFocus).not.toHaveBeenCalled();
+    expect(mockHandleCellChange).not.toHaveBeenCalled();
+  });
+
+  it("handles backspace on empty cell correctly", async () => {
+    // Update the mock to return empty cell data by overriding the tableData
+    (useLiveTable as MockedFunction<typeof useLiveTable>).mockReturnValue(
+      getLiveTableMockValues({
+        liveTableDocInstance,
+        handleCellChange: mockHandleCellChange,
+        handleCellFocus: mockHandleCellFocus,
+        handleCellBlur: mockHandleCellBlur,
+        setEditingCell: mockSetEditingCell,
+        editingCell: currentEditingCell,
+        tableData: [
+          { name: "", age: "30" }, // Empty name cell
+          { name: "Jane Smith", age: "25" },
+        ],
+      }) as LiveTableContextType
+    );
+
+    const { rerender } = render(<LiveTableDisplay />);
+
+    // Clear previous calls
+    mockSetEditingCell.mockClear();
+    mockHandleCellChange.mockClear();
+    mockHandleCellFocus.mockClear();
+
+    // Mock the selection state to simulate selecting the empty cell
+    vi.mocked(useSelectionStore).mockImplementation(
+      <TState = SelectionState,>(
+        selector?: (state: SelectionState) => TState
+      ): TState | SelectionState => {
+        const state: SelectionState = {
+          selectedCell: { rowIndex: 0, colIndex: 0 },
+          selectionArea: {
+            startCell: { rowIndex: 0, colIndex: 0 },
+            endCell: { rowIndex: 0, colIndex: 0 },
+          },
+          isSelecting: false,
+          setSelectedCell: vi.fn(),
+          startSelection: mockStartSelection,
+          moveSelection: vi.fn(),
+          endSelection: vi.fn(),
+          clearSelection: vi.fn(),
+        };
+        if (selector) {
+          return selector(state);
+        }
+        return state;
+      }
+    );
+
+    // Mock useSelectedCells to return single cell
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
+
+    rerender(<LiveTableDisplay />);
+
+    // Press backspace on empty cell
+    fireEvent.keyDown(document, { key: "Backspace" });
+
+    // Should enter edit mode and keep the cell empty (removing from empty string results in empty string)
+    expect(mockSetEditingCell).toHaveBeenCalledWith({
+      rowIndex: 0,
+      colIndex: 0,
+    });
+    expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
+    const headerNameForFirstCol = initialColumnDefinitions[0].name; // "name"
+    expect(mockHandleCellChange).toHaveBeenCalledWith(
+      0,
+      headerNameForFirstCol,
+      "" // Empty string remains empty
+    );
   });
 });

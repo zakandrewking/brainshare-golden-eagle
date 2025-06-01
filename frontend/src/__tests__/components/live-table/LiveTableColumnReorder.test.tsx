@@ -24,11 +24,29 @@ const mockLiveTableContext: LiveTableContextType = {
   documentTitle: "Test Document",
   documentDescription: "Test Description",
   tableData: [
-    { "Column A": "A1", "Column B": "B1", "Column C": "C1", "Column D": "D1", "Column E": "E1" },
-    { "Column A": "A2", "Column B": "B2", "Column C": "C2", "Column D": "D2", "Column E": "E2" },
+    {
+      "Column A": "A1",
+      "Column B": "B1",
+      "Column C": "C1",
+      "Column D": "D1",
+      "Column E": "E1",
+    },
+    {
+      "Column A": "A2",
+      "Column B": "B2",
+      "Column C": "C2",
+      "Column D": "D2",
+      "Column E": "E2",
+    },
   ],
   headers: ["Column A", "Column B", "Column C", "Column D", "Column E"],
-  columnWidths: { "Column A": 150, "Column B": 150, "Column C": 150, "Column D": 150, "Column E": 150 },
+  columnWidths: {
+    "Column A": 150,
+    "Column B": 150,
+    "Column C": 150,
+    "Column D": 150,
+    "Column E": 150,
+  },
   isTableLoaded: true,
   undoManager: {} as Y.UndoManager,
   handleCellFocus: vi.fn(),
@@ -53,6 +71,9 @@ const mockLiveTableContext: LiveTableContextType = {
   unlockRange: vi.fn(),
   unlockAll: vi.fn(),
   isCellLocked: vi.fn(() => false),
+  awarenessStates: new Map(),
+  cursorsData: [],
+  getCursorsForCell: vi.fn(() => undefined),
 };
 
 // Mock the LiveTableProvider
@@ -72,15 +93,21 @@ vi.mock("@/stores/selectionStore", () => ({
     };
     return selector(mockState);
   },
+  useSelectedCells: () => [],
 }));
 
 // Mock TableCell component
 vi.mock("@/components/live-table/TableCell", () => ({
-  default: ({ rowIndex, colIndex, value }: { rowIndex: number; colIndex: number; header: string; value: unknown }) => (
-    <td data-testid={`cell-${rowIndex}-${colIndex}`}>
-      {String(value)}
-    </td>
-  ),
+  default: ({
+    rowIndex,
+    colIndex,
+    value,
+  }: {
+    rowIndex: number;
+    colIndex: number;
+    header: string;
+    value: unknown;
+  }) => <td data-testid={`cell-${rowIndex}-${colIndex}`}>{String(value)}</td>,
 }));
 
 describe("LiveTableDisplay - Column Reordering", () => {
@@ -118,8 +145,12 @@ describe("LiveTableDisplay - Column Reordering", () => {
   it("should only call reorderColumn once when dropping on a column header", () => {
     render(<LiveTableDisplay />);
 
-    const columnAHeader = screen.getByText("Column A").closest("th") as HTMLElement;
-    const columnCHeader = screen.getByText("Column C").closest("th") as HTMLElement;
+    const columnAHeader = screen
+      .getByText("Column A")
+      .closest("th") as HTMLElement;
+    const columnCHeader = screen
+      .getByText("Column C")
+      .closest("th") as HTMLElement;
 
     // Start dragging Column A
     fireEvent.dragStart(columnAHeader, {
@@ -131,7 +162,9 @@ describe("LiveTableDisplay - Column Reordering", () => {
 
     // Simulate drag over Column C (should set insert position)
     const columnCRect = { left: 300, width: 150, right: 450 };
-    vi.spyOn(columnCHeader, 'getBoundingClientRect').mockReturnValue(columnCRect as DOMRect);
+    vi.spyOn(columnCHeader, "getBoundingClientRect").mockReturnValue(
+      columnCRect as DOMRect
+    );
 
     fireEvent.dragOver(columnCHeader, {
       clientX: 375, // Right side of Column C (300 + 150/2 = 375, so 375 > 375 means right side)

@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useSelectionStore } from "@/stores/selectionStore";
+import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
 import { useLiveTable } from "./LiveTableProvider";
@@ -51,6 +51,11 @@ const LiveTable: React.FC = () => {
     handleHeaderKeyDown,
     handleColumnResize,
     reorderColumn,
+    editingCell,
+    setEditingCell,
+    handleCellFocus,
+    handleCellChange,
+    isCellLocked,
   } = useLiveTable();
 
   const selectedCell = useSelectionStore((state) => state.selectedCell);
@@ -58,12 +63,17 @@ const LiveTable: React.FC = () => {
   const endSelection = useSelectionStore((state) => state.endSelection);
   const clearSelection = useSelectionStore((state) => state.clearSelection);
   const isSelecting = useSelectionStore((state) => state.isSelecting);
+  const selectedCells = useSelectedCells();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
-  const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(null);
-  const [dragInsertPosition, setDragInsertPosition] = useState<number | null>(null);
+  const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(
+    null
+  );
+  const [dragInsertPosition, setDragInsertPosition] = useState<number | null>(
+    null
+  );
   const tableRef = useRef<HTMLTableElement>(null);
 
   const handleColumnDragStart = useCallback(
@@ -80,18 +90,15 @@ const LiveTable: React.FC = () => {
     []
   );
 
-  const handleColumnDragEnd = useCallback(
-    (event: React.DragEvent) => {
-      setDraggedColumnIndex(null);
-      setDragInsertPosition(null);
+  const handleColumnDragEnd = useCallback((event: React.DragEvent) => {
+    setDraggedColumnIndex(null);
+    setDragInsertPosition(null);
 
-      // Reset visual feedback
-      if (event.currentTarget instanceof HTMLElement) {
-        event.currentTarget.style.opacity = "1";
-      }
-    },
-    []
-  );
+    // Reset visual feedback
+    if (event.currentTarget instanceof HTMLElement) {
+      event.currentTarget.style.opacity = "1";
+    }
+  }, []);
 
   const handleColumnDragOver = useCallback(
     (event: React.DragEvent, columnIndex: number) => {
@@ -121,15 +128,12 @@ const LiveTable: React.FC = () => {
     [draggedColumnIndex]
   );
 
-  const handleColumnDragLeave = useCallback(
-    (event: React.DragEvent) => {
-      // Only clear if we're leaving the header entirely
-      if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-        setDragInsertPosition(null);
-      }
-    },
-    []
-  );
+  const handleColumnDragLeave = useCallback((event: React.DragEvent) => {
+    // Only clear if we're leaving the header entirely
+    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+      setDragInsertPosition(null);
+    }
+  }, []);
 
   const handleColumnDrop = useCallback(
     (event: React.DragEvent) => {
@@ -305,6 +309,129 @@ const LiveTable: React.FC = () => {
     };
   }, [selectedCell, clearSelection, tableRef]);
 
+  // Effect to handle keyboard input for immediate edit mode
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle if we have a single cell selected and not already editing
+      if (!selectedCell || editingCell || !headers || !tableData) {
+        return;
+      }
+
+      // Check if we have a single cell selection (not a range)
+      const isSingleCellSelected =
+        selectedCells &&
+        selectedCells.length === 1 &&
+        selectedCells[0].rowIndex === selectedCell.rowIndex &&
+        selectedCells[0].colIndex === selectedCell.colIndex;
+
+      if (!isSingleCellSelected) {
+        return;
+      }
+
+      // Don't handle if the cell is locked
+      if (isCellLocked(selectedCell.rowIndex, selectedCell.colIndex)) {
+        return;
+      }
+
+      // Don't handle if focus is on an input element (like header editing)
+      if (
+        document.activeElement &&
+        (document.activeElement.tagName === "INPUT" ||
+          document.activeElement.tagName === "TEXTAREA")
+      ) {
+        return;
+      }
+
+      // Don't handle modifier keys (except shift for characters)
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+
+      const { key } = event;
+      const header = headers[selectedCell.colIndex];
+      const currentValue = String(
+        tableData[selectedCell.rowIndex][header] ?? ""
+      );
+
+      // Handle backspace - remove the last character
+      if (key === "Backspace") {
+        event.preventDefault();
+        const newValue = currentValue.slice(0, -1);
+        setEditingCell({
+          rowIndex: selectedCell.rowIndex,
+          colIndex: selectedCell.colIndex,
+        });
+        handleCellFocus(selectedCell.rowIndex, selectedCell.colIndex);
+        handleCellChange(selectedCell.rowIndex, header, newValue);
+
+        // Focus the input after a brief delay to ensure it's rendered
+        setTimeout(() => {
+          const cellElement = tableRef.current?.querySelector(
+            `td[data-row-index="${selectedCell.rowIndex}"][data-col-index="${selectedCell.colIndex}"] input`
+          ) as HTMLInputElement;
+          if (cellElement) {
+            cellElement.focus();
+            // Set cursor to end of text
+            cellElement.setSelectionRange(
+              cellElement.value.length,
+              cellElement.value.length
+            );
+          }
+        }, 0);
+        return;
+      }
+
+      // Handle printable characters (length 1 and not special keys)
+      if (
+        key.length === 1 &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        event.preventDefault();
+        const newValue = currentValue + key;
+        setEditingCell({
+          rowIndex: selectedCell.rowIndex,
+          colIndex: selectedCell.colIndex,
+        });
+        handleCellFocus(selectedCell.rowIndex, selectedCell.colIndex);
+        handleCellChange(selectedCell.rowIndex, header, newValue);
+
+        // Focus the input after a brief delay to ensure it's rendered
+        setTimeout(() => {
+          const cellElement = tableRef.current?.querySelector(
+            `td[data-row-index="${selectedCell.rowIndex}"][data-col-index="${selectedCell.colIndex}"] input`
+          ) as HTMLInputElement;
+          if (cellElement) {
+            cellElement.focus();
+            // Set cursor to end of text
+            cellElement.setSelectionRange(
+              cellElement.value.length,
+              cellElement.value.length
+            );
+          }
+        }, 0);
+        return;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [
+    selectedCell,
+    editingCell,
+    headers,
+    tableData,
+    selectedCells,
+    isCellLocked,
+    setEditingCell,
+    handleCellFocus,
+    handleCellChange,
+    tableRef,
+  ]);
+
   if (!isTableLoaded) {
     return <DelayedLoadingSpinner />;
   }
@@ -327,7 +454,8 @@ const LiveTable: React.FC = () => {
                   const mouseX = e.clientX;
 
                   // If we're past the last column, set insert position to end
-                  if (mouseX > rect.right - 50) { // 50px buffer
+                  if (mouseX > rect.right - 50) {
+                    // 50px buffer
                     setDragInsertPosition(headers.length);
                   }
                 }
@@ -337,13 +465,18 @@ const LiveTable: React.FC = () => {
 
                 // Only handle drops that are specifically on the header row itself, not on column headers
                 // Check if the drop target is a column header (th element with data-header attribute)
-                const isColumnHeaderDrop = (e.target as HTMLElement).closest('th[data-header]');
+                const isColumnHeaderDrop = (e.target as HTMLElement).closest(
+                  "th[data-header]"
+                );
                 if (isColumnHeaderDrop) {
                   return;
                 }
 
                 // Handle drop on the header row (for end position)
-                if (draggedColumnIndex !== null && dragInsertPosition !== null) {
+                if (
+                  draggedColumnIndex !== null &&
+                  dragInsertPosition !== null
+                ) {
                   const targetIndex = dragInsertPosition;
 
                   if (targetIndex !== draggedColumnIndex && targetIndex >= 0) {
@@ -418,7 +551,11 @@ const LiveTable: React.FC = () => {
                           style={{ cursor: "grab" }}
                           onMouseDown={(e) => {
                             // Prevent drag when clicking on resize handle
-                            if ((e.target as HTMLElement).closest('.cursor-col-resize')) {
+                            if (
+                              (e.target as HTMLElement).closest(
+                                ".cursor-col-resize"
+                              )
+                            ) {
                               e.stopPropagation();
                             }
                           }}
@@ -464,9 +601,9 @@ const LiveTable: React.FC = () => {
             <div
               className="absolute top-0 bottom-0 w-1 bg-blue-500 z-20"
               style={{
-                right: '0px',
-                height: '100%',
-                pointerEvents: 'none'
+                right: "0px",
+                height: "100%",
+                pointerEvents: "none",
               }}
             />
           )}
