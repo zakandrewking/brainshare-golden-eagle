@@ -25,7 +25,12 @@ export default function RootLayout({
       {/* https://github.com/tomcru/holy-loader/issues/2 */}
       {/* color from globals.css:root:input */}
       <HolyLoader height={2} color="#738c7b" />
-      <head />
+      <head>
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no"
+        />
+      </head>
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased overscroll-none",
