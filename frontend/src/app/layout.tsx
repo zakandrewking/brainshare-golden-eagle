@@ -33,7 +33,7 @@ export default function RootLayout({
       </head>
       <body
         className={cn(
-          "min-h-screen bg-background font-sans antialiased overscroll-none",
+          "bg-background font-sans antialiased overscroll-none",
           fontSans.variable,
           fontOrbitron.variable
         )}

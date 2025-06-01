@@ -6,7 +6,7 @@ import NavigationHeader from "@/components/ui/navigation-header";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex flex-col">
       <NavigationHeader />
       <main className="flex-grow flex flex-col">
         <Container className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4">

@@ -5,7 +5,7 @@ import { Stack } from "@/components/ui/stack";
 
 export default async function Home() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex flex-col">
       <NavigationHeaderTitle />
       <main className="flex-grow flex flex-col">
         <Container>
