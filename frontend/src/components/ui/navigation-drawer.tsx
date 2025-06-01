@@ -96,7 +96,7 @@ function NavigationButtonWithDrawer() {
               </NavButton>
 
               <NavButton
-                href="/create-room"
+                href="/document/new"
                 variant="outline"
                 className="w-full my-4 justify-center"
                 setOpen={setWillOpen}

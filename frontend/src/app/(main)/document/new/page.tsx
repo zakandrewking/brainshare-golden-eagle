@@ -32,13 +32,7 @@ import {
 } from "./actions";
 
 const formSchema = z.object({
-  name: z
-    .string()
-    .min(3, "Room name must be at least 3 characters long.")
-    .regex(
-      /^[a-zA-Z0-9_-]+$/,
-      "Room name can only contain letters, numbers, underscores, and hyphens."
-    ),
+  name: z.string().min(3, "Document name must be at least 3 characters long."),
   description: z.string().optional(),
   docType: z.enum(["text", "table"], {
     message: "A document type must be selected.",
@@ -47,7 +41,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function CreateRoom() {
+export default function CreateDocument() {
   const [state, formAction] = React.useActionState<
     HandleCreateRoomFormState | null,
     FormData
@@ -74,7 +68,9 @@ export default function CreateRoom() {
 
       // Handle AI suggestions feedback
       if (state.aiSuggestionsError) {
-        toast.error(`AI suggestions failed: ${state.aiSuggestionsError}. Using default column names.`);
+        toast.error(
+          `AI suggestions failed: ${state.aiSuggestionsError}. Using default column names.`
+        );
       } else if (state.aiSuggestionsUsed) {
         toast.success("AI-powered column suggestions applied successfully!");
       }
@@ -115,14 +111,24 @@ export default function CreateRoom() {
   return (
     <Container>
       <FlexTitle
-        title="Create a room"
+        title="Create a document"
         description="An open space to collaborate and jot down ideas"
       />
       <Stack direction="col" className="w-full mt-8" gap={6}>
-        <form action={formAction} onSubmit={handleSubmit} className="space-y-6 w-full">
+        <form
+          action={formAction}
+          onSubmit={handleSubmit}
+          className="space-y-6 w-full"
+        >
           <div>
-            <Label htmlFor="name">Room Name</Label>
-            <Input id="name" {...form.register("name")} disabled={isSubmitting} />
+            <Label htmlFor="name">Document Name</Label>
+            <Input
+              id="name"
+              {...form.register("name")}
+              disabled={isSubmitting}
+              autoComplete="off"
+              autoFocus
+            />
             {form.formState.errors.name && (
               <p className="text-sm text-red-500 mt-1">
                 {form.formState.errors.name.message}
@@ -131,7 +137,11 @@ export default function CreateRoom() {
           </div>
           <div>
             <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea id="description" {...form.register("description")} disabled={isSubmitting} />
+            <Textarea
+              id="description"
+              {...form.register("description")}
+              disabled={isSubmitting}
+            />
             {form.formState.errors.description && (
               <p className="text-sm text-red-500 mt-1">
                 {form.formState.errors.description.message}
@@ -170,7 +180,7 @@ export default function CreateRoom() {
                 Creating...
               </>
             ) : (
-              "Create Room"
+              "Create Document"
             )}
           </Button>
         </form>

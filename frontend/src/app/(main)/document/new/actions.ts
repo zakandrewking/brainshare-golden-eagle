@@ -19,7 +19,7 @@ interface ActionResultError {
 }
 type GetRoomsResult = ActionResultSuccess | ActionResultError;
 
-// Type for create room action result
+// Type for create document action result
 interface CreateRoomResultSuccess {
   success: true;
   data: RoomData; // Return the created room data
@@ -71,14 +71,14 @@ const liveblocks = new Liveblocks({
   secret: process.env.LIVEBLOCKS_SECRET_KEY!,
 });
 
-// --- Form Action for Create Room Page ---
+// --- Form Action for Create Document Page ---
 const CreateRoomFormSchema = z.object({
   name: z
     .string()
-    .min(3, "Room name must be at least 3 characters long.")
+    .min(3, "Document name must be at least 3 characters long.")
     .regex(
       /^[a-zA-Z0-9_-]+$/,
-      "Room name can only contain letters, numbers, underscores, and hyphens."
+      "Document name can only contain letters, numbers, underscores, and hyphens."
     ),
   description: z.string().optional(),
   docType: z.enum(["text", "table"], {
@@ -130,7 +130,12 @@ export async function handleCreateRoomForm(
   try {
     const { data: dbData, error: dbError } = await supabase
       .from("document")
-      .insert({ liveblocks_id: name, title: name, type: docType, description: descriptionValue?.toString() })
+      .insert({
+        liveblocks_id: name,
+        title: name,
+        type: docType,
+        description: descriptionValue?.toString(),
+      })
       .select("id")
       .single();
 
@@ -164,7 +169,12 @@ export async function handleCreateRoomForm(
   }
 
   // 2. Create Liveblocks room
-  const liveblocksResult = await createLiveblocksRoom(name, docType, name, descriptionValue?.toString());
+  const liveblocksResult = await createLiveblocksRoom(
+    name,
+    docType,
+    name,
+    descriptionValue?.toString()
+  );
 
   if (!liveblocksResult.success) {
     // Liveblocks room creation failed, attempt to delete the Supabase document
@@ -286,7 +296,7 @@ export async function createLiveblocksRoom(
     }
     return {
       success: false,
-      error: `Could not create room: ${(err as Error).message}`,
+      error: `Could not create document: ${(err as Error).message}`,
     };
   }
 
@@ -331,7 +341,8 @@ export async function createLiveblocksRoom(
             primaryColumnName = aiSuggestions.primaryColumnName || "Item";
             secondaryColumnName =
               aiSuggestions.secondaryColumnName || "Description";
-            primaryValue = aiSuggestions.sampleRow?.primaryValue || "Sample Item";
+            primaryValue =
+              aiSuggestions.sampleRow?.primaryValue || "Sample Item";
             secondaryValue =
               aiSuggestions.sampleRow?.secondaryValue || "Sample Description";
           }

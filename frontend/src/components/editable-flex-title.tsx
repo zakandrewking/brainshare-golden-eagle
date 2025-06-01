@@ -25,7 +25,10 @@ import { Textarea } from "@/components/ui/textarea";
 interface EditableFlexTitleProps {
   title: string;
   description: string;
-  onUpdate: (updates: { title?: string; description?: string }) => Promise<void>;
+  onUpdate: (updates: {
+    title?: string;
+    description?: string;
+  }) => Promise<void>;
 }
 
 export default function EditableFlexTitle({
@@ -47,6 +50,11 @@ export default function EditableFlexTitle({
   const handleTitleSave = async () => {
     if (editedTitle.trim() === title) {
       setIsEditingTitle(false);
+      return;
+    }
+
+    if (editedTitle.trim().length < 3) {
+      toast.error("Title must be at least 3 characters long");
       return;
     }
 

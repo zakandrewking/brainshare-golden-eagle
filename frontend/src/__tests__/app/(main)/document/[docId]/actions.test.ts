@@ -6,12 +6,12 @@ import {
   vi,
 } from "vitest";
 
-import { deleteLiveblocksRoom } from "@/app/(main)/create-room/actions";
 import {
   deleteDocument,
   getDocumentById,
   updateDocument,
 } from "@/app/(main)/document/[docId]/actions";
+import { deleteLiveblocksRoom } from "@/app/(main)/document/new/actions";
 
 const mockSupabase = {
   from: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock("@/utils/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabase)),
 }));
 
-vi.mock("@/app/(main)/create-room/actions", () => ({
+vi.mock("@/app/(main)/document/new/actions", () => ({
   deleteLiveblocksRoom: vi.fn(),
 }));
 
@@ -35,7 +35,7 @@ describe("Document Actions", () => {
       const mockDocument = {
         id: "test-doc-123",
         title: "Test Document",
-        liveblocks_id: "test-room-123"
+        liveblocks_id: "test-room-123",
       };
 
       mockSupabase.from.mockReturnValue({
@@ -96,22 +96,24 @@ describe("Document Actions", () => {
     });
 
     it("should return success when both database and Liveblocks deletion are successful", async () => {
-      mockSupabase.from.mockReturnValueOnce({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: mockDocument,
+      mockSupabase.from
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockDocument,
+                error: null,
+              }),
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          delete: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
               error: null,
             }),
           }),
-        }),
-      }).mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({
-            error: null,
-          }),
-        }),
-      });
+        });
 
       vi.mocked(deleteLiveblocksRoom).mockResolvedValue({ success: true });
 
@@ -119,28 +121,32 @@ describe("Document Actions", () => {
 
       expect(result).toEqual({ success: true });
       expect(mockSupabase.from).toHaveBeenCalledWith("document");
-      expect(vi.mocked(deleteLiveblocksRoom)).toHaveBeenCalledWith("test-room-123");
+      expect(vi.mocked(deleteLiveblocksRoom)).toHaveBeenCalledWith(
+        "test-room-123"
+      );
     });
 
     it("should return error when database deletion fails", async () => {
       const mockError = { message: "Database error" };
 
-      mockSupabase.from.mockReturnValueOnce({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: mockDocument,
-              error: null,
+      mockSupabase.from
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockDocument,
+                error: null,
+              }),
             }),
           }),
-        }),
-      }).mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({
-            error: mockError,
+        })
+        .mockReturnValueOnce({
+          delete: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              error: mockError,
+            }),
           }),
-        }),
-      });
+        });
 
       const result = await deleteDocument("test-doc-123");
 
@@ -151,34 +157,39 @@ describe("Document Actions", () => {
     });
 
     it("should return partial success when database deletion succeeds but Liveblocks deletion fails", async () => {
-      mockSupabase.from.mockReturnValueOnce({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: mockDocument,
+      mockSupabase.from
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockDocument,
+                error: null,
+              }),
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          delete: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
               error: null,
             }),
           }),
-        }),
-      }).mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({
-            error: null,
-          }),
-        }),
-      });
+        });
 
       vi.mocked(deleteLiveblocksRoom).mockResolvedValue({
         success: false,
-        error: "Liveblocks error"
+        error: "Liveblocks error",
       });
 
       const result = await deleteDocument("test-doc-123");
 
       expect(result).toEqual({
-        error: "Document deleted but failed to clean up associated room: Liveblocks error",
+        error:
+          "Document deleted but failed to clean up associated room: Liveblocks error",
       });
-      expect(vi.mocked(deleteLiveblocksRoom)).toHaveBeenCalledWith("test-room-123");
+      expect(vi.mocked(deleteLiveblocksRoom)).toHaveBeenCalledWith(
+        "test-room-123"
+      );
     });
 
     it("should return error when getDocumentById fails", async () => {
@@ -198,7 +209,8 @@ describe("Document Actions", () => {
       const result = await deleteDocument("test-doc-123");
 
       expect(result).toEqual({
-        error: "Failed to delete document: Failed to fetch document: Document not found",
+        error:
+          "Failed to delete document: Failed to fetch document: Document not found",
       });
       expect(vi.mocked(deleteLiveblocksRoom)).not.toHaveBeenCalled();
     });

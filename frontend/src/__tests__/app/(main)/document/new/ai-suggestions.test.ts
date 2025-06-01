@@ -41,13 +41,13 @@ vi.mock("@langchain/core/messages", async () => {
   };
 });
 
-let generateTableInitializationModule: typeof import("@/app/(main)/create-room/ai-suggestions");
+let generateTableInitializationModule: typeof import("@/app/(main)/document/new/ai-suggestions");
 
 describe("generateTableInitialization", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     generateTableInitializationModule = await import(
-      "@/app/(main)/create-room/ai-suggestions"
+      "@/app/(main)/document/new/ai-suggestions"
     );
   });
 
@@ -63,17 +63,25 @@ describe("generateTableInitialization", () => {
     };
     mockInvoke.mockResolvedValueOnce(mockResponse);
 
-    const result = await generateTableInitializationModule.generateTableInitialization(documentTitle, "");
+    const result =
+      await generateTableInitializationModule.generateTableInitialization(
+        documentTitle,
+        ""
+      );
 
     expect(MockChatOpenAIClass).toHaveBeenCalledTimes(1);
     expect(mockWithStructuredOutput).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenCalledTimes(1);
 
     expect(SystemMessageSpy).toHaveBeenCalledWith(
-      expect.stringContaining("You are an AI assistant specializing in table design")
+      expect.stringContaining(
+        "You are an AI assistant specializing in table design"
+      )
     );
     expect(HumanMessageSpy).toHaveBeenCalledWith(
-      expect.stringContaining(`Document Title: "${documentTitle}. Document Description: "`)
+      expect.stringContaining(
+        `Document Title: "${documentTitle}. Document Description: "`
+      )
     );
 
     expect(result).toEqual({
@@ -87,16 +95,28 @@ describe("generateTableInitialization", () => {
   });
 
   it("should return an error for empty document title", async () => {
-    const result = await generateTableInitializationModule.generateTableInitialization("", "");
+    const result =
+      await generateTableInitializationModule.generateTableInitialization(
+        "",
+        ""
+      );
 
-    expect(result.error).toBe("Document title is required for generating suggestions.");
+    expect(result.error).toBe(
+      "Document title is required for generating suggestions."
+    );
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
   it("should return an error for whitespace-only document title", async () => {
-    const result = await generateTableInitializationModule.generateTableInitialization("   ", "");
+    const result =
+      await generateTableInitializationModule.generateTableInitialization(
+        "   ",
+        ""
+      );
 
-    expect(result.error).toBe("Document title is required for generating suggestions.");
+    expect(result.error).toBe(
+      "Document title is required for generating suggestions."
+    );
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
@@ -105,10 +125,16 @@ describe("generateTableInitialization", () => {
     const errorMessage = "LLM API Error";
     mockInvoke.mockRejectedValueOnce(new Error(errorMessage));
 
-    const result = await generateTableInitializationModule.generateTableInitialization(documentTitle, "");
+    const result =
+      await generateTableInitializationModule.generateTableInitialization(
+        documentTitle,
+        ""
+      );
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
-    expect(result.error).toBe(`Failed to generate table suggestions: ${errorMessage}`);
+    expect(result.error).toBe(
+      `Failed to generate table suggestions: ${errorMessage}`
+    );
     expect(result.primaryColumnName).toBeUndefined();
     expect(result.secondaryColumnName).toBeUndefined();
     expect(result.sampleRow).toBeUndefined();
@@ -126,7 +152,11 @@ describe("generateTableInitialization", () => {
     };
     mockInvoke.mockResolvedValueOnce(mockResponse);
 
-    const result = await generateTableInitializationModule.generateTableInitialization(documentTitle, "");
+    const result =
+      await generateTableInitializationModule.generateTableInitialization(
+        documentTitle,
+        ""
+      );
 
     expect(result).toEqual({
       primaryColumnName: "Product SKU",

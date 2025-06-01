@@ -18,7 +18,7 @@ import {
   getLiveblocksRooms,
   handleCreateRoomForm,
   nukeAllLiveblocksRooms,
-} from "@/app/(main)/create-room/actions";
+} from "@/app/(main)/document/new/actions";
 
 // Environment stubs (ensure these are at the very top if they affect module imports)
 vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test_anon_key");
@@ -67,7 +67,7 @@ vi.mock("@supabase/ssr", () => ({
 // Mock AI suggestions
 // eslint-disable-next-line no-var
 var mockGenerateTableInitialization: ReturnType<typeof vi.fn>;
-vi.mock("@/app/(main)/create-room/ai-suggestions", () => {
+vi.mock("@/app/(main)/document/new/ai-suggestions", () => {
   const actualMock = vi.fn();
   mockGenerateTableInitialization = actualMock;
   return {
@@ -296,7 +296,7 @@ describe("Room Creation Actions", () => {
       expect(result.success).toBeUndefined();
       if (!result.success) {
         expect(result.errors?.name).toContain(
-          "Room name must be at least 3 characters long."
+          "Document name must be at least 3 characters long."
         );
         expect(result.errors?.docType).toContain(
           "Invalid document type selected."
@@ -353,7 +353,7 @@ describe("Room Creation Actions", () => {
       expect(result.success).toBeUndefined();
       if (!result.success) {
         expect(result.errors?._form).toContain(
-          `Could not create room: ${liveblocksErrorMsg}`
+          `Could not create document: ${liveblocksErrorMsg}`
         );
       }
       expect(mockSupabaseDelete).toHaveBeenCalledWith();
@@ -386,7 +386,7 @@ describe("Room Creation Actions", () => {
       expect(result.success).toBeUndefined();
       if (!result.success) {
         expect(result.errors?._form).toContain(
-          `Could not create room: ${liveblocksErrorMsg}. Additionally, failed to clean up database record: ${supabaseDeleteErrorMsg}`
+          `Could not create document: ${liveblocksErrorMsg}. Additionally, failed to clean up database record: ${supabaseDeleteErrorMsg}`
         );
       }
       expect(mockSupabaseDelete).toHaveBeenCalledTimes(1);
@@ -465,14 +465,22 @@ describe("Room Creation Actions", () => {
       mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
       mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
 
-      const result = await createLiveblocksRoom(roomId, "table", documentTitle, "");
+      const result = await createLiveblocksRoom(
+        roomId,
+        "table",
+        documentTitle,
+        ""
+      );
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.aiSuggestionsUsed).toBe(true);
         expect(result.aiSuggestionsError).toBeUndefined();
       }
-      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle, "");
+      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(
+        documentTitle,
+        ""
+      );
       // Expect V2 schema calls
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
@@ -493,14 +501,22 @@ describe("Room Creation Actions", () => {
       mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
       mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
 
-      const result = await createLiveblocksRoom(roomId, "table", documentTitle, "");
+      const result = await createLiveblocksRoom(
+        roomId,
+        "table",
+        documentTitle,
+        ""
+      );
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.aiSuggestionsUsed).toBe(false);
         expect(result.aiSuggestionsError).toBe("AI service unavailable");
       }
-      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle, "");
+      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(
+        documentTitle,
+        ""
+      );
       // Expect V2 schema calls
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
@@ -539,18 +555,30 @@ describe("Room Creation Actions", () => {
       const documentTitle = "Test Document";
       const roomData = createMockRoomData(roomId);
 
-      mockGenerateTableInitialization.mockRejectedValueOnce(new Error("Network timeout"));
+      mockGenerateTableInitialization.mockRejectedValueOnce(
+        new Error("Network timeout")
+      );
       mockLiveblocksCreateRoom.mockResolvedValueOnce(roomData);
       mockLiveblocksSendYjs.mockResolvedValueOnce(undefined);
 
-      const result = await createLiveblocksRoom(roomId, "table", documentTitle, "");
+      const result = await createLiveblocksRoom(
+        roomId,
+        "table",
+        documentTitle,
+        ""
+      );
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.aiSuggestionsUsed).toBe(false);
-        expect(result.aiSuggestionsError).toBe("AI service error: Network timeout");
+        expect(result.aiSuggestionsError).toBe(
+          "AI service error: Network timeout"
+        );
       }
-      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(documentTitle, "");
+      expect(mockGenerateTableInitialization).toHaveBeenCalledWith(
+        documentTitle,
+        ""
+      );
       // Expect V2 schema calls
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("metaData");
       expect(mockYDocInstance.getMap).toHaveBeenCalledWith("columnDefinitions");
@@ -563,7 +591,11 @@ describe("Room Creation Actions", () => {
     it("should return error if LIVEBLOCKS_SECRET_KEY is not set", async () => {
       const currentLiveblocksSecret = process.env.LIVEBLOCKS_SECRET_KEY;
       delete process.env.LIVEBLOCKS_SECRET_KEY;
-      const result = await createLiveblocksRoom("no-secret-room", "text", "no-secret-room");
+      const result = await createLiveblocksRoom(
+        "no-secret-room",
+        "text",
+        "no-secret-room"
+      );
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toBe("Server configuration error.");

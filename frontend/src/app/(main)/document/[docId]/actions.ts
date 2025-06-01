@@ -1,6 +1,6 @@
 "use server";
 
-import { deleteLiveblocksRoom } from "@/app/(main)/create-room/actions";
+import { deleteLiveblocksRoom } from "@/app/(main)/document/new/actions";
 import { createClient } from "@/utils/supabase/server";
 
 export async function getDocumentById(docId: string) {
@@ -44,7 +44,7 @@ export async function deleteDocument(docId: string): Promise<{
     if (!liveblocksResult.success) {
       console.error("Error deleting Liveblocks room:", liveblocksResult.error);
       return {
-        error: `Document deleted but failed to clean up associated room: ${liveblocksResult.error}`
+        error: `Document deleted but failed to clean up associated room: ${liveblocksResult.error}`,
       };
     }
 

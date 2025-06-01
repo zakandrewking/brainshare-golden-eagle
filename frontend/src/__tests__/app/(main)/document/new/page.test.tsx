@@ -7,7 +7,7 @@ import {
 
 import { render, screen } from "@testing-library/react";
 
-import CreateRoom from "@/app/(main)/create-room/page";
+import CreateDocument from "@/app/(main)/document/new/page";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({
@@ -31,25 +31,27 @@ vi.mock("react-hook-form", () => ({
   })),
 }));
 
-vi.mock("@/app/(main)/create-room/actions", () => ({
+vi.mock("@/app/(main)/document/new/actions", () => ({
   handleCreateRoomForm: vi.fn(),
 }));
 
-describe("CreateRoom", () => {
-  it("should render the create room form with all fields", () => {
-    render(<CreateRoom />);
+describe("CreateDocument", () => {
+  it("should render the create document form with all fields", () => {
+    render(<CreateDocument />);
 
-    expect(screen.getByText("Create a room")).toBeInTheDocument();
-    expect(screen.getByLabelText("Room Name")).toBeInTheDocument();
+    expect(screen.getByText("Create a document")).toBeInTheDocument();
+    expect(screen.getByLabelText("Document Name")).toBeInTheDocument();
     expect(screen.getByLabelText("Description (Optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Document Type")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create Room" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create Document" })
+    ).toBeInTheDocument();
   });
 
-  it("should show Create Room button text when not submitting", () => {
-    render(<CreateRoom />);
+  it("should show Create Document button text when not submitting", () => {
+    render(<CreateDocument />);
 
-    const button = screen.getByRole("button", { name: "Create Room" });
+    const button = screen.getByRole("button", { name: "Create Document" });
     expect(button).toBeInTheDocument();
     expect(button).not.toBeDisabled();
   });
