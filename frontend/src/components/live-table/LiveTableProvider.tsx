@@ -98,9 +98,12 @@ export interface LiveTableContextType {
   // column reordering
   reorderColumn: (fromIndex: number, toIndex: number) => void;
   // awareness
-  awarenessStates: Map<number, AwarenessState> | undefined;
+  awarenessStates: Map<number, AwarenessState | null> | undefined;
   cursorsData: CursorDataForCell[] | undefined;
-  getCursorsForCell: (rowIndex: number, colIndex: number) => CursorDataForCell | undefined;
+  getCursorsForCell: (
+    rowIndex: number,
+    colIndex: number
+  ) => CursorDataForCell | undefined;
 }
 
 export type { CellPosition, SelectionArea };
@@ -148,7 +151,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   // Awareness state
   const [awarenessStates, setAwarenessStates] = useState<
-    Map<number, AwarenessState> | undefined
+    Map<number, AwarenessState | null> | undefined
   >(undefined);
   const [cursorsData, setCursorsData] = useState<
     CursorDataForCell[] | undefined
@@ -199,7 +202,9 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   // Memoized function to update React state with awareness changes
   const updateAwarenessStateCallback = useCallback(() => {
-    const currentStates = new Map(yProvider.awareness.getStates() as Map<number, AwarenessState>);
+    const currentStates = new Map(
+      yProvider.awareness.getStates() as Map<number, AwarenessState | null>
+    );
     liveTableDoc.updateAwarenessState(currentStates);
   }, [yProvider.awareness, liveTableDoc]);
 
@@ -225,20 +230,22 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // Update awareness when local selection changes
   useEffect(() => {
     yProvider.awareness.setLocalStateField("selectionArea", {
-      startCell: selectionArea.startCell ? { ...selectionArea.startCell } : null,
+      startCell: selectionArea.startCell
+        ? { ...selectionArea.startCell }
+        : null,
       endCell: selectionArea.endCell ? { ...selectionArea.endCell } : null,
     });
   }, [selectedCells, yProvider.awareness, selectionArea]);
 
   // Helper to find cursors for a specific cell from the pre-computed data
-  const getCursorsForCell = useCallback((
-    rowIndex: number,
-    colIndex: number
-  ): CursorDataForCell | undefined => {
-    return cursorsData?.find(
-      (data) => data.rowIndex === rowIndex && data.colIndex === colIndex
-    );
-  }, [cursorsData]);
+  const getCursorsForCell = useCallback(
+    (rowIndex: number, colIndex: number): CursorDataForCell | undefined => {
+      return cursorsData?.find(
+        (data) => data.rowIndex === rowIndex && data.colIndex === colIndex
+      );
+    },
+    [cursorsData]
+  );
 
   // --- Awareness & Focus ---
 
@@ -669,8 +676,8 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     }
 
     // Find the bounds of the selection
-    const rowIndices = selectedCells.map(cell => cell.rowIndex);
-    const colIndices = selectedCells.map(cell => cell.colIndex);
+    const rowIndices = selectedCells.map((cell) => cell.rowIndex);
+    const colIndices = selectedCells.map((cell) => cell.colIndex);
 
     const minRowIndex = Math.min(...rowIndices);
     const maxRowIndex = Math.max(...rowIndices);

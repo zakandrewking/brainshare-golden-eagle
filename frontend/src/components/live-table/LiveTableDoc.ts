@@ -108,7 +108,7 @@ export class LiveTableDoc {
 
   // Awareness-related callbacks
   public awarenessStatesUpdateCallback:
-    | ((awarenessStates: Map<number, AwarenessState>) => void)
+    | ((awarenessStates: Map<number, AwarenessState | null>) => void)
     | undefined;
   public cursorsDataUpdateCallback:
     | ((cursorsData: CursorDataForCell[]) => void)
@@ -216,7 +216,6 @@ export class LiveTableDoc {
     }
 
     this.yDoc.transact(() => {
-
       if (force) {
         // clear v2 data
         this.yRowData.clear();
@@ -241,7 +240,7 @@ export class LiveTableDoc {
         this.yColumnOrder.push([columnId]);
       });
 
-      const oldTableDataArray = this.yTable.toArray() as Y.Map<CellValue>[];
+      const oldTableDataArray = this.yTable.toArray();
       oldTableDataArray.forEach((oldRowMapY) => {
         const oldRowMap = Object.fromEntries(oldRowMapY.entries());
         const rowId = crypto.randomUUID() as RowId;
@@ -249,7 +248,7 @@ export class LiveTableDoc {
 
         const newRowYMap = new Y.Map<CellValue>();
         headerToColumnIdMap.forEach((columnId, oldHeaderString) => {
-          const cellValue = oldRowMap[oldHeaderString];
+          const cellValue = oldRowMap[oldHeaderString] as string;
           if (cellValue !== undefined) {
             newRowYMap.set(columnId, cellValue);
           } else {
@@ -719,7 +718,7 @@ export class LiveTableDoc {
     startRowIndex: number,
     endRowIndex: number,
     startColIndex: number,
-    endColIndex: number,
+    endColIndex: number
   ): string | null {
     // Normalize the range
     const minRowIndex = Math.min(startRowIndex, endRowIndex);
@@ -822,7 +821,7 @@ export class LiveTableDoc {
    * Updates awareness states for React components.
    * This method should be called when awareness changes.
    */
-  updateAwarenessState(awarenessStates: Map<number, AwarenessState>) {
+  updateAwarenessState(awarenessStates: Map<number, AwarenessState | null>) {
     if (this.awarenessStatesUpdateCallback) {
       this.awarenessStatesUpdateCallback(awarenessStates);
     }
@@ -834,7 +833,7 @@ export class LiveTableDoc {
   /**
    * Computes and updates cursor data for all cells based on awareness states.
    */
-  updateCursorsData(awarenessStates: Map<number, AwarenessState>) {
+  updateCursorsData(awarenessStates: Map<number, AwarenessState | null>) {
     if (!this.cursorsDataUpdateCallback) return;
 
     const cursorsData: CursorDataForCell[] = [];
@@ -847,6 +846,9 @@ export class LiveTableDoc {
         const cellCursors: CursorInfo[] = [];
 
         awarenessStates.forEach((state) => {
+          // Skip null states (users who have left)
+          if (!state) return;
+
           // Check if this user has a selection that includes this cell
           if (this.isCellInUserSelection(r, c, state)) {
             cellCursors.push({
@@ -870,12 +872,19 @@ export class LiveTableDoc {
   private isCellInUserSelection(
     rowIndex: number,
     colIndex: number,
-    state: AwarenessState
+    state: AwarenessState | null
   ): boolean {
+    // Handle null state (when users leave the room)
+    if (!state) {
+      return false;
+    }
+
     // Check single cell selection
-    if (state.selectedCell &&
-        state.selectedCell.rowIndex === rowIndex &&
-        state.selectedCell.colIndex === colIndex) {
+    if (
+      state.selectedCell &&
+      state.selectedCell.rowIndex === rowIndex &&
+      state.selectedCell.colIndex === colIndex
+    ) {
       return true;
     }
 
@@ -887,8 +896,12 @@ export class LiveTableDoc {
       const minCol = Math.min(startCell.colIndex, endCell.colIndex);
       const maxCol = Math.max(startCell.colIndex, endCell.colIndex);
 
-      return rowIndex >= minRow && rowIndex <= maxRow &&
-             colIndex >= minCol && colIndex <= maxCol;
+      return (
+        rowIndex >= minRow &&
+        rowIndex <= maxRow &&
+        colIndex >= minCol &&
+        colIndex <= maxCol
+      );
     }
 
     return false;
