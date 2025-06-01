@@ -50,7 +50,6 @@ export interface LiveTableContextType {
   columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
   // locks
-  lockedCells: Set<string> | undefined;
   lockSelectedRange: () => string | null;
   unlockRange: (lockId: string) => boolean;
   unlockAll: () => void;
@@ -144,11 +143,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   >(undefined);
   const [isTableLoaded, setIsTableLoaded] = useState<boolean>(false);
 
-  // Locked cells state
-  const [lockedCells, setLockedCells] = useState<Set<string> | undefined>(
-    undefined
-  );
-
   // Awareness state
   const [awarenessStates, setAwarenessStates] = useState<
     Map<number, AwarenessState | null> | undefined
@@ -178,7 +172,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   liveTableDoc.tableDataUpdateCallback = setTableData;
   liveTableDoc.headersUpdateCallback = setHeaders;
   liveTableDoc.columnWidthsUpdateCallback = setColumnWidths;
-  liveTableDoc.lockedCellsUpdateCallback = setLockedCells;
   liveTableDoc.awarenessStatesUpdateCallback = setAwarenessStates;
   liveTableDoc.cursorsDataUpdateCallback = setCursorsData;
   const undoManager = useMemo(() => liveTableDoc.undoManager, [liveTableDoc]);
@@ -754,7 +747,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         headers,
         columnWidths,
         isTableLoaded,
-        lockedCells,
         lockSelectedRange,
         unlockRange,
         unlockAll,

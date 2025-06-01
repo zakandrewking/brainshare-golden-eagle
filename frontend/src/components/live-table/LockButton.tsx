@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useLockedCells } from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
 
 import { ButtonGroup } from "../ui/button-group";
@@ -21,8 +22,9 @@ import {
 import { useLiveTable } from "./LiveTableProvider";
 
 export function LockButton() {
-  const { lockSelectedRange, unlockAll, lockedCells } = useLiveTable();
+  const { lockSelectedRange, unlockAll } = useLiveTable();
   const selectedCells = useSelectedCells();
+  const lockedCells = useLockedCells();
 
   const handleClick = () => {
     lockSelectedRange();
@@ -49,7 +51,7 @@ export function LockButton() {
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center justify-center w-full h-full p-3">
-              <Lock className="h-4 w-4" />
+                <Lock className="h-4 w-4" />
               </div>
             </TooltipTrigger>
             <TooltipContent>

@@ -36,6 +36,10 @@ vi.mock("@/stores/selectionStore", () => ({
   useSelectionStore: vi.fn(),
 }));
 
+vi.mock("@/stores/dataStore", () => ({
+  useLockedCells: () => new Set(),
+}));
+
 const mockGenerateAndInsertRows = vi.fn();
 const mockGenerateAndInsertColumns = vi.fn();
 
@@ -296,7 +300,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
 
     const mockData = getLiveTableMockValues({
       undoManager: mockUndoManager,
-      selectedCells: [{ rowIndex: 0, colIndex: 0 }],
+      selectedCells: [],
       tableData: mockYTable.toArray().map((r) => r.toJSON()),
       headers: mockYHeaders.toArray(),
       columnWidths: {},
@@ -328,7 +332,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      selectedCell,
       selectedCells: [selectedCell],
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
@@ -361,7 +364,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       yHeaders: mockYHeaders,
       yTable: mockYTable,
       undoManager: mockUndoManager,
-      selectedCell,
       selectedCells: [selectedCell],
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,

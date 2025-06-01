@@ -16,6 +16,7 @@ import {
 
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LockButton from "@/components/live-table/LockButton";
+import { useLockedCells } from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
 
 // Mock the dependencies
@@ -25,6 +26,10 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
 
 vi.mock("@/stores/selectionStore", () => ({
   useSelectedCells: vi.fn(),
+}));
+
+vi.mock("@/stores/dataStore", () => ({
+  useLockedCells: vi.fn(),
 }));
 
 describe("LockButton", () => {
@@ -38,8 +43,10 @@ describe("LockButton", () => {
     vi.mocked(useLiveTable).mockReturnValue({
       lockSelectedRange: mockLockSelectedRange,
       unlockAll: mockUnlockAll,
-      lockedCells: new Set(),
     } as Partial<ReturnType<typeof useLiveTable>> as ReturnType<typeof useLiveTable>);
+
+    // Mock useLockedCells with default empty set
+    vi.mocked(useLockedCells).mockReturnValue(new Set());
   });
 
   it("should render the lock button when cells are selected", () => {
@@ -98,13 +105,13 @@ describe("LockButton", () => {
     vi.mocked(useSelectedCells).mockReturnValue([]);
     const { rerender } = render(<LockButton />);
 
-    const lockButton = screen.getByRole("button", { name: /lock selected cells/i });
+    const lockButton = screen.getByRole("button", {
+      name: /lock selected cells/i,
+    });
     expect(lockButton).toBeDisabled();
 
     // Test with selected cells
-    vi.mocked(useSelectedCells).mockReturnValue([
-      { rowIndex: 0, colIndex: 0 },
-    ]);
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
     rerender(<LockButton />);
 
     expect(lockButton).not.toBeDisabled();
@@ -114,11 +121,7 @@ describe("LockButton", () => {
     // This test verifies that the component has access to the unlockAll function
     // and can call it (the actual UI interaction is complex to test with Radix UI)
     vi.mocked(useSelectedCells).mockReturnValue([]);
-    vi.mocked(useLiveTable).mockReturnValue({
-      lockSelectedRange: mockLockSelectedRange,
-      unlockAll: mockUnlockAll,
-      lockedCells: new Set(["0-0", "0-1"]), // Some locked cells
-    } as Partial<ReturnType<typeof useLiveTable>> as ReturnType<typeof useLiveTable>);
+    vi.mocked(useLockedCells).mockReturnValue(new Set(["0-0", "0-1"])); // Some locked cells
 
     render(<LockButton />);
 

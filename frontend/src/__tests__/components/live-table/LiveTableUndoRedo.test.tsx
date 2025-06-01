@@ -11,7 +11,12 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
@@ -43,6 +48,10 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
+vi.mock("@/stores/dataStore", () => ({
+  useLockedCells: () => new Set(),
+}));
+
 describe("LiveTableToolbar - Undo/Redo Functionality", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -60,7 +69,6 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
     const mockData = getLiveTableMockValues({
       undoManager: mockUndoManagerInstance as unknown as Y.UndoManager,
       isTableLoaded: true,
-      selectedCell: { rowIndex: 0, colIndex: 0 },
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
   });

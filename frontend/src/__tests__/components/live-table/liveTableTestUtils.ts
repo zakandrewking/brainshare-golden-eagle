@@ -138,7 +138,6 @@ export const getLiveTableMockValues = (
     tableData: currentTableData,
     headers: currentHeaders,
     columnWidths: currentColWidths,
-    lockedCells: new Set<string>(),
     lockSelectedRange: vi.fn().mockReturnValue("mock-lock-id"),
     unlockRange: vi.fn().mockReturnValue(true),
     unlockAll: vi.fn(),
