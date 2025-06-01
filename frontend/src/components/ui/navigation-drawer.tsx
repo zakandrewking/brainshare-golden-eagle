@@ -6,10 +6,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Grid2x2Plus,
+  Search,
 } from "lucide-react";
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
+import { useSearch } from "@/components/global-search-provider";
 import { Button } from "@/components/ui/button";
 
 import { DocumentNavList, NavButton } from "./document-nav-list";
@@ -32,10 +34,13 @@ function NavigationButtonWithDrawer() {
   const [mounted, setMounted] = useState(false);
   const [willOpen, setWillOpen] = useState(false);
   const [open, setOpen] = useState(false);
+  const [isMac, setIsMac] = useState(false);
+  const { openSearch } = useSearch();
 
   // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
     setMounted(true);
+    setIsMac(navigator.platform.toUpperCase().indexOf("MAC") >= 0);
   }, []);
 
   // The drawer doesn't like it when the active element is focused
@@ -75,7 +80,7 @@ function NavigationButtonWithDrawer() {
               <DrawerTitle>Navigation</DrawerTitle>
               <DrawerDescription>Navigation links</DrawerDescription>
             </VisuallyHidden>
-            <DrawerHeader className="p-2 w-full flex flex-row justify-end">
+            <DrawerHeader className="p-0 w-full flex flex-row justify-end">
               <DrawerClose asChild>
                 <Button
                   variant="outline"
@@ -87,6 +92,28 @@ function NavigationButtonWithDrawer() {
               </DrawerClose>
             </DrawerHeader>
             <Stack direction="col" gap={1} className="w-full">
+              <Button
+                variant="outline"
+                className="w-full mt-3 justify-start text-left"
+                onClick={openSearch}
+              >
+                <Search className="mr-2" size={16} />
+                Search
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {isMac ? "⌘K" : "Ctrl+K"}
+                </span>
+              </Button>
+
+              <NavButton
+                href="/document/new"
+                variant="outline"
+                className="w-full my-2 justify-center"
+                setOpen={setWillOpen}
+              >
+                <Grid2x2Plus className="mr-2" size={16} />
+                Create a doc
+              </NavButton>
+
               <NavButton
                 href="/"
                 match={new RegExp("^/?$")}
@@ -94,17 +121,7 @@ function NavigationButtonWithDrawer() {
               >
                 Home
               </NavButton>
-
-              <NavButton
-                href="/document/new"
-                variant="outline"
-                className="w-full my-4 justify-center"
-                setOpen={setWillOpen}
-              >
-                <Grid2x2Plus className="mr-2" size={16} />
-                Create a doc
-              </NavButton>
-
+              {/* TODO: add a separator here */}
               <NavButton
                 href="/planets"
                 match={new RegExp("^/planets$")}

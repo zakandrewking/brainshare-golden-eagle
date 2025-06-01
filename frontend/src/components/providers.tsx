@@ -1,5 +1,6 @@
 import React from "react";
 
+import { SearchProvider } from "@/components/global-search-provider";
 // import { BackendProvider } from "@/components/backend/backend-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -18,7 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      {children}
+      <SearchProvider>{children}</SearchProvider>
     </ThemeProvider>
   );
 }
