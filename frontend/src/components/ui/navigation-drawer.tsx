@@ -95,7 +95,10 @@ function NavigationButtonWithDrawer() {
               <Button
                 variant="outline"
                 className="w-full mt-3 justify-start text-left"
-                onClick={openSearch}
+                onClick={() => {
+                  openSearch();
+                  setWillOpen(false);
+                }}
               >
                 <Search className="mr-2" size={16} />
                 Search
