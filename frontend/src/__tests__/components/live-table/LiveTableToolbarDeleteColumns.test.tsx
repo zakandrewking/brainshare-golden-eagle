@@ -27,6 +27,7 @@ import {
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useIsCellLocked } from "@/stores/dataStore";
 import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
 
 import { getLiveTableMockValues } from "./liveTableTestUtils";
@@ -55,8 +56,11 @@ vi.mock("@/stores/selectionStore", () => ({
 }));
 
 vi.mock("@/stores/dataStore", () => ({
-  useLockedCells: () => new Set(),
-  useLockSelectedRange: () => vi.fn(),
+  useLockedCells: vi.fn(),
+  useLockSelectedRange: vi.fn(),
+  useUnlockAll: vi.fn(),
+  useUnlockRange: vi.fn(),
+  useIsCellLocked: vi.fn(() => () => false),
 }));
 
 vi.mock("lucide-react", async () => {
@@ -309,12 +313,10 @@ describe("LiveTableToolbar - Delete Column", () => {
       colIndex,
     }));
     const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue({
-      ...currentMockData,
-      isCellLocked: vi.fn().mockReturnValue(true),
-    });
+    vi.mocked(useLiveTable).mockReturnValue(currentMockData);
     vi.mocked(useSelectionStore).mockReturnValue(selectedCellsForTest[0]);
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
+    vi.mocked(useIsCellLocked).mockReturnValue(() => true);
 
     render(
       <TooltipProvider>

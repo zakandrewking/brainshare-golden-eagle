@@ -66,9 +66,6 @@ const mockLiveTableContext: LiveTableContextType = {
   generateAndInsertColumns: vi.fn(),
   deleteColumns: vi.fn(),
   reorderColumn: vi.fn(),
-  unlockRange: vi.fn(),
-  unlockAll: vi.fn(),
-  isCellLocked: vi.fn(() => false),
   awarenessStates: new Map(),
   cursorsData: [],
   getCursorsForCell: vi.fn(() => undefined),
@@ -98,6 +95,9 @@ vi.mock("@/stores/selectionStore", () => ({
 vi.mock("@/stores/dataStore", () => ({
   useLockedCells: () => new Set(),
   useLockSelectedRange: () => vi.fn(),
+  useUnlockAll: () => vi.fn(),
+  useUnlockRange: () => vi.fn(),
+  useIsCellLocked: () => vi.fn(() => false),
 }));
 
 // Mock TableCell component

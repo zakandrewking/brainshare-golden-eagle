@@ -39,6 +39,9 @@ vi.mock("@/stores/selectionStore", () => ({
 vi.mock("@/stores/dataStore", () => ({
   useLockedCells: () => new Set(),
   useLockSelectedRange: () => vi.fn(),
+  useUnlockAll: () => vi.fn(),
+  useUnlockRange: () => vi.fn(),
+  useIsCellLocked: () => vi.fn(() => false),
 }));
 
 const mockGenerateAndInsertRows = vi.fn();

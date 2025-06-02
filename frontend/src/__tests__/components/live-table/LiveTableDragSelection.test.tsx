@@ -1,7 +1,20 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import * as Y from "yjs";
 
 // Removed Y import as direct Yjs manipulation for V1 setup is removed.
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 // Import V2 types for defining initial data
@@ -9,9 +22,11 @@ import {
   type CellValue,
   type ColumnDefinition,
   type ColumnId,
+  LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
-import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
+import * as LiveTableProviderModule
+  from "@/components/live-table/LiveTableProvider";
 // Import selection store and related types/selectors
 import {
   type CellPosition,
@@ -19,11 +34,23 @@ import {
   useSelectionStore,
 } from "@/stores/selectionStore";
 
-import { getLiveTableMockValues } from "./liveTableTestUtils";
+import {
+  getLiveTableMockValues,
+  TestDataStoreWrapper,
+} from "./liveTableTestUtils";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
+
+// Mock the dataStore
+vi.mock("@/stores/dataStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/stores/dataStore")>();
+  return {
+    ...actual,
+    useIsCellLocked: () => vi.fn(() => false),
+  };
+});
 
 // Mock the selection store
 vi.mock("@/stores/selectionStore", async (importOriginal) => {
@@ -73,8 +100,31 @@ describe("LiveTableDisplay - Drag Selection", () => {
   let currentIsSelectingState: boolean;
   let currentEditingCellForTest: CellPosition | null;
 
+  let yDoc: Y.Doc;
+  let liveTableDocInstance: LiveTableDoc;
+
   beforeEach(() => {
     vi.clearAllMocks();
+
+    yDoc = new Y.Doc();
+    liveTableDocInstance = new LiveTableDoc(yDoc);
+    // Manually populate V2 data
+    yDoc.transact(() => {
+      initialColumnDefinitions.forEach((def) =>
+        liveTableDocInstance.yColumnDefinitions.set(def.id, def)
+      );
+      liveTableDocInstance.yColumnOrder.push(initialColumnOrder);
+      initialRowOrder.forEach((rId) => {
+        const rData = initialRowData[rId];
+        const yRowMap = new Y.Map<CellValue>();
+        initialColumnOrder.forEach((cId) => {
+          if (rData[cId] !== undefined) yRowMap.set(cId, rData[cId]);
+        });
+        liveTableDocInstance.yRowData.set(rId, yRowMap);
+      });
+      liveTableDocInstance.yRowOrder.push(initialRowOrder);
+      liveTableDocInstance.yMeta.set("schemaVersion", 2);
+    });
 
     mockHandleSelectionStart = vi.fn();
     mockHandleSelectionMove = vi.fn();
@@ -119,6 +169,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     });
 
     const baseLiveTableContext = getLiveTableMockValues({
+      liveTableDocInstance,
       initialColumnDefinitions,
       initialColumnOrder,
       initialRowOrder,
@@ -158,10 +209,15 @@ describe("LiveTableDisplay - Drag Selection", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    yDoc.destroy();
   });
 
   it("should start selection when mousedown on a cell (not in edit mode)", () => {
-    render(<LiveTableDisplay />);
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
     const cell = screen.getAllByTestId("table-cell")[0];
     fireEvent.mouseDown(cell);
     expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
@@ -175,14 +231,22 @@ describe("LiveTableDisplay - Drag Selection", () => {
 
   it("should not start selection when mousedown on a cell in edit mode", () => {
     currentEditingCellForTest = { rowIndex: 0, colIndex: 0 };
-    render(<LiveTableDisplay />);
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
     const cell = screen.getAllByTestId("table-cell")[0];
     fireEvent.mouseDown(cell);
     expect(mockHandleSelectionStart).not.toHaveBeenCalled();
   });
 
   it("should update selection when mousemove over cells during selection", async () => {
-    const { rerender } = render(<LiveTableDisplay />); // Capture rerender
+    const { rerender } = render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    ); // Capture rerender
     const firstCell = screen.getAllByTestId("table-cell")[0];
     const targetCell = screen.getAllByTestId("table-cell")[4];
 
@@ -194,7 +258,11 @@ describe("LiveTableDisplay - Drag Selection", () => {
     });
     // Explicitly rerender after mousedown state change
     act(() => {
-      rerender(<LiveTableDisplay />);
+      rerender(
+        <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+          <LiveTableDisplay />
+        </TestDataStoreWrapper>
+      );
     });
 
     expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
@@ -233,7 +301,11 @@ describe("LiveTableDisplay - Drag Selection", () => {
       endCell: { rowIndex: 1, colIndex: 1 },
     };
 
-    render(<LiveTableDisplay />);
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
     fireEvent.mouseUp(document);
 
     await act(async () => {
@@ -252,7 +324,11 @@ describe("LiveTableDisplay - Drag Selection", () => {
     };
     currentIsSelectingState = false;
 
-    render(<LiveTableDisplay />);
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
     const cells = screen.getAllByTestId("table-cell");
 
     const cell00 = cells[0];

@@ -38,6 +38,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useIsCellLocked } from "@/stores/dataStore";
 import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
 
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
@@ -114,9 +115,9 @@ const LiveTableToolbar: React.FC = () => {
     deleteColumns,
     headers,
     tableData,
-    isCellLocked,
   } = useLiveTable();
 
+  const isCellLocked = useIsCellLocked();
   const selectedCell = useSelectionStore((state) => state.selectedCell);
   const selectedCells = useSelectedCells();
 
@@ -603,7 +604,33 @@ const LiveTableToolbar: React.FC = () => {
         disabled: !canDownload || isAnyOperationPending,
       },
     }),
-    [canUndo, canRedo, isAnyOperationPending, isPending, pendingOperation, addRowAboveButtonLabel, addRowBelowButtonLabel, deleteRowsButtonLabel, addColLeftButtonLabel, addColRightButtonLabel, deleteColButtonLabel, canAddRows, canAddColumns, canDeleteRow, canDeleteColumn, canDownload, isAddColumnLeftPending, isAddColumnRightPending, handleUndo, handleRedo, handleAddRowRelative, handleDeleteRows, handleAddColumnRelative, handleDeleteColumns, handleDownloadCsv]
+    [
+      canUndo,
+      canRedo,
+      isAnyOperationPending,
+      isPending,
+      pendingOperation,
+      addRowAboveButtonLabel,
+      addRowBelowButtonLabel,
+      deleteRowsButtonLabel,
+      addColLeftButtonLabel,
+      addColRightButtonLabel,
+      deleteColButtonLabel,
+      canAddRows,
+      canAddColumns,
+      canDeleteRow,
+      canDeleteColumn,
+      canDownload,
+      isAddColumnLeftPending,
+      isAddColumnRightPending,
+      handleUndo,
+      handleRedo,
+      handleAddRowRelative,
+      handleDeleteRows,
+      handleAddColumnRelative,
+      handleDeleteColumns,
+      handleDownloadCsv,
+    ]
   );
 
   // Calculate which buttons should be visible

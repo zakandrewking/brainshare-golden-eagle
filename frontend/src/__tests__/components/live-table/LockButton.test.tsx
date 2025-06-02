@@ -16,7 +16,11 @@ import {
 
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LockButton from "@/components/live-table/LockButton";
-import { useLockedCells, useLockSelectedRange } from "@/stores/dataStore";
+import {
+  useLockedCells,
+  useLockSelectedRange,
+  useUnlockAll,
+} from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
 
 // Mock the dependencies
@@ -31,6 +35,9 @@ vi.mock("@/stores/selectionStore", () => ({
 vi.mock("@/stores/dataStore", () => ({
   useLockedCells: vi.fn(),
   useLockSelectedRange: vi.fn(),
+  useUnlockAll: vi.fn(),
+  useUnlockRange: vi.fn(),
+  useIsCellLocked: vi.fn(),
 }));
 
 describe("LockButton", () => {
@@ -50,6 +57,9 @@ describe("LockButton", () => {
 
     // Mock useLockSelectedRange
     vi.mocked(useLockSelectedRange).mockReturnValue(mockLockSelectedRange);
+
+    // Mock useUnlockAll
+    vi.mocked(useUnlockAll).mockReturnValue(mockUnlockAll);
   });
 
   it("should render the lock button when cells are selected", () => {
@@ -124,15 +134,13 @@ describe("LockButton", () => {
 
   it("should call unlockAll function when component has access to it", () => {
     // This test verifies that the component has access to the unlockAll function
-    // and can call it (the actual UI interaction is complex to test with Radix UI)
     vi.mocked(useSelectedCells).mockReturnValue([]);
     vi.mocked(useLockedCells).mockReturnValue(new Set(["0-0", "0-1"])); // Some locked cells
 
     render(<LockButton />);
 
     // Verify the component has access to unlockAll by checking the mock was provided
-    expect(vi.mocked(useLiveTable)).toHaveBeenCalled();
-    const mockCall = vi.mocked(useLiveTable).mock.results[0];
-    expect(mockCall.value.unlockAll).toBe(mockUnlockAll);
+    expect(vi.mocked(useUnlockAll)).toHaveBeenCalled();
+    expect(vi.mocked(useUnlockAll)).toHaveReturnedWith(mockUnlockAll);
   });
 });

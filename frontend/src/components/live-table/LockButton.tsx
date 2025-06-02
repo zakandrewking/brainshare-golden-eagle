@@ -9,7 +9,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useLockedCells, useLockSelectedRange } from "@/stores/dataStore";
+import {
+  useLockedCells,
+  useLockSelectedRange,
+  useUnlockAll,
+} from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
 
 import { ButtonGroup } from "../ui/button-group";
@@ -19,10 +23,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { useLiveTable } from "./LiveTableProvider";
 
 export function LockButton() {
-  const { unlockAll } = useLiveTable();
+  const unlockAll = useUnlockAll();
   const lockSelectedRange = useLockSelectedRange();
   const selectedCells = useSelectedCells();
   const lockedCells = useLockedCells();

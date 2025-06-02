@@ -2,10 +2,21 @@ import "@testing-library/jest-dom";
 
 import React from "react";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
@@ -22,11 +33,23 @@ import {
   useSelectionStore,
 } from "@/stores/selectionStore";
 
-import { getLiveTableMockValues } from "./liveTableTestUtils";
+import {
+  getLiveTableMockValues,
+  TestDataStoreWrapper,
+} from "./liveTableTestUtils";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
+
+// Mock the dataStore
+vi.mock("@/stores/dataStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/stores/dataStore")>();
+  return {
+    ...actual,
+    useIsCellLocked: () => vi.fn(() => false),
+  };
+});
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => {
   const actual = await importOriginal<
@@ -143,7 +166,9 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
         <button data-testid="outside-element" onClick={captureClick}>
           Click Outside Here
         </button>
-        <LiveTableDisplay />
+        <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+          <LiveTableDisplay />
+        </TestDataStoreWrapper>
       </div>
     );
 
@@ -163,7 +188,11 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
       })
     );
 
-    render(<LiveTableDisplay />);
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
     const inputElement = screen.getByDisplayValue("R1C1");
     const cellElement = inputElement.closest("td");
     expect(cellElement).toBeInTheDocument();

@@ -14,16 +14,15 @@ import {
   screen,
 } from "@testing-library/react";
 
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LockButton from "@/components/live-table/LockButton";
-import { useLockedCells, useLockSelectedRange } from "@/stores/dataStore";
+import {
+  useLockedCells,
+  useLockSelectedRange,
+  useUnlockAll,
+} from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
 
 // Mock the dependencies
-vi.mock("@/components/live-table/LiveTableProvider", () => ({
-  useLiveTable: vi.fn(),
-}));
-
 vi.mock("@/stores/selectionStore", () => ({
   useSelectedCells: vi.fn(),
 }));
@@ -31,6 +30,9 @@ vi.mock("@/stores/selectionStore", () => ({
 vi.mock("@/stores/dataStore", () => ({
   useLockedCells: vi.fn(),
   useLockSelectedRange: vi.fn(),
+  useUnlockAll: vi.fn(),
+  useUnlockRange: vi.fn(),
+  useIsCellLocked: vi.fn(),
 }));
 
 // Create a test component that directly calls unlockAll
@@ -51,14 +53,10 @@ describe("Clear All Locks Functionality", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock useLiveTable with default values
-    vi.mocked(useLiveTable).mockReturnValue({
-      unlockAll: mockUnlockAll,
-    } as Partial<ReturnType<typeof useLiveTable>> as ReturnType<typeof useLiveTable>);
-
     vi.mocked(useSelectedCells).mockReturnValue([]);
     vi.mocked(useLockedCells).mockReturnValue(new Set());
     vi.mocked(useLockSelectedRange).mockReturnValue(mockLockSelectedRange);
+    vi.mocked(useUnlockAll).mockReturnValue(mockUnlockAll);
   });
 
   it("should call unlockAll when Clear All Locks is triggered", () => {
@@ -80,9 +78,8 @@ describe("Clear All Locks Functionality", () => {
     render(<LockButton />);
 
     // Verify that the component received the unlockAll function
-    expect(vi.mocked(useLiveTable)).toHaveBeenCalled();
-    const liveTablMockCall = vi.mocked(useLiveTable).mock.results[0];
-    expect(liveTablMockCall.value.unlockAll).toBe(mockUnlockAll);
+    expect(vi.mocked(useUnlockAll)).toHaveBeenCalled();
+    expect(vi.mocked(useUnlockAll)).toHaveReturnedWith(mockUnlockAll);
   });
 
   it("should disable Clear All Locks when no cells are locked", () => {
@@ -112,15 +109,12 @@ describe("Clear All Locks Functionality", () => {
       console.log("All locks cleared");
     });
 
-    vi.mocked(useLiveTable).mockReturnValue({
-      unlockAll: mockUnlockAllWithBehavior,
-    } as Partial<ReturnType<typeof useLiveTable>> as ReturnType<typeof useLiveTable>);
-
+    vi.mocked(useUnlockAll).mockReturnValue(mockUnlockAllWithBehavior);
     vi.mocked(useLockedCells).mockReturnValue(new Set(["0-0", "1-1"]));
 
     // Create a test component that uses the hook properly
     const TestComponent = () => {
-      const { unlockAll } = useLiveTable();
+      const unlockAll = useUnlockAll();
 
       const handleClearAll = () => {
         unlockAll();

@@ -30,6 +30,9 @@ interface DataState {
 interface DataActions {
   setLockedCells: (lockedCells: Set<string>) => void;
   lockSelectedRange: (selectedCells: CellPosition[]) => string | null;
+  unlockRange: (lockId: string) => boolean;
+  unlockAll: () => void;
+  isCellLocked: (rowIndex: number, colIndex: number) => boolean;
 }
 
 export type DataStore = DataState & DataActions;
@@ -84,6 +87,46 @@ function lockSelectedRange(
   return lockId;
 }
 
+/**
+ * Unlock a specific lock range.
+ * @param lockId - The ID of the lock to remove.
+ * @param liveTableDoc - The live table document.
+ * @returns True if the lock was removed, false if not found.
+ */
+function unlockRange(lockId: string, liveTableDoc: LiveTableDoc) {
+  const success = liveTableDoc.unlockRange(lockId);
+  if (success) {
+    toast.success("Range unlocked successfully.");
+  } else {
+    toast.error("Failed to unlock range.");
+  }
+  return success;
+}
+
+/**
+ * Unlock all locks.
+ * @param liveTableDoc - The live table document.
+ */
+function unlockAll(liveTableDoc: LiveTableDoc) {
+  liveTableDoc.unlockAll();
+  toast.success("All locks removed.");
+}
+
+/**
+ * Check if a cell is locked.
+ * @param rowIndex - The row index.
+ * @param colIndex - The column index.
+ * @param liveTableDoc - The live table document.
+ * @returns True if the cell is locked, false otherwise.
+ */
+function isCellLocked(
+  rowIndex: number,
+  colIndex: number,
+  liveTableDoc: LiveTableDoc
+) {
+  return liveTableDoc.isCellLocked(rowIndex, colIndex);
+}
+
 export const DataStoreProvider = ({
   children,
   liveTableDoc,
@@ -101,6 +144,10 @@ export const DataStoreProvider = ({
         },
         lockSelectedRange: (selectedCells: CellPosition[]) =>
           lockSelectedRange(selectedCells, liveTableDoc),
+        unlockRange: (lockId: string) => unlockRange(lockId, liveTableDoc),
+        unlockAll: () => unlockAll(liveTableDoc),
+        isCellLocked: (rowIndex: number, colIndex: number) =>
+          isCellLocked(rowIndex, colIndex, liveTableDoc),
       }))
     )
   );
@@ -126,3 +173,7 @@ export function useDataStore<T>(selector?: (state: DataStore) => T) {
 export const useLockedCells = () => useDataStore((state) => state.lockedCells);
 export const useLockSelectedRange = () =>
   useDataStore((state) => state.lockSelectedRange);
+export const useUnlockRange = () => useDataStore((state) => state.unlockRange);
+export const useUnlockAll = () => useDataStore((state) => state.unlockAll);
+export const useIsCellLocked = () =>
+  useDataStore((state) => state.isCellLocked);

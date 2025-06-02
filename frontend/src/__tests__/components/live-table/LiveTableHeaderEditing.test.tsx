@@ -33,13 +33,40 @@ import {
   type LiveTableContextType,
   useLiveTable,
 } from "@/components/live-table/LiveTableProvider";
+import {
+  type SelectionState,
+  useSelectionStore,
+} from "@/stores/selectionStore";
 
-import { getLiveTableMockValues } from "./liveTableTestUtils";
+import {
+  getLiveTableMockValues,
+  TestDataStoreWrapper,
+} from "./liveTableTestUtils";
 
 // Mock the useLiveTable hook
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
+
+// Mock the dataStore hooks
+vi.mock("@/stores/dataStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/stores/dataStore")>();
+  return {
+    ...actual,
+    useIsCellLocked: () => vi.fn(() => false),
+  };
+});
+
+// Mock the selectionStore hooks
+vi.mock("@/stores/selectionStore", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("@/stores/selectionStore")
+  >();
+  return {
+    ...actual,
+    useSelectionStore: vi.fn(),
+  };
+});
 
 describe("LiveTableDisplay Header Editing", () => {
   let mockHandleHeaderDoubleClick: ReturnType<typeof vi.fn>;
@@ -73,6 +100,28 @@ describe("LiveTableDisplay Header Editing", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Mock useSelectionStore
+    vi.mocked(useSelectionStore).mockImplementation(
+      <TState = SelectionState,>(
+        selector?: (state: SelectionState) => TState
+      ): TState | SelectionState => {
+        const state: SelectionState = {
+          selectedCell: null,
+          selectionArea: { startCell: null, endCell: null },
+          isSelecting: false,
+          setSelectedCell: vi.fn(),
+          startSelection: vi.fn(),
+          moveSelection: vi.fn(),
+          endSelection: vi.fn(),
+          clearSelection: vi.fn(),
+        };
+        if (selector) {
+          return selector(state);
+        }
+        return state;
+      }
+    );
 
     yDoc = new Y.Doc();
     liveTableDocInstance = new LiveTableDoc(yDoc);
@@ -178,7 +227,11 @@ describe("LiveTableDisplay Header Editing", () => {
 
   it("should enter edit mode on header double-click and display input", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(<LiveTableDisplay />);
+    const { rerender } = render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     const headerNameForTest = initialColumnDefinitions[0].name; // "Name"
 
@@ -202,7 +255,11 @@ describe("LiveTableDisplay Header Editing", () => {
           editingHeaderValue: currentEditingHeaderValue,
         } as LiveTableContextType)
     );
-    rerender(<LiveTableDisplay />);
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     const input = screen.getByTestId(
       `${headerNameForTest}-editing`
@@ -213,7 +270,11 @@ describe("LiveTableDisplay Header Editing", () => {
 
   it("should update header value on input change", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(<LiveTableDisplay />);
+    const { rerender } = render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
     const headerNameForTest = initialColumnDefinitions[0].name; // "Name"
 
     const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
@@ -234,7 +295,11 @@ describe("LiveTableDisplay Header Editing", () => {
           editingHeaderValue: currentEditingHeaderValue,
         } as LiveTableContextType)
     );
-    rerender(<LiveTableDisplay />);
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     const input = screen.getByTestId(
       `${headerNameForTest}-editing`
@@ -258,13 +323,21 @@ describe("LiveTableDisplay Header Editing", () => {
           editingHeaderValue: currentEditingHeaderValue,
         } as LiveTableContextType)
     );
-    rerender(<LiveTableDisplay />);
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
     expect(input.value).toBe(newHeaderText);
   });
 
   it("should save header changes on blur by calling liveTableDoc.editHeader", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(<LiveTableDisplay />);
+    const { rerender } = render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
     const headerIndexToEdit = 0;
     const headerNameForTest = initialColumnDefinitions[headerIndexToEdit].name;
     const newHeaderText = "Updated Name";
@@ -286,7 +359,11 @@ describe("LiveTableDisplay Header Editing", () => {
           editingHeaderValue: currentEditingHeaderValue,
         } as LiveTableContextType)
     );
-    rerender(<LiveTableDisplay />);
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     const input = screen.getByTestId(
       `${headerNameForTest}-editing`
@@ -307,7 +384,11 @@ describe("LiveTableDisplay Header Editing", () => {
           editingHeaderValue: currentEditingHeaderValue,
         } as LiveTableContextType)
     );
-    rerender(<LiveTableDisplay />);
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     await act(async () => {
       fireEvent.blur(input);

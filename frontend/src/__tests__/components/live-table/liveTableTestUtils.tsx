@@ -1,3 +1,5 @@
+import React from "react";
+
 import { vi } from "vitest";
 import * as Y from "yjs";
 
@@ -11,6 +13,7 @@ import {
   LiveTableDoc,
 } from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
 import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
+import { DataStoreProvider } from "@/stores/dataStore";
 
 // Define a more specific type for overrides that allows yColWidths (Y.Map)
 // and other context properties.
@@ -138,9 +141,6 @@ export const getLiveTableMockValues = (
     tableData: currentTableData,
     headers: currentHeaders,
     columnWidths: currentColWidths,
-    unlockRange: vi.fn().mockReturnValue(true),
-    unlockAll: vi.fn(),
-    isCellLocked: vi.fn().mockReturnValue(false),
     handleCellChange: vi.fn(),
     handleCellFocus: vi.fn(),
     handleCellBlur: vi.fn(),
@@ -170,4 +170,21 @@ export const getLiveTableMockValues = (
   };
 
   return defaultMockValue;
+};
+
+// Test wrapper that provides DataStoreProvider context
+export const TestDataStoreWrapper: React.FC<{
+  children: React.ReactNode;
+  liveTableDoc?: LiveTableDoc;
+}> = ({ children, liveTableDoc }) => {
+  // Create a default LiveTableDoc if none provided
+  const defaultDoc = React.useMemo(() => {
+    if (liveTableDoc) return liveTableDoc;
+    const yDoc = new Y.Doc();
+    return new LiveTableDoc(yDoc);
+  }, [liveTableDoc]);
+
+  return (
+    <DataStoreProvider liveTableDoc={defaultDoc}>{children}</DataStoreProvider>
+  );
 };

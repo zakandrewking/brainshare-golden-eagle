@@ -2,6 +2,7 @@
 
 import React, { useCallback } from "react";
 
+import { useIsCellLocked } from "@/stores/dataStore";
 import {
   selectIsCellSelected,
   useSelectionStore,
@@ -28,10 +29,10 @@ const TableCell: React.FC<TableCellProps> = ({
     handleCellBlur,
     setEditingCell,
     handleCellFocus,
-    isCellLocked,
     getCursorsForCell,
   } = useLiveTable();
 
+  const isCellLocked = useIsCellLocked();
   const selectedCell = useSelectionStore((state) => state.selectedCell);
   const startSelection = useSelectionStore((state) => state.startSelection);
   const moveSelection = useSelectionStore((state) => state.moveSelection);
@@ -47,7 +48,8 @@ const TableCell: React.FC<TableCellProps> = ({
 
   // Get cursors for this cell (other users' selections)
   const cursorsForCell = getCursorsForCell(rowIndex, colIndex);
-  const hasOtherUserCursors = cursorsForCell && cursorsForCell.cursors.length > 0;
+  const hasOtherUserCursors =
+    cursorsForCell && cursorsForCell.cursors.length > 0;
 
   // Determine border color based on selection/cursors
   let borderColor = "transparent";

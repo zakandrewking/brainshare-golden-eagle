@@ -37,7 +37,10 @@ import {
   useSelectionStore,
 } from "@/stores/selectionStore";
 
-import { getLiveTableMockValues } from "./liveTableTestUtils";
+import {
+  getLiveTableMockValues,
+  TestDataStoreWrapper,
+} from "./liveTableTestUtils";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
@@ -45,6 +48,15 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
 
 // Mock the entire store module
 vi.mock("@/stores/selectionStore");
+
+// Mock the dataStore
+vi.mock("@/stores/dataStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/stores/dataStore")>();
+  return {
+    ...actual,
+    useIsCellLocked: () => vi.fn(() => false),
+  };
+});
 
 describe("LiveTableDisplay Cell Editing", () => {
   const mockHandleCellChange = vi.fn();
@@ -145,7 +157,11 @@ describe("LiveTableDisplay Cell Editing", () => {
 
   it("handles cell interactions correctly - click behavior and edit mode", async () => {
     const user = userEvent.setup();
-    const { container, rerender } = render(<LiveTableDisplay />);
+    const { container, rerender } = render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     const cellInputJohnDoe = screen.getByDisplayValue("John Doe");
     expect(cellInputJohnDoe).toBeInTheDocument();
@@ -164,7 +180,11 @@ describe("LiveTableDisplay Cell Editing", () => {
     });
     expect(currentEditingCell).toEqual({ rowIndex: 0, colIndex: 0 });
     setupUseLiveTableMock();
-    rerender(<LiveTableDisplay />);
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
 
@@ -193,7 +213,11 @@ describe("LiveTableDisplay Cell Editing", () => {
 
   it("enters edit mode immediately when typing a character on selected cell", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(<LiveTableDisplay />);
+    const { rerender } = render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     // First select a cell by clicking on it
     const cellInputJohnDoe = screen.getByDisplayValue("John Doe");
@@ -234,7 +258,11 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Mock useSelectedCells to return single cell
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
 
-    rerender(<LiveTableDisplay />);
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     // Type a character
     fireEvent.keyDown(document, { key: "A" });
@@ -255,7 +283,11 @@ describe("LiveTableDisplay Cell Editing", () => {
 
   it("enters edit mode and removes last character when pressing backspace on selected cell", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(<LiveTableDisplay />);
+    const { rerender } = render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     // First select a cell by clicking on it
     const cellInputJohnDoe = screen.getByDisplayValue("John Doe");
@@ -296,7 +328,11 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Mock useSelectedCells to return single cell
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
 
-    rerender(<LiveTableDisplay />);
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     // Press backspace
     fireEvent.keyDown(document, { key: "Backspace" });
@@ -316,7 +352,11 @@ describe("LiveTableDisplay Cell Editing", () => {
   });
 
   it("does not enter edit mode when typing if multiple cells are selected", async () => {
-    const { rerender } = render(<LiveTableDisplay />);
+    const { rerender } = render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     // Clear previous calls
     mockSetEditingCell.mockClear();
@@ -356,7 +396,11 @@ describe("LiveTableDisplay Cell Editing", () => {
       { rowIndex: 1, colIndex: 1 },
     ]);
 
-    rerender(<LiveTableDisplay />);
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     // Type a character
     fireEvent.keyDown(document, { key: "A" });
@@ -384,7 +428,11 @@ describe("LiveTableDisplay Cell Editing", () => {
       }) as LiveTableContextType
     );
 
-    const { rerender } = render(<LiveTableDisplay />);
+    const { rerender } = render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     // Clear previous calls
     mockSetEditingCell.mockClear();
@@ -419,7 +467,11 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Mock useSelectedCells to return single cell
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
 
-    rerender(<LiveTableDisplay />);
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     // Press backspace on empty cell
     fireEvent.keyDown(document, { key: "Backspace" });

@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useIsCellLocked } from "@/stores/dataStore";
 import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
@@ -55,9 +56,9 @@ const LiveTable: React.FC = () => {
     setEditingCell,
     handleCellFocus,
     handleCellChange,
-    isCellLocked,
   } = useLiveTable();
 
+  const isCellLocked = useIsCellLocked();
   const selectedCell = useSelectionStore((state) => state.selectedCell);
   const moveSelection = useSelectionStore((state) => state.moveSelection);
   const endSelection = useSelectionStore((state) => state.endSelection);

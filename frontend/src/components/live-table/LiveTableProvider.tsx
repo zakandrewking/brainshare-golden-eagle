@@ -49,10 +49,6 @@ export interface LiveTableContextType {
   headers: string[] | undefined;
   columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
-  // locks
-  unlockRange: (lockId: string) => boolean;
-  unlockAll: () => void;
-  isCellLocked: (rowIndex: number, colIndex: number) => boolean;
   // undo
   undoManager: UndoManager;
   // mouse & keyboard events
@@ -660,32 +656,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [liveTableDoc]
   );
 
-  // Lock-related methods
-  const unlockRange = useCallback(
-    (lockId: string) => {
-      const success = liveTableDoc.unlockRange(lockId);
-      if (success) {
-        toast.success("Range unlocked successfully.");
-      } else {
-        toast.error("Failed to unlock range.");
-      }
-      return success;
-    },
-    [liveTableDoc]
-  );
-
-  const unlockAll = useCallback(() => {
-    liveTableDoc.unlockAll();
-    toast.success("All locks removed.");
-  }, [liveTableDoc]);
-
-  const isCellLocked = useCallback(
-    (rowIndex: number, colIndex: number) => {
-      return liveTableDoc.isCellLocked(rowIndex, colIndex);
-    },
-    [liveTableDoc]
-  );
-
   // Helper for unique default header names
   function generateUniqueDefaultHeader(
     base: string,
@@ -715,9 +685,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         headers,
         columnWidths,
         isTableLoaded,
-        unlockRange,
-        unlockAll,
-        isCellLocked,
         handleCellChange,
         undoManager,
         handleCellFocus,
