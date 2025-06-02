@@ -16,6 +16,8 @@ import {
 } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
+import { LiveblocksYjsProvider } from "@liveblocks/yjs";
+
 import type { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import type { CellPosition } from "@/stores/selectionStore";
 
@@ -25,6 +27,8 @@ import type { CellPosition } from "@/stores/selectionStore";
 
 interface DataState {
   lockedCells: Set<string>;
+  editingHeaderIndex: number | null;
+  editingHeaderValue: string;
 }
 
 interface DataActions {
@@ -33,6 +37,13 @@ interface DataActions {
   unlockRange: (lockId: string) => boolean;
   unlockAll: () => void;
   isCellLocked: (rowIndex: number, colIndex: number) => boolean;
+  handleCellFocus: (rowIndex: number, colIndex: number) => void;
+  handleCellBlur: () => void;
+  handleHeaderDoubleClick: (colIndex: number) => void;
+  handleHeaderChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleHeaderBlur: () => void;
+  handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  handleColumnResize: (header: string, newWidth: number) => void;
 }
 
 export type DataStore = DataState & DataActions;
@@ -45,6 +56,8 @@ const DataStoreContext = createContext<StoreApi<DataStore> | null>(null);
 
 const initialState: DataState = {
   lockedCells: new Set<string>(),
+  editingHeaderIndex: null,
+  editingHeaderValue: "",
 };
 
 /**
@@ -130,9 +143,13 @@ function isCellLocked(
 export const DataStoreProvider = ({
   children,
   liveTableDoc,
+  yProvider,
+  headers,
 }: {
   children: React.ReactNode;
   liveTableDoc: LiveTableDoc;
+  yProvider: LiveblocksYjsProvider;
+  headers: string[] | undefined;
 }) => {
   const [store] = useState(() =>
     createStore<DataStore>()(
@@ -148,6 +165,56 @@ export const DataStoreProvider = ({
         unlockAll: () => unlockAll(liveTableDoc),
         isCellLocked: (rowIndex: number, colIndex: number) =>
           isCellLocked(rowIndex, colIndex, liveTableDoc),
+        handleCellFocus: (rowIndex: number, colIndex: number) => {
+          yProvider.awareness.setLocalStateField("selectedCell", {
+            rowIndex,
+            colIndex,
+          });
+        },
+        handleCellBlur: () => {
+          yProvider.awareness.setLocalStateField("selectedCell", null);
+        },
+        handleHeaderDoubleClick: (colIndex: number) => {
+          if (!headers) return;
+          set((state) => {
+            state.editingHeaderIndex = colIndex;
+            state.editingHeaderValue = headers[colIndex];
+          });
+        },
+        handleHeaderChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+          set((state) => {
+            state.editingHeaderValue = event.target.value;
+          });
+        },
+        handleHeaderBlur: () => {
+          const state = get();
+          if (state.editingHeaderIndex === null || !headers) return;
+
+          const oldHeader = headers[state.editingHeaderIndex];
+          const newHeader = state.editingHeaderValue.trim();
+
+          if (newHeader && newHeader !== oldHeader) {
+            liveTableDoc.editHeader(state.editingHeaderIndex, newHeader);
+          }
+
+          set((state) => {
+            state.editingHeaderIndex = null;
+          });
+        },
+        handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            get().handleHeaderBlur();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            set((state) => {
+              state.editingHeaderIndex = null;
+            });
+          }
+        },
+        handleColumnResize: (header: string, newWidth: number) => {
+          liveTableDoc.updateColumnWidth(header, newWidth);
+        },
       }))
     )
   );
@@ -177,3 +244,25 @@ export const useUnlockRange = () => useDataStore((state) => state.unlockRange);
 export const useUnlockAll = () => useDataStore((state) => state.unlockAll);
 export const useIsCellLocked = () =>
   useDataStore((state) => state.isCellLocked);
+
+// handler hooks
+export const useHandleCellFocus = () =>
+  useDataStore((state) => state.handleCellFocus);
+export const useHandleCellBlur = () =>
+  useDataStore((state) => state.handleCellBlur);
+export const useHandleHeaderDoubleClick = () =>
+  useDataStore((state) => state.handleHeaderDoubleClick);
+export const useHandleHeaderChange = () =>
+  useDataStore((state) => state.handleHeaderChange);
+export const useHandleHeaderBlur = () =>
+  useDataStore((state) => state.handleHeaderBlur);
+export const useHandleHeaderKeyDown = () =>
+  useDataStore((state) => state.handleHeaderKeyDown);
+export const useHandleColumnResize = () =>
+  useDataStore((state) => state.handleColumnResize);
+
+// editing state hooks
+export const useEditingHeaderIndex = () =>
+  useDataStore((state) => state.editingHeaderIndex);
+export const useEditingHeaderValue = () =>
+  useDataStore((state) => state.editingHeaderValue);

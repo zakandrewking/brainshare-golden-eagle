@@ -51,22 +51,12 @@ export interface LiveTableContextType {
   isTableLoaded: boolean;
   // undo
   undoManager: UndoManager;
-  // mouse & keyboard events
-  handleCellFocus: (rowIndex: number, colIndex: number) => void;
-  handleCellBlur: () => void;
-  handleHeaderDoubleClick: (colIndex: number) => void;
-  handleHeaderChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  handleHeaderBlur: () => void;
-  handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
-  handleColumnResize: (header: string, newWidth: number) => void;
   // editing
   handleCellChange: (
     rowIndex: number,
     header: string,
     newValue: string
   ) => void;
-  editingHeaderIndex: number | null;
-  editingHeaderValue: string;
   editingCell: { rowIndex: number; colIndex: number } | null;
   setEditingCell: (cell: { rowIndex: number; colIndex: number } | null) => void;
   // row operations
@@ -145,12 +135,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   const [cursorsData, setCursorsData] = useState<
     CursorDataForCell[] | undefined
   >(undefined);
-
-  // Header editing state
-  const [editingHeaderIndex, setEditingHeaderIndex] = useState<number | null>(
-    null
-  );
-  const [editingHeaderValue, setEditingHeaderValue] = useState<string>("");
 
   // State for tracking the cell being edited
   const [editingCell, setEditingCell] = useState<{
@@ -233,73 +217,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       );
     },
     [cursorsData]
-  );
-
-  // --- Awareness & Focus ---
-
-  const handleCellFocus = useCallback(
-    (rowIndex: number, colIndex: number) => {
-      yProvider.awareness.setLocalStateField("selectedCell", {
-        rowIndex,
-        colIndex,
-      });
-    },
-    [yProvider.awareness]
-  );
-
-  // Function to handle cell blur
-  const handleCellBlur = useCallback(() => {
-    yProvider.awareness.setLocalStateField("selectedCell", null);
-  }, [yProvider.awareness]);
-
-  // Header editing functions
-  const handleHeaderDoubleClick = useCallback(
-    (colIndex: number) => {
-      if (!headers) return;
-      setEditingHeaderIndex(colIndex);
-      setEditingHeaderValue(headers[colIndex]);
-    },
-    [headers]
-  );
-
-  const handleHeaderChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setEditingHeaderValue(event.target.value);
-    },
-    []
-  );
-
-  const handleHeaderBlur = useCallback(() => {
-    if (editingHeaderIndex === null || !headers) return;
-
-    const oldHeader = headers[editingHeaderIndex];
-    const newHeader = editingHeaderValue.trim();
-
-    if (newHeader && newHeader !== oldHeader) {
-      liveTableDoc.editHeader(editingHeaderIndex, newHeader);
-    }
-
-    setEditingHeaderIndex(null);
-  }, [editingHeaderIndex, headers, editingHeaderValue, liveTableDoc]);
-
-  const handleHeaderKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        handleHeaderBlur();
-      } else if (event.key === "Escape") {
-        event.preventDefault();
-        setEditingHeaderIndex(null);
-      }
-    },
-    [handleHeaderBlur]
-  );
-
-  const handleColumnResize = useCallback(
-    (header: string, newWidth: number) => {
-      liveTableDoc.updateColumnWidth(header, newWidth);
-    },
-    [liveTableDoc]
   );
 
   // wire up yjs observers
@@ -687,15 +604,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         isTableLoaded,
         handleCellChange,
         undoManager,
-        handleCellFocus,
-        handleCellBlur,
-        editingHeaderIndex,
-        editingHeaderValue,
-        handleHeaderDoubleClick,
-        handleHeaderChange,
-        handleHeaderBlur,
-        handleHeaderKeyDown,
-        handleColumnResize,
         editingCell,
         setEditingCell,
         generateAndInsertRows,
@@ -708,7 +616,11 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         getCursorsForCell,
       }}
     >
-      <DataStoreProvider liveTableDoc={liveTableDoc}>
+      <DataStoreProvider
+        liveTableDoc={liveTableDoc}
+        yProvider={yProvider}
+        headers={headers}
+      >
         {children}
       </DataStoreProvider>
     </LiveTableContext.Provider>
