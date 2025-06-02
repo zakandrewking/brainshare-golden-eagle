@@ -56,6 +56,7 @@ vi.mock("@/stores/selectionStore", () => ({
 
 vi.mock("@/stores/dataStore", () => ({
   useLockedCells: () => new Set(),
+  useLockSelectedRange: () => vi.fn(),
 }));
 
 vi.mock("lucide-react", async () => {

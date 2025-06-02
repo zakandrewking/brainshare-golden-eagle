@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useLockedCells } from "@/stores/dataStore";
+import { useLockedCells, useLockSelectedRange } from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
 
 import { ButtonGroup } from "../ui/button-group";
@@ -22,12 +22,13 @@ import {
 import { useLiveTable } from "./LiveTableProvider";
 
 export function LockButton() {
-  const { lockSelectedRange, unlockAll } = useLiveTable();
+  const { unlockAll } = useLiveTable();
+  const lockSelectedRange = useLockSelectedRange();
   const selectedCells = useSelectedCells();
   const lockedCells = useLockedCells();
 
   const handleClick = () => {
-    lockSelectedRange();
+    lockSelectedRange(selectedCells);
   };
 
   const handleClearAllLocks = () => {

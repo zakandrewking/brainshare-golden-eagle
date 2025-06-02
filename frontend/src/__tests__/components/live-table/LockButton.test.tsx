@@ -16,7 +16,7 @@ import {
 
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LockButton from "@/components/live-table/LockButton";
-import { useLockedCells } from "@/stores/dataStore";
+import { useLockedCells, useLockSelectedRange } from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
 
 // Mock the dependencies
@@ -30,6 +30,7 @@ vi.mock("@/stores/selectionStore", () => ({
 
 vi.mock("@/stores/dataStore", () => ({
   useLockedCells: vi.fn(),
+  useLockSelectedRange: vi.fn(),
 }));
 
 describe("LockButton", () => {
@@ -41,12 +42,14 @@ describe("LockButton", () => {
 
     // Mock useLiveTable with default values
     vi.mocked(useLiveTable).mockReturnValue({
-      lockSelectedRange: mockLockSelectedRange,
       unlockAll: mockUnlockAll,
     } as Partial<ReturnType<typeof useLiveTable>> as ReturnType<typeof useLiveTable>);
 
     // Mock useLockedCells with default empty set
     vi.mocked(useLockedCells).mockReturnValue(new Set());
+
+    // Mock useLockSelectedRange
+    vi.mocked(useLockSelectedRange).mockReturnValue(mockLockSelectedRange);
   });
 
   it("should render the lock button when cells are selected", () => {
@@ -74,16 +77,18 @@ describe("LockButton", () => {
 
   it("should call lockSelectedRange when clicked with selected cells", () => {
     // Mock selected cells
-    vi.mocked(useSelectedCells).mockReturnValue([
+    const selectedCells = [
       { rowIndex: 0, colIndex: 0 },
       { rowIndex: 0, colIndex: 1 },
-    ]);
+    ];
+    vi.mocked(useSelectedCells).mockReturnValue(selectedCells);
 
     render(<LockButton />);
     const button = screen.getByRole("button", { name: /lock selected cells/i });
     fireEvent.click(button);
 
     expect(mockLockSelectedRange).toHaveBeenCalledTimes(1);
+    expect(mockLockSelectedRange).toHaveBeenCalledWith(selectedCells);
   });
 
   it("should render dropdown trigger button", () => {

@@ -50,6 +50,7 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
 
 vi.mock("@/stores/dataStore", () => ({
   useLockedCells: () => new Set(),
+  useLockSelectedRange: () => vi.fn(),
 }));
 
 describe("LiveTableToolbar - Undo/Redo Functionality", () => {

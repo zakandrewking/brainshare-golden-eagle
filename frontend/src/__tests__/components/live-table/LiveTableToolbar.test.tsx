@@ -38,6 +38,7 @@ vi.mock("@/stores/selectionStore", () => ({
 
 vi.mock("@/stores/dataStore", () => ({
   useLockedCells: () => new Set(),
+  useLockSelectedRange: () => vi.fn(),
 }));
 
 const mockGenerateAndInsertRows = vi.fn();
@@ -301,8 +302,8 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     const mockData = getLiveTableMockValues({
       undoManager: mockUndoManager,
       selectedCells: [],
+      headers: initialHeaders,
       tableData: mockYTable.toArray().map((r) => r.toJSON()),
-      headers: mockYHeaders.toArray(),
       columnWidths: {},
       generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,

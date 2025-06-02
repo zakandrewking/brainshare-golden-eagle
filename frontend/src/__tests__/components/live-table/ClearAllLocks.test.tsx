@@ -16,7 +16,7 @@ import {
 
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LockButton from "@/components/live-table/LockButton";
-import { useLockedCells } from "@/stores/dataStore";
+import { useLockedCells, useLockSelectedRange } from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
 
 // Mock the dependencies
@@ -30,6 +30,7 @@ vi.mock("@/stores/selectionStore", () => ({
 
 vi.mock("@/stores/dataStore", () => ({
   useLockedCells: vi.fn(),
+  useLockSelectedRange: vi.fn(),
 }));
 
 // Create a test component that directly calls unlockAll
@@ -52,12 +53,12 @@ describe("Clear All Locks Functionality", () => {
 
     // Mock useLiveTable with default values
     vi.mocked(useLiveTable).mockReturnValue({
-      lockSelectedRange: mockLockSelectedRange,
       unlockAll: mockUnlockAll,
     } as Partial<ReturnType<typeof useLiveTable>> as ReturnType<typeof useLiveTable>);
 
     vi.mocked(useSelectedCells).mockReturnValue([]);
     vi.mocked(useLockedCells).mockReturnValue(new Set());
+    vi.mocked(useLockSelectedRange).mockReturnValue(mockLockSelectedRange);
   });
 
   it("should call unlockAll when Clear All Locks is triggered", () => {
@@ -112,7 +113,6 @@ describe("Clear All Locks Functionality", () => {
     });
 
     vi.mocked(useLiveTable).mockReturnValue({
-      lockSelectedRange: mockLockSelectedRange,
       unlockAll: mockUnlockAllWithBehavior,
     } as Partial<ReturnType<typeof useLiveTable>> as ReturnType<typeof useLiveTable>);
 

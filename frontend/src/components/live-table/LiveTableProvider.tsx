@@ -50,7 +50,6 @@ export interface LiveTableContextType {
   columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
   // locks
-  lockSelectedRange: () => string | null;
   unlockRange: (lockId: string) => boolean;
   unlockAll: () => void;
   isCellLocked: (rowIndex: number, colIndex: number) => boolean;
@@ -662,37 +661,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   );
 
   // Lock-related methods
-  const lockSelectedRange = useCallback(() => {
-    if (selectedCells.length === 0) {
-      toast.info("No cells selected to lock.");
-      return null;
-    }
-
-    // Find the bounds of the selection
-    const rowIndices = selectedCells.map((cell) => cell.rowIndex);
-    const colIndices = selectedCells.map((cell) => cell.colIndex);
-
-    const minRowIndex = Math.min(...rowIndices);
-    const maxRowIndex = Math.max(...rowIndices);
-    const minColIndex = Math.min(...colIndices);
-    const maxColIndex = Math.max(...colIndices);
-
-    const lockId = liveTableDoc.lockCellRange(
-      minRowIndex,
-      maxRowIndex,
-      minColIndex,
-      maxColIndex
-    );
-
-    if (lockId) {
-      toast.success(`Locked ${selectedCells.length} cell(s).`);
-    } else {
-      toast.error("Failed to lock the selected range.");
-    }
-
-    return lockId;
-  }, [selectedCells, liveTableDoc]);
-
   const unlockRange = useCallback(
     (lockId: string) => {
       const success = liveTableDoc.unlockRange(lockId);
@@ -747,7 +715,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         headers,
         columnWidths,
         isTableLoaded,
-        lockSelectedRange,
         unlockRange,
         unlockAll,
         isCellLocked,

@@ -66,7 +66,6 @@ const mockLiveTableContext: LiveTableContextType = {
   generateAndInsertColumns: vi.fn(),
   deleteColumns: vi.fn(),
   reorderColumn: vi.fn(),
-  lockSelectedRange: vi.fn(),
   unlockRange: vi.fn(),
   unlockAll: vi.fn(),
   isCellLocked: vi.fn(() => false),
@@ -98,6 +97,7 @@ vi.mock("@/stores/selectionStore", () => ({
 // Mock the data store
 vi.mock("@/stores/dataStore", () => ({
   useLockedCells: () => new Set(),
+  useLockSelectedRange: () => vi.fn(),
 }));
 
 // Mock TableCell component
