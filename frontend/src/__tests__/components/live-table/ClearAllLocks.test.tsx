@@ -23,8 +23,10 @@ import {
 import { useSelectedCells } from "@/stores/selectionStore";
 
 // Mock the dependencies
-vi.mock("@/stores/selectionStore", () => ({
+vi.mock("@/stores/selectionStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
   useSelectedCells: vi.fn(),
+  useSelectedCell: vi.fn(),
 }));
 
 vi.mock("@/stores/dataStore", () => ({

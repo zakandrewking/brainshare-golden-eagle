@@ -1,7 +1,6 @@
 import React from "react";
 
 import {
-  afterEach,
   beforeEach,
   describe,
   expect,
@@ -9,7 +8,6 @@ import {
   type Mocked,
   vi,
 } from "vitest";
-import * as Y from "yjs";
 
 import {
   act,
@@ -24,13 +22,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { getLiveTableMockValues } from "./liveTableTestUtils";
 
-// Mock Y.UndoManager directly
-const mockUndo = vi.fn();
-const mockRedo = vi.fn();
-const mockOn = vi.fn();
-const mockOff = vi.fn();
-const mockStopCapturing = vi.fn();
-
 // Define a type for the mock UndoManager
 type MockUndoManagerType = {
   undo: Mocked<() => void>;
@@ -42,51 +33,75 @@ type MockUndoManagerType = {
   stopCapturing: Mocked<() => void>;
 };
 
-let mockUndoManagerInstance: MockUndoManagerType;
-
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
-vi.mock("@/stores/dataStore", () => ({
-  useLockedCells: () => new Set(),
-  useLockSelectedRange: () => vi.fn(),
-  useUnlockAll: () => vi.fn(),
-  useUnlockRange: () => vi.fn(),
-  useIsCellLocked: () => vi.fn(() => false),
+vi.mock("@/stores/dataStore", () => {
+  const mockUseUndoManager = vi.fn();
+  return {
+    useLockedCells: () => new Set(),
+    useLockSelectedRange: () => vi.fn(),
+    useUnlockAll: () => vi.fn(),
+    useUnlockRange: () => vi.fn(),
+    useIsCellLocked: () => vi.fn(() => false),
+    useUndoManager: mockUseUndoManager,
+    useHandleCellChange: vi.fn(),
+  };
+});
+
+vi.mock("@/stores/selectionStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
+  useSelectedCells: () => [],
+  useSelectionStore: vi.fn(() => ({ selectedCell: null })),
 }));
 
 describe("LiveTableToolbar - Undo/Redo Functionality", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  let mockUndoManagerInstance: MockUndoManagerType;
+  let mockUseUndoManager: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    vi.resetAllMocks();
+
+    // Mock ResizeObserver properly
+    Object.defineProperty(global, "ResizeObserver", {
+      writable: true,
+      value: vi.fn().mockImplementation(() => ({
+        observe: vi.fn(),
+        unobserve: vi.fn(),
+        disconnect: vi.fn(),
+      })),
+    });
 
     mockUndoManagerInstance = {
-      undo: mockUndo,
-      redo: mockRedo,
-      on: mockOn,
-      off: mockOff,
+      undo: vi.fn(),
+      redo: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
       undoStack: [],
       redoStack: [],
-      stopCapturing: mockStopCapturing,
+      stopCapturing: vi.fn(),
     };
 
+    // Get the mocked module and set up the useUndoManager mock
+    const dataStoreModule = await vi.importMock("@/stores/dataStore");
+    mockUseUndoManager = dataStoreModule.useUndoManager as ReturnType<
+      typeof vi.fn
+    >;
+    mockUseUndoManager.mockReturnValue(mockUndoManagerInstance);
+
     const mockData = getLiveTableMockValues({
-      undoManager: mockUndoManagerInstance as unknown as Y.UndoManager,
       isTableLoaded: true,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
   });
 
-  afterEach(() => {
-    // Vitest automatically cleans up DOM, no specific unmount needed unless effects aren't cleaned by component
-  });
-
   const triggerUndoManagerEvent = (
     eventName: "stack-item-added" | "stack-item-popped"
   ) => {
-    const callback = mockOn.mock.calls.find(
-      (call) => call[0] === eventName
-    )?.[1];
+    // Find the callback that was registered for this event
+    const onCalls = vi.mocked(mockUndoManagerInstance.on).mock.calls;
+    const callback = onCalls.find((call) => call[0] === eventName)?.[1];
     if (callback) {
       act(() => {
         callback();
@@ -103,7 +118,6 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
         <LiveTableToolbar />
       </TooltipProvider>
     );
-    triggerUndoManagerEvent("stack-item-added"); // Trigger initial state update
 
     const undoButton = screen.getByRole("button", { name: /undo/i });
     const redoButton = screen.getByRole("button", { name: /redo/i });
@@ -142,7 +156,7 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
     const undoButton = screen.getByRole("button", { name: /undo/i });
     fireEvent.mouseDown(undoButton);
 
-    expect(mockUndo).toHaveBeenCalledTimes(1);
+    expect(mockUndoManagerInstance.undo).toHaveBeenCalledTimes(1);
   });
 
   it("should enable Redo and disable Undo after undo operation (simulated by stack change)", () => {
@@ -177,7 +191,7 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
     const redoButton = screen.getByRole("button", { name: /redo/i });
     fireEvent.mouseDown(redoButton);
 
-    expect(mockRedo).toHaveBeenCalledTimes(1);
+    expect(mockUndoManagerInstance.redo).toHaveBeenCalledTimes(1);
   });
 
   it("should enable Undo and disable Redo after redo operation (simulated by stack change)", () => {
@@ -206,29 +220,30 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
       </TooltipProvider>
     );
 
-    expect(mockOn).toHaveBeenCalledWith(
+    expect(mockUndoManagerInstance.on).toHaveBeenCalledWith(
       "stack-item-added",
       expect.any(Function)
     );
-    expect(mockOn).toHaveBeenCalledWith(
+    expect(mockUndoManagerInstance.on).toHaveBeenCalledWith(
       "stack-item-popped",
       expect.any(Function)
     );
 
-    const onStackItemAddedCallback = mockOn.mock.calls.find(
+    const onCalls = vi.mocked(mockUndoManagerInstance.on).mock.calls;
+    const onStackItemAddedCallback = onCalls.find(
       (call) => call[0] === "stack-item-added"
     )?.[1];
-    const onStackItemPoppedCallback = mockOn.mock.calls.find(
+    const onStackItemPoppedCallback = onCalls.find(
       (call) => call[0] === "stack-item-popped"
     )?.[1];
 
     unmount();
 
-    expect(mockOff).toHaveBeenCalledWith(
+    expect(mockUndoManagerInstance.off).toHaveBeenCalledWith(
       "stack-item-added",
       onStackItemAddedCallback
     );
-    expect(mockOff).toHaveBeenCalledWith(
+    expect(mockUndoManagerInstance.off).toHaveBeenCalledWith(
       "stack-item-popped",
       onStackItemPoppedCallback
     );

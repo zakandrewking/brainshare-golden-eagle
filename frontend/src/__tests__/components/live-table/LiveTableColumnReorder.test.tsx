@@ -1,4 +1,5 @@
 import {
+  afterEach,
   beforeEach,
   describe,
   expect,
@@ -14,9 +15,13 @@ import {
 } from "@testing-library/react";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
+import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import {
   type LiveTableContextType,
+  useLiveTable,
 } from "@/components/live-table/LiveTableProvider";
+
+import { TestDataStoreWrapper } from "./liveTableTestUtils";
 
 // Mock the LiveTableProvider context
 const mockLiveTableContext: LiveTableContextType = {
@@ -48,19 +53,6 @@ const mockLiveTableContext: LiveTableContextType = {
     "Column E": 150,
   },
   isTableLoaded: true,
-  undoManager: {} as Y.UndoManager,
-  handleCellFocus: vi.fn(),
-  handleCellBlur: vi.fn(),
-  handleHeaderDoubleClick: vi.fn(),
-  handleHeaderChange: vi.fn(),
-  handleHeaderBlur: vi.fn(),
-  handleHeaderKeyDown: vi.fn(),
-  handleColumnResize: vi.fn(),
-  handleCellChange: vi.fn(),
-  editingHeaderIndex: null,
-  editingHeaderValue: "",
-  editingCell: null,
-  setEditingCell: vi.fn(),
   generateAndInsertRows: vi.fn(),
   deleteRows: vi.fn(),
   generateAndInsertColumns: vi.fn(),
@@ -71,33 +63,49 @@ const mockLiveTableContext: LiveTableContextType = {
   getCursorsForCell: vi.fn(() => undefined),
 };
 
-// Mock the LiveTableProvider
-vi.mock("@/components/live-table/LiveTableProvider", () => ({
-  useLiveTable: () => mockLiveTableContext,
-}));
+vi.mock(
+  "@/components/live-table/LiveTableProvider",
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    useLiveTable: vi.fn(),
+  })
+);
 
-// Mock the selection store
-vi.mock("@/stores/selectionStore", () => ({
-  useSelectionStore: (selector: (state: unknown) => unknown) => {
-    const mockState = {
-      selectedCell: null,
-      moveSelection: vi.fn(),
-      endSelection: vi.fn(),
-      clearSelection: vi.fn(),
-      isSelecting: false,
-    };
-    return selector(mockState);
-  },
-  useSelectedCells: () => [],
+vi.mock("@/stores/selectionStore", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useSelectedCell: vi.fn(() => null),
+  useSelectedCells: vi.fn(() => []),
+  useSelectionMove: vi.fn(() => vi.fn()),
+  useSelectionEnd: vi.fn(() => vi.fn()),
 }));
 
 // Mock the data store
-vi.mock("@/stores/dataStore", () => ({
+vi.mock("@/stores/dataStore", async (importOriginal) => ({
+  ...(await importOriginal()),
   useLockedCells: () => new Set(),
   useLockSelectedRange: () => vi.fn(),
   useUnlockAll: () => vi.fn(),
   useUnlockRange: () => vi.fn(),
   useIsCellLocked: () => vi.fn(() => false),
+  useHandleCellFocus: () => vi.fn(),
+  useHandleCellBlur: () => vi.fn(),
+  useHandleHeaderDoubleClick: () => vi.fn(),
+  useHandleHeaderChange: () => vi.fn(),
+  useHandleHeaderBlur: () => vi.fn(),
+  useHandleColumnResize: () => vi.fn(),
+  useEditingHeaderIndex: () => null,
+  useEditingHeaderValue: () => "",
+  useHandleCellChange: () => vi.fn(),
+  useSetEditingCell: () => vi.fn(),
+  useEditingCell: () => null,
+  useUndoManager: () => ({
+    undo: vi.fn(),
+    redo: vi.fn(),
+    undoStack: [],
+    redoStack: [],
+    on: vi.fn(),
+    off: vi.fn(),
+  }),
 }));
 
 // Mock TableCell component
@@ -115,12 +123,30 @@ vi.mock("@/components/live-table/TableCell", () => ({
 }));
 
 describe("LiveTableDisplay - Column Reordering", () => {
+  let yDoc: Y.Doc;
+  let liveTableDocInstance: LiveTableDoc;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+
+    yDoc = new Y.Doc();
+    liveTableDocInstance = new LiveTableDoc(yDoc);
+
+    vi.mocked(useLiveTable).mockImplementation(() => ({
+      ...mockLiveTableContext,
+    }));
+  });
+
+  afterEach(() => {
+    yDoc.destroy();
   });
 
   it("should render column headers with drag attributes", () => {
-    render(<LiveTableDisplay />);
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     const columnAHeader = screen.getByText("Column A").closest("th");
     const columnBHeader = screen.getByText("Column B").closest("th");
@@ -130,7 +156,11 @@ describe("LiveTableDisplay - Column Reordering", () => {
   });
 
   it("should have reorderColumn function available in context", () => {
-    render(<LiveTableDisplay />);
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     // Verify that the reorderColumn function is available and is a function
     expect(mockLiveTableContext.reorderColumn).toBeDefined();
@@ -138,7 +168,11 @@ describe("LiveTableDisplay - Column Reordering", () => {
   });
 
   it("should render table headers with proper styling for drag operations", () => {
-    render(<LiveTableDisplay />);
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     const columnAHeader = screen.getByText("Column A").closest("th");
 
@@ -147,7 +181,11 @@ describe("LiveTableDisplay - Column Reordering", () => {
   });
 
   it("should only call reorderColumn once when dropping on a column header", () => {
-    render(<LiveTableDisplay />);
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
 
     const columnAHeader = screen
       .getByText("Column A")

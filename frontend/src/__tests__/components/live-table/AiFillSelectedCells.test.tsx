@@ -22,14 +22,27 @@ import {
 } from "@/components/live-table/AiFillSelectionButton";
 import * as LiveTableProviderModule
   from "@/components/live-table/LiveTableProvider";
+import * as DataStoreModule from "@/stores/dataStore";
 import * as SelectionStoreModule from "@/stores/selectionStore";
+
+import { TestDataStoreWrapper } from "./liveTableTestUtils";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
-vi.mock("@/stores/selectionStore", () => ({
+vi.mock("@/stores/dataStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/stores/dataStore")>();
+  return {
+    ...actual,
+    useHandleCellChange: vi.fn(),
+  };
+});
+
+vi.mock("@/stores/selectionStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
   useSelectedCells: vi.fn(),
+  useSelectedCell: vi.fn(),
 }));
 
 vi.mock(
@@ -82,15 +95,17 @@ describe("AiFillSelectionButton", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // vi.useFakeTimers();
 
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
       tableData: mockTableData,
       headers: mockHeaders,
-      handleCellChange: mockHandleCellChange,
       documentTitle: mockDocumentTitle,
       documentDescription: mockDocumentDescription,
     } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
+
+    vi.mocked(DataStoreModule.useHandleCellChange).mockReturnValue(
+      mockHandleCellChange
+    );
 
     vi.mocked(SelectionStoreModule.useSelectedCells).mockReturnValue(
       mockSelectedCells
@@ -118,23 +133,25 @@ describe("AiFillSelectionButton", () => {
   });
 
   it("should be disabled when no cells are selected", () => {
-    // Override the mock for useLiveTable with no selected cells
-    // vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValueOnce({
-    //   ...vi.mocked(LiveTableProviderModule.useLiveTable)(),
-    //   selectedCells: [],
-    // } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
-
     // Mock useSelectedCells to return an empty array
     vi.mocked(SelectionStoreModule.useSelectedCells).mockReturnValueOnce([]);
 
-    render(<AiFillSelectionButton />);
+    render(
+      <TestDataStoreWrapper headers={mockHeaders}>
+        <AiFillSelectionButton />
+      </TestDataStoreWrapper>
+    );
 
     const button = screen.getByRole("button", { name: /fill selection/i });
     expect(button).toBeDisabled();
   });
 
   it("should call generateSelectedCellsSuggestions when clicked", async () => {
-    render(<AiFillSelectionButton />);
+    render(
+      <TestDataStoreWrapper headers={mockHeaders}>
+        <AiFillSelectionButton />
+      </TestDataStoreWrapper>
+    );
 
     const button = screen.getByRole("button", { name: /fill selection/i });
 
@@ -155,7 +172,11 @@ describe("AiFillSelectionButton", () => {
   });
 
   it("should update cells with suggestions when action succeeds", async () => {
-    render(<AiFillSelectionButton />);
+    render(
+      <TestDataStoreWrapper headers={mockHeaders}>
+        <AiFillSelectionButton />
+      </TestDataStoreWrapper>
+    );
 
     const button = screen.getByRole("button", { name: /fill selection/i });
 
@@ -190,7 +211,11 @@ describe("AiFillSelectionButton", () => {
       }
     );
 
-    render(<AiFillSelectionButton />);
+    render(
+      <TestDataStoreWrapper headers={mockHeaders}>
+        <AiFillSelectionButton />
+      </TestDataStoreWrapper>
+    );
     const button = screen.getByRole("button", { name: /fill selection/i });
 
     await act(async () => {

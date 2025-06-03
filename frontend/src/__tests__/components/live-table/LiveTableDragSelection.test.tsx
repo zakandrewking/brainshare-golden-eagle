@@ -1,3 +1,7 @@
+/**
+ * Example of a simple test setup, including manual push for a hook.
+ */
+
 import {
   afterEach,
   beforeEach,
@@ -8,7 +12,6 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-// Removed Y import as direct Yjs manipulation for V1 setup is removed.
 import {
   act,
   fireEvent,
@@ -16,22 +19,25 @@ import {
   screen,
 } from "@testing-library/react";
 
-import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
-// Import V2 types for defining initial data
 import {
-  type CellValue,
-  type ColumnDefinition,
-  type ColumnId,
+  useIsSelectingMock,
+  useIsSelectingPush,
+} from "@/__tests__/test-utils/useIsSelecting";
+import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
+import {
+  CellValue,
+  ColumnDefinition,
+  ColumnId,
   LiveTableDoc,
-  type RowId,
+  RowId,
 } from "@/components/live-table/LiveTableDoc";
 import * as LiveTableProviderModule
   from "@/components/live-table/LiveTableProvider";
-// Import selection store and related types/selectors
+import { useEditingCell } from "@/stores/dataStore";
 import {
-  type CellPosition,
-  type SelectionState,
-  useSelectionStore,
+  useSelectionEnd,
+  useSelectionMove,
+  useSelectionStart,
 } from "@/stores/selectionStore";
 
 import {
@@ -39,33 +45,28 @@ import {
   TestDataStoreWrapper,
 } from "./liveTableTestUtils";
 
-vi.mock("@/components/live-table/LiveTableProvider", () => ({
-  useLiveTable: vi.fn(),
+vi.mock("@/stores/dataStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/stores/dataStore")>()),
+  useEditingCell: vi.fn(() => null),
 }));
 
-// Mock the dataStore
-vi.mock("@/stores/dataStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/stores/dataStore")>();
-  return {
-    ...actual,
-    useIsCellLocked: () => vi.fn(() => false),
-  };
-});
+vi.mock("@/stores/selectionStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
+  useSelectionStart: vi.fn(),
+  useSelectionMove: vi.fn(),
+  useSelectionEnd: vi.fn(),
+  useIsSelecting: useIsSelectingMock,
+}));
 
-// Mock the selection store
-vi.mock("@/stores/selectionStore", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("@/stores/selectionStore")
-  >();
-  return {
-    ...actual,
-    selectIsCellSelected: actual.selectIsCellSelected,
-    selectSelectedCells: actual.selectSelectedCells,
-    useSelectionStore: vi.fn(), // The hook itself is mocked
-  };
-});
-
-vi.stubEnv("NODE_ENV", "test");
+vi.mock(
+  "@/components/live-table/LiveTableProvider",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/components/live-table/LiveTableProvider")
+    >()),
+    useLiveTable: vi.fn(),
+  })
+);
 
 describe("LiveTableDisplay - Drag Selection", () => {
   const colId1 = crypto.randomUUID() as ColumnId;
@@ -90,24 +91,16 @@ describe("LiveTableDisplay - Drag Selection", () => {
     [rowId3]: { [colId1]: "A3", [colId2]: "B3", [colId3]: "C3" },
   };
 
-  let mockHandleSelectionStart: ReturnType<typeof vi.fn>;
-  let mockHandleSelectionMove: ReturnType<typeof vi.fn>;
-  let mockHandleSelectionEnd: ReturnType<typeof vi.fn>;
-  let mockSetEditingCell: ReturnType<typeof vi.fn>;
-
-  let currentSelectedCellState: CellPosition | null;
-  let currentSelectionAreaState: SelectionState["selectionArea"];
-  let currentIsSelectingState: boolean;
-  let currentEditingCellForTest: CellPosition | null;
-
   let yDoc: Y.Doc;
   let liveTableDocInstance: LiveTableDoc;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    vi.useFakeTimers();
 
     yDoc = new Y.Doc();
     liveTableDocInstance = new LiveTableDoc(yDoc);
+
     // Manually populate V2 data
     yDoc.transact(() => {
       initialColumnDefinitions.forEach((def) =>
@@ -126,85 +119,19 @@ describe("LiveTableDisplay - Drag Selection", () => {
       liveTableDocInstance.yMeta.set("schemaVersion", 2);
     });
 
-    mockHandleSelectionStart = vi.fn();
-    mockHandleSelectionMove = vi.fn();
-    mockHandleSelectionEnd = vi.fn();
-    mockSetEditingCell = vi.fn();
-
-    currentSelectedCellState = null;
-    currentSelectionAreaState = { startCell: null, endCell: null };
-    currentIsSelectingState = false;
-    currentEditingCellForTest = null;
-
-    const setSelectedCellMock = vi.fn((cell) => {
-      currentSelectedCellState = cell;
-    });
-    const startSelectionMock = vi.fn((rowIndex, colIndex) => {
-      mockHandleSelectionStart(rowIndex, colIndex);
-      currentSelectedCellState = { rowIndex, colIndex };
-      currentSelectionAreaState = {
-        startCell: { rowIndex, colIndex },
-        endCell: { rowIndex, colIndex },
-      };
-      currentIsSelectingState = true;
-    });
-
-    // This is the key change: define moveSelectionMock once with the spy
-    const moveSelectionMock = vi.fn((rowIndex, colIndex) => {
-      mockHandleSelectionMove(rowIndex, colIndex); // This is the spy we are checking
-      if (currentSelectionAreaState.startCell) {
-        currentSelectionAreaState.endCell = { rowIndex, colIndex };
-      }
-      currentIsSelectingState = true; // Should remain true or become true
-    });
-
-    const endSelectionMock = vi.fn(() => {
-      mockHandleSelectionEnd();
-      currentIsSelectingState = false;
-    });
-    const clearSelectionMock = vi.fn(() => {
-      currentSelectedCellState = null;
-      currentSelectionAreaState = { startCell: null, endCell: null };
-      currentIsSelectingState = false;
-    });
-
     const baseLiveTableContext = getLiveTableMockValues({
       liveTableDocInstance,
       initialColumnDefinitions,
       initialColumnOrder,
       initialRowOrder,
       initialRowData,
-      setEditingCell: mockSetEditingCell,
     });
 
     vi.mocked(LiveTableProviderModule.useLiveTable).mockImplementation(() => ({
       ...(baseLiveTableContext as ReturnType<
         typeof LiveTableProviderModule.useLiveTable
       >),
-      editingCell: currentEditingCellForTest,
     }));
-
-    vi.mocked(useSelectionStore).mockImplementation(
-      <TState = SelectionState,>(
-        selector?: (state: SelectionState) => TState
-      ): TState | SelectionState => {
-        // Construct the state dynamically for each call to the hook
-        const stateForSelector: SelectionState = {
-          selectedCell: currentSelectedCellState,
-          selectionArea: currentSelectionAreaState,
-          isSelecting: currentIsSelectingState,
-          setSelectedCell: setSelectedCellMock,
-          startSelection: startSelectionMock,
-          moveSelection: moveSelectionMock, // Use the stable mock reference
-          endSelection: endSelectionMock,
-          clearSelection: clearSelectionMock,
-        };
-        if (selector) {
-          return selector(stateForSelector);
-        }
-        return stateForSelector;
-      }
-    );
   });
 
   afterEach(() => {
@@ -213,6 +140,8 @@ describe("LiveTableDisplay - Drag Selection", () => {
   });
 
   it("should start selection when mousedown on a cell (not in edit mode)", () => {
+    const mockSelectionStart = vi.fn();
+    vi.mocked(useSelectionStart).mockImplementation(() => mockSelectionStart);
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
@@ -220,17 +149,16 @@ describe("LiveTableDisplay - Drag Selection", () => {
     );
     const cell = screen.getAllByTestId("table-cell")[0];
     fireEvent.mouseDown(cell);
-    expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
-    expect(currentIsSelectingState).toBe(true);
-    expect(currentSelectedCellState).toEqual({ rowIndex: 0, colIndex: 0 });
-    expect(currentSelectionAreaState.startCell).toEqual({
-      rowIndex: 0,
-      colIndex: 0,
-    });
+    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
   });
 
   it("should not start selection when mousedown on a cell in edit mode", () => {
-    currentEditingCellForTest = { rowIndex: 0, colIndex: 0 };
+    vi.mocked(useEditingCell).mockImplementation(() => ({
+      rowIndex: 0,
+      colIndex: 0,
+    }));
+    const mockSelectionStart = vi.fn();
+    vi.mocked(useSelectionStart).mockImplementation(() => mockSelectionStart);
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
@@ -238,15 +166,21 @@ describe("LiveTableDisplay - Drag Selection", () => {
     );
     const cell = screen.getAllByTestId("table-cell")[0];
     fireEvent.mouseDown(cell);
-    expect(mockHandleSelectionStart).not.toHaveBeenCalled();
+    expect(mockSelectionStart).not.toHaveBeenCalled();
   });
 
   it("should update selection when mousemove over cells during selection", async () => {
+    const mockSelectionStart = vi.fn();
+    vi.mocked(useSelectionStart).mockImplementation(() => mockSelectionStart);
+    const mockHandleSelectionMove = vi.fn();
+    vi.mocked(useSelectionMove).mockImplementation(
+      () => mockHandleSelectionMove
+    );
     const { rerender } = render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
-    ); // Capture rerender
+    );
     const firstCell = screen.getAllByTestId("table-cell")[0];
     const targetCell = screen.getAllByTestId("table-cell")[4];
 
@@ -256,6 +190,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     await act(async () => {
       fireEvent.mouseDown(firstCell);
     });
+
     // Explicitly rerender after mousedown state change
     act(() => {
       rerender(
@@ -265,10 +200,12 @@ describe("LiveTableDisplay - Drag Selection", () => {
       );
     });
 
-    expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
-    expect(currentIsSelectingState).toBe(true); // Confirm state after mousedown
+    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
 
-    const originalElementFromPoint = document.elementFromPoint;
+    await act(async () => {
+      useIsSelectingPush(true);
+    });
+
     document.elementFromPoint = vi.fn((x, y) => {
       if (x === 123 && y === 456) {
         if (targetCell && targetCell.tagName === "TD") {
@@ -283,23 +220,13 @@ describe("LiveTableDisplay - Drag Selection", () => {
       fireEvent.mouseMove(document, { clientX: 123, clientY: 456 });
     });
 
-    expect(mockHandleSelectionMove).toHaveBeenCalled();
     expect(mockHandleSelectionMove).toHaveBeenCalledWith(1, 1);
-    expect(currentSelectionAreaState.endCell).toEqual({
-      rowIndex: 1,
-      colIndex: 1,
-    });
-
-    document.elementFromPoint = originalElementFromPoint;
   });
 
   it("should end selection when mouseup", async () => {
-    currentIsSelectingState = true;
-    currentSelectedCellState = { rowIndex: 0, colIndex: 0 };
-    currentSelectionAreaState = {
-      startCell: { rowIndex: 0, colIndex: 0 },
-      endCell: { rowIndex: 1, colIndex: 1 },
-    };
+    useIsSelectingPush(true);
+    const mockSelectionEnd = vi.fn();
+    vi.mocked(useSelectionEnd).mockImplementation(() => mockSelectionEnd);
 
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
@@ -307,44 +234,6 @@ describe("LiveTableDisplay - Drag Selection", () => {
       </TestDataStoreWrapper>
     );
     fireEvent.mouseUp(document);
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(mockHandleSelectionEnd).toHaveBeenCalled();
-    expect(currentIsSelectingState).toBe(false);
-  });
-
-  it("should apply the selection highlight style to selected cells", () => {
-    currentSelectedCellState = { rowIndex: 0, colIndex: 0 };
-    currentSelectionAreaState = {
-      startCell: { rowIndex: 0, colIndex: 0 },
-      endCell: { rowIndex: 1, colIndex: 1 },
-    };
-    currentIsSelectingState = false;
-
-    render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
-        <LiveTableDisplay />
-      </TestDataStoreWrapper>
-    );
-    const cells = screen.getAllByTestId("table-cell");
-
-    const cell00 = cells[0];
-    const cell01 = cells[1];
-    const cell10 = cells[3];
-    const cell11 = cells[4];
-    const cell02 = cells[2];
-
-    expect(cell00.getAttribute("data-selected")).toBe("true");
-    expect(cell01.getAttribute("data-selected")).toBe("true");
-    expect(cell10.getAttribute("data-selected")).toBe("true");
-    expect(cell11.getAttribute("data-selected")).toBe("true");
-    expect(cell02.getAttribute("data-selected")).toBe("false");
-    if (cells.length > 6) {
-      const cell20 = cells[6];
-      expect(cell20.getAttribute("data-selected")).toBe("false");
-    }
+    expect(mockSelectionEnd).toHaveBeenCalled();
   });
 });

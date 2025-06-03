@@ -17,8 +17,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useIsCellLocked } from "@/stores/dataStore";
-import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
+import {
+  useEditingCell,
+  useEditingHeaderIndex,
+  useEditingHeaderValue,
+  useHandleCellChange,
+  useHandleCellFocus,
+  useHandleColumnResize,
+  useHandleHeaderBlur,
+  useHandleHeaderChange,
+  useHandleHeaderDoubleClick,
+  useIsCellLocked,
+  useSetEditingCell,
+  useSetEditingHeaderIndex,
+} from "@/stores/dataStore";
+import {
+  useIsSelecting,
+  useSelectedCells,
+  useSelectionEnd,
+  useSelectionMove,
+  useSelectionStore,
+} from "@/stores/selectionStore";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
 import { useLiveTable } from "./LiveTableProvider";
@@ -39,31 +58,27 @@ const MIN_COL_WIDTH = 50;
 const ROW_NUMBER_COL_WIDTH = 50;
 
 const LiveTable: React.FC = () => {
-  const {
-    isTableLoaded,
-    tableData,
-    headers,
-    columnWidths,
-    editingHeaderIndex,
-    editingHeaderValue,
-    handleHeaderDoubleClick,
-    handleHeaderChange,
-    handleHeaderBlur,
-    handleHeaderKeyDown,
-    handleColumnResize,
-    reorderColumn,
-    editingCell,
-    setEditingCell,
-    handleCellFocus,
-    handleCellChange,
-  } = useLiveTable();
+  const { isTableLoaded, tableData, headers, columnWidths, reorderColumn } =
+    useLiveTable();
 
   const isCellLocked = useIsCellLocked();
+  const handleCellFocus = useHandleCellFocus();
+  const handleCellChange = useHandleCellChange();
+  const editingCell = useEditingCell();
+  const setEditingCell = useSetEditingCell();
+  const editingHeaderIndex = useEditingHeaderIndex();
+  const editingHeaderValue = useEditingHeaderValue();
+  const handleHeaderChange = useHandleHeaderChange();
+  const handleHeaderBlur = useHandleHeaderBlur();
+  const handleHeaderDoubleClick = useHandleHeaderDoubleClick();
+  const setEditingHeaderIndex = useSetEditingHeaderIndex();
+  const handleColumnResize = useHandleColumnResize();
+
   const selectedCell = useSelectionStore((state) => state.selectedCell);
-  const moveSelection = useSelectionStore((state) => state.moveSelection);
-  const endSelection = useSelectionStore((state) => state.endSelection);
+  const moveSelection = useSelectionMove();
+  const endSelection = useSelectionEnd();
   const clearSelection = useSelectionStore((state) => state.clearSelection);
-  const isSelecting = useSelectionStore((state) => state.isSelecting);
+  const isSelecting = useIsSelecting();
   const selectedCells = useSelectedCells();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
@@ -291,6 +306,20 @@ const LiveTable: React.FC = () => {
       document.removeEventListener("mouseup", handleGlobalMouseUp);
     };
   }, [isSelecting, moveSelection, endSelection]);
+
+  const handleHeaderKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleHeaderBlur();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        setEditingHeaderIndex(null);
+        handleHeaderBlur();
+      }
+    },
+    [handleHeaderBlur, setEditingHeaderIndex]
+  );
 
   // Effect to handle clicks outside the table
   useEffect(() => {
@@ -538,7 +567,9 @@ const LiveTable: React.FC = () => {
                         <Input
                           type="text"
                           value={editingHeaderValue}
-                          onChange={handleHeaderChange}
+                          onChange={(e) => {
+                            handleHeaderChange(e.target.value);
+                          }}
                           onBlur={handleHeaderBlur}
                           onKeyDown={handleHeaderKeyDown}
                           autoFocus
@@ -548,7 +579,9 @@ const LiveTable: React.FC = () => {
                       ) : (
                         <div
                           className="p-2 cursor-text flex-grow break-words flex items-center"
-                          onDoubleClick={() => handleHeaderDoubleClick(index)}
+                          onDoubleClick={() => {
+                            handleHeaderDoubleClick(index);
+                          }}
                           style={{ cursor: "grab" }}
                           onMouseDown={(e) => {
                             // Prevent drag when clicking on resize handle

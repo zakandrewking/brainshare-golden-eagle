@@ -31,7 +31,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsCellLocked } from "@/stores/dataStore";
 import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
 
-import { getLiveTableMockValues } from "./liveTableTestUtils";
+import {
+  getLiveTableMockValues,
+  TestDataStoreWrapper,
+} from "./liveTableTestUtils";
 
 vi.mock("react", async () => {
   const actualReact = await vi.importActual<typeof import("react")>("react");
@@ -47,21 +50,37 @@ vi.mock("react", async () => {
   };
 });
 
-vi.mock("@/components/live-table/LiveTableProvider", () => ({
-  useLiveTable: vi.fn(),
-}));
+vi.mock(
+  "@/components/live-table/LiveTableProvider",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/components/live-table/LiveTableProvider")
+    >()),
+    useLiveTable: vi.fn(),
+  })
+);
 
-vi.mock("@/stores/selectionStore", () => ({
+vi.mock("@/stores/selectionStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
   useSelectionStore: vi.fn(),
   useSelectedCells: vi.fn(),
 }));
 
-vi.mock("@/stores/dataStore", () => ({
+vi.mock("@/stores/dataStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/stores/dataStore")>()),
   useLockedCells: vi.fn(),
   useLockSelectedRange: vi.fn(),
   useUnlockAll: vi.fn(),
   useUnlockRange: vi.fn(),
   useIsCellLocked: vi.fn(() => () => false),
+  useUndoManager: () => ({
+    undo: vi.fn(),
+    redo: vi.fn(),
+    undoStack: [],
+    redoStack: [],
+    on: vi.fn(),
+    off: vi.fn(),
+  }),
 }));
 
 vi.mock("lucide-react", async () => {
@@ -183,9 +202,11 @@ describe("LiveTableToolbar - Delete Rows", () => {
     vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
 
     render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
 
     const deleteButton = findDeleteRowButton();
@@ -219,9 +240,11 @@ describe("LiveTableToolbar - Delete Rows", () => {
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
 
     render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
 
     const deleteButton = findDeleteRowButton();
@@ -247,9 +270,11 @@ describe("LiveTableToolbar - Delete Rows", () => {
     vi.mocked(useSelectedCells).mockReturnValue([]);
 
     render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
 
     const deleteButton = findDeleteRowButton();
@@ -279,9 +304,11 @@ describe("LiveTableToolbar - Delete Rows", () => {
     vi.mocked(useIsCellLocked).mockReturnValue(() => true);
 
     render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
 
     const deleteButton = findDeleteRowButton();

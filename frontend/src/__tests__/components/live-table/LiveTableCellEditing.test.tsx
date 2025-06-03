@@ -6,7 +6,6 @@ import {
   describe,
   expect,
   it,
-  MockedFunction,
   vi,
 } from "vitest";
 import * as Y from "yjs";
@@ -27,13 +26,19 @@ import {
   LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
+import * as LiveTableProviderModule
+  from "@/components/live-table/LiveTableProvider";
 import {
-  LiveTableContextType,
-  useLiveTable,
-} from "@/components/live-table/LiveTableProvider";
+  useEditingCell,
+  useHandleCellBlur,
+  useHandleCellChange,
+  useHandleCellFocus,
+  useSetEditingCell,
+} from "@/stores/dataStore";
 import {
   type SelectionState,
   useSelectedCells,
+  useSelectionStart,
   useSelectionStore,
 } from "@/stores/selectionStore";
 
@@ -42,33 +47,34 @@ import {
   TestDataStoreWrapper,
 } from "./liveTableTestUtils";
 
-vi.mock("@/components/live-table/LiveTableProvider", () => ({
-  useLiveTable: vi.fn(),
+vi.mock(
+  "@/components/live-table/LiveTableProvider",
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    useLiveTable: vi.fn(),
+  })
+);
+
+vi.mock("@/stores/selectionStore", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useSelectionStore: vi.fn(),
+  useSelectedCells: vi.fn(),
+  useSelectionStart: vi.fn(),
 }));
 
-// Mock the entire store module
-vi.mock("@/stores/selectionStore");
-
-// Mock the dataStore
-vi.mock("@/stores/dataStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/stores/dataStore")>();
-  return {
-    ...actual,
-    useIsCellLocked: () => vi.fn(() => false),
-  };
-});
+vi.mock("@/stores/dataStore", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useIsCellLocked: vi.fn(() => () => false),
+  useHandleCellFocus: vi.fn(),
+  useHandleCellBlur: vi.fn(),
+  useHandleCellChange: vi.fn(),
+  useEditingCell: vi.fn(),
+  useSetEditingCell: vi.fn(),
+  useSetEditingHeaderIndex: vi.fn(),
+  useHandleHeaderDoubleClick: vi.fn(() => {}),
+}));
 
 describe("LiveTableDisplay Cell Editing", () => {
-  const mockHandleCellChange = vi.fn();
-  const mockHandleCellFocus = vi.fn();
-  const mockHandleCellBlur = vi.fn();
-  const mockStartSelection = vi.fn();
-  let currentEditingCell: { rowIndex: number; colIndex: number } | null = null;
-
-  const mockSetEditingCell = vi.fn((cell) => {
-    currentEditingCell = cell;
-  });
-
   let yDoc: Y.Doc;
   let liveTableDocInstance: LiveTableDoc;
 
@@ -89,47 +95,12 @@ describe("LiveTableDisplay Cell Editing", () => {
     [rowIdJS]: { [colIdN]: "Jane Smith", [colIdA]: "25" },
   };
 
-  const setupUseLiveTableMock = () => {
-    (useLiveTable as MockedFunction<typeof useLiveTable>).mockReturnValue(
-      getLiveTableMockValues({
-        liveTableDocInstance,
-        handleCellChange: mockHandleCellChange,
-        handleCellFocus: mockHandleCellFocus,
-        handleCellBlur: mockHandleCellBlur,
-        setEditingCell: mockSetEditingCell,
-        editingCell: currentEditingCell,
-      }) as LiveTableContextType
-    );
-
-    // Use vi.mocked to correctly type the mocked store hook
-    vi.mocked(useSelectionStore).mockImplementation(
-      <TState = SelectionState,>(
-        selector?: (state: SelectionState) => TState
-      ): TState | SelectionState => {
-        const state: SelectionState = {
-          selectedCell: null,
-          selectionArea: { startCell: null, endCell: null },
-          isSelecting: false,
-          setSelectedCell: vi.fn(),
-          startSelection: mockStartSelection,
-          moveSelection: vi.fn(),
-          endSelection: vi.fn(),
-          clearSelection: vi.fn(),
-        };
-        if (selector) {
-          return selector(state);
-        }
-        return state;
-      }
-    );
-  };
-
   beforeEach(() => {
-    vi.clearAllMocks();
-    currentEditingCell = null;
+    vi.resetAllMocks();
 
     yDoc = new Y.Doc();
     liveTableDocInstance = new LiveTableDoc(yDoc);
+
     // Manually populate V2 data
     yDoc.transact(() => {
       initialColumnDefinitions.forEach((def) =>
@@ -148,7 +119,29 @@ describe("LiveTableDisplay Cell Editing", () => {
       liveTableDocInstance.yMeta.set("schemaVersion", 2);
     });
 
-    setupUseLiveTableMock();
+    const baseLiveTableContext = getLiveTableMockValues({
+      liveTableDocInstance,
+      initialColumnDefinitions,
+      initialColumnOrder,
+      initialRowOrder,
+      initialRowData,
+    });
+
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockImplementation(() => ({
+      ...(baseLiveTableContext as ReturnType<
+        typeof LiveTableProviderModule.useLiveTable
+      >),
+    }));
+
+    // Reset specific hook implementations for dataStore if they were changed in tests
+    // This ensures a clean state for dataStore hooks that are commonly mocked per test.
+    vi.mocked(useEditingCell).mockReturnValue(null);
+    vi.mocked(useSetEditingCell).mockReturnValue(vi.fn());
+    vi.mocked(useHandleCellFocus).mockReturnValue(vi.fn());
+    vi.mocked(useHandleCellBlur).mockReturnValue(vi.fn());
+    vi.mocked(useHandleCellChange).mockReturnValue(vi.fn());
+    vi.mocked(useSelectionStart).mockReturnValue(vi.fn());
+    vi.mocked(useSelectedCells).mockReturnValue([]);
   });
 
   afterEach(() => {
@@ -157,6 +150,25 @@ describe("LiveTableDisplay Cell Editing", () => {
 
   it("handles cell interactions correctly - click behavior and edit mode", async () => {
     const user = userEvent.setup();
+
+    // Mocks specific to this test
+    const mockSelectionStart = vi.fn();
+    vi.mocked(useSelectionStart).mockReturnValue(mockSelectionStart);
+
+    const mockSetEditingCell = vi.fn();
+    vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
+
+    const mockHandleCellFocus = vi.fn(); // Correctly scoped mock for this test
+    vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
+
+    const mockHandleCellChange = vi.fn(); // Define and mock for the whole test scope
+    vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
+
+    const mockHandleCellBlur = vi.fn(); // Define and mock for the whole test scope
+    vi.mocked(useHandleCellBlur).mockReturnValue(mockHandleCellBlur);
+
+    // useHandleCellChange and useHandleCellBlur use global mocks or are re-mocked if specific behavior is needed
+
     const { container, rerender } = render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
@@ -166,27 +178,33 @@ describe("LiveTableDisplay Cell Editing", () => {
     const cellInputJohnDoe = screen.getByDisplayValue("John Doe");
     expect(cellInputJohnDoe).toBeInTheDocument();
 
-    await user.click(cellInputJohnDoe);
-    expect(mockStartSelection).toHaveBeenCalledWith(0, 0);
-    expect(cellInputJohnDoe).not.toHaveFocus();
+    await user.click(cellInputJohnDoe); // Click the INPUT itself
+
+    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
+    expect(cellInputJohnDoe).not.toHaveFocus(); // Original assertion
 
     const tdJohnDoe = cellInputJohnDoe.closest("td");
     expect(tdJohnDoe).toBeInTheDocument();
-    await user.dblClick(tdJohnDoe!);
+    await user.dblClick(tdJohnDoe!); // Then double click the TD
 
     expect(mockSetEditingCell).toHaveBeenCalledWith({
+      // Assertions for double click
       rowIndex: 0,
       colIndex: 0,
     });
-    expect(currentEditingCell).toEqual({ rowIndex: 0, colIndex: 0 });
-    setupUseLiveTableMock();
+    expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0); // Assert scoped mock
+
+    vi.mocked(useEditingCell).mockReturnValue({
+      // Simulate entering edit mode
+      rowIndex: 0,
+      colIndex: 0,
+    });
+
     rerender(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
-
-    expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
 
     const editingTd = container.querySelector('td[data-editing="true"]');
     expect(editingTd).toBeInTheDocument();
@@ -196,69 +214,96 @@ describe("LiveTableDisplay Cell Editing", () => {
     expect(editingInput).toBeInTheDocument();
     expect(editingInput!.value).toBe("John Doe");
 
+    // Mock useHandleCellChange for this specific part of the test
+    // const mockHandleCellChangeScoped = vi.fn();
+    // vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChangeScoped);
+
     fireEvent.change(editingInput!, { target: { value: "New Name" } });
-    const headerNameForFirstCol = initialColumnDefinitions[0].name; // "name"
+    const headerNameForFirstCol = initialColumnDefinitions[0].name;
     expect(mockHandleCellChange).toHaveBeenCalledWith(
+      // Assert the test-scoped mock
       0,
       headerNameForFirstCol,
       "New Name"
     );
 
-    const cellInputJaneSmith = screen.getByDisplayValue("Jane Smith");
-    await user.click(cellInputJaneSmith.closest("td")!);
+    // Mock useHandleCellBlur for this specific part of the test
+    // const mockHandleCellBlurScoped = vi.fn();
+    // vi.mocked(useHandleCellBlur).mockReturnValue(mockHandleCellBlurScoped);
 
-    expect(mockHandleCellBlur).toHaveBeenCalled();
-    expect(mockStartSelection).toHaveBeenCalledWith(1, 0);
+    const cellInputJaneSmith = screen.getByDisplayValue("Jane Smith");
+    await user.click(cellInputJaneSmith.closest("td")!); // Click another cell's TD
+
+    expect(mockHandleCellBlur).toHaveBeenCalled(); // Assert the test-scoped mock
+    expect(mockSelectionStart).toHaveBeenCalledWith(1, 0); // New selection should start
   });
 
   it("enters edit mode immediately when typing a character on selected cell", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(
+
+    const mockSetEditingCell = vi.fn();
+    vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
+    const mockHandleCellChange = vi.fn();
+    vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
+    const mockHandleCellFocus = vi.fn();
+    vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
+    const mockSelectionStart = vi.fn();
+    vi.mocked(useSelectionStart).mockReturnValue(mockSelectionStart);
+
+    vi.mocked(useEditingCell).mockReturnValue(null); // Initially not editing
+
+    const { rerender, container } = render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
 
     // First select a cell by clicking on it
-    const cellInputJohnDoe = screen.getByDisplayValue("John Doe");
-    const tdJohnDoe = cellInputJohnDoe.closest("td");
-    await user.click(tdJohnDoe!);
-    expect(mockStartSelection).toHaveBeenCalledWith(0, 0);
+    const cellToClick = screen.getByDisplayValue("John Doe");
+    await user.click(cellToClick);
+    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
 
-    // Clear previous calls
+    // Explicitly mock the direct dependencies of handleKeyDown for this state
+    vi.mocked(useEditingCell).mockReturnValue(null); // Ensure not editing
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]); // Ensure single cell selected
+
+    // Mock useSelectionStore to ensure selectedCell is correctly picked up by handleKeyDown
+    const mockCurrentSelectedCell = { rowIndex: 0, colIndex: 0 };
+    vi.mocked(useSelectionStore).mockImplementation(
+      (selector?: (state: SelectionState) => unknown) => {
+        const state: SelectionState = {
+          selectedCell: mockCurrentSelectedCell,
+          selectionArea: {
+            startCell: mockCurrentSelectedCell,
+            endCell: mockCurrentSelectedCell,
+          },
+          isSelecting: false,
+          setSelectedCell: vi.fn(),
+          startSelection: mockSelectionStart,
+          moveSelection: vi.fn(),
+          endSelection: vi.fn(),
+          clearSelection: vi.fn(),
+        };
+        return selector ? selector(state) : state;
+      }
+    );
+
+    // Ensure no input element within the cell has focus before keydown
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    // Clear mocks that might have been called by click
     mockSetEditingCell.mockClear();
     mockHandleCellChange.mockClear();
     mockHandleCellFocus.mockClear();
 
     // Mock the selection state to simulate a single cell being selected
-    vi.mocked(useSelectionStore).mockImplementation(
-      <TState = SelectionState,>(
-        selector?: (state: SelectionState) => TState
-      ): TState | SelectionState => {
-        const state: SelectionState = {
-          selectedCell: { rowIndex: 0, colIndex: 0 },
-          selectionArea: {
-            startCell: { rowIndex: 0, colIndex: 0 },
-            endCell: { rowIndex: 0, colIndex: 0 },
-          },
-          isSelecting: false,
-          setSelectedCell: vi.fn(),
-          startSelection: mockStartSelection,
-          moveSelection: vi.fn(),
-          endSelection: vi.fn(),
-          clearSelection: vi.fn(),
-        };
-        if (selector) {
-          return selector(state);
-        }
-        return state;
-      }
-    );
-
-    // Mock useSelectedCells to return single cell
+    // This simulates that the click above resulted in cell (0,0) being selected
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
 
     rerender(
+      // Rerender for useSelectedCells mock to take effect if needed by internal logic
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
@@ -279,55 +324,80 @@ describe("LiveTableDisplay Cell Editing", () => {
       headerNameForFirstCol,
       "John DoeA" // Appended to existing content
     );
+
+    // Verify UI changes to editing mode
+    vi.mocked(useEditingCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
+    const editingTd = container.querySelector('td[data-editing="true"]');
+    expect(editingTd).toBeInTheDocument();
   });
 
   it("enters edit mode and removes last character when pressing backspace on selected cell", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(
+
+    const mockSetEditingCell = vi.fn();
+    vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
+    const mockHandleCellChange = vi.fn();
+    vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
+    const mockHandleCellFocus = vi.fn();
+    vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
+    const mockSelectionStart = vi.fn();
+    vi.mocked(useSelectionStart).mockReturnValue(mockSelectionStart);
+
+    vi.mocked(useEditingCell).mockReturnValue(null); // Initially not editing
+
+    const { rerender, container } = render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
 
     // First select a cell by clicking on it
-    const cellInputJohnDoe = screen.getByDisplayValue("John Doe");
-    const tdJohnDoe = cellInputJohnDoe.closest("td");
-    await user.click(tdJohnDoe!);
-    expect(mockStartSelection).toHaveBeenCalledWith(0, 0);
+    const cellToClickBackspace = screen.getByDisplayValue("John Doe");
+    await user.click(cellToClickBackspace);
+    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
 
-    // Clear previous calls
-    mockSetEditingCell.mockClear();
-    mockHandleCellChange.mockClear();
-    mockHandleCellFocus.mockClear();
+    // Explicitly mock the direct dependencies of handleKeyDown for this state
+    vi.mocked(useEditingCell).mockReturnValue(null); // Ensure not editing
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]); // Ensure single cell selected
 
-    // Mock the selection state to simulate a single cell being selected
+    // Mock useSelectionStore to ensure selectedCell is correctly picked up by handleKeyDown
+    const mockCurrentSelectedCell = { rowIndex: 0, colIndex: 0 };
     vi.mocked(useSelectionStore).mockImplementation(
-      <TState = SelectionState,>(
-        selector?: (state: SelectionState) => TState
-      ): TState | SelectionState => {
+      (selector?: (state: SelectionState) => unknown) => {
         const state: SelectionState = {
-          selectedCell: { rowIndex: 0, colIndex: 0 },
+          selectedCell: mockCurrentSelectedCell,
           selectionArea: {
-            startCell: { rowIndex: 0, colIndex: 0 },
-            endCell: { rowIndex: 0, colIndex: 0 },
+            startCell: mockCurrentSelectedCell,
+            endCell: mockCurrentSelectedCell,
           },
           isSelecting: false,
           setSelectedCell: vi.fn(),
-          startSelection: mockStartSelection,
+          startSelection: mockSelectionStart,
           moveSelection: vi.fn(),
           endSelection: vi.fn(),
           clearSelection: vi.fn(),
         };
-        if (selector) {
-          return selector(state);
-        }
-        return state;
+        return selector ? selector(state) : state;
       }
     );
 
-    // Mock useSelectedCells to return single cell
-    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
+    // Ensure no input element within the cell has focus before keydown
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
 
+    // Clear mocks
+    mockSetEditingCell.mockClear();
+    mockHandleCellChange.mockClear();
+    mockHandleCellFocus.mockClear();
+
+    // Mock the selection state
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
     rerender(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
@@ -349,46 +419,29 @@ describe("LiveTableDisplay Cell Editing", () => {
       headerNameForFirstCol,
       "John Do" // Removed last character
     );
-  });
 
-  it("does not enter edit mode when typing if multiple cells are selected", async () => {
-    const { rerender } = render(
+    // Verify UI changes to editing mode
+    vi.mocked(useEditingCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
+    rerender(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
+    const editingTd = container.querySelector('td[data-editing="true"]');
+    expect(editingTd).toBeInTheDocument();
+  });
 
-    // Clear previous calls
-    mockSetEditingCell.mockClear();
-    mockHandleCellChange.mockClear();
-    mockHandleCellFocus.mockClear();
+  it("does not enter edit mode when typing if multiple cells are selected", async () => {
+    const mockSetEditingCell = vi.fn();
+    vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
+    const mockHandleCellChange = vi.fn();
+    vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
+    const mockHandleCellFocus = vi.fn();
+    vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
+
+    vi.mocked(useEditingCell).mockReturnValue(null); // Initially not editing
 
     // Mock the selection state to simulate multiple cells being selected
-    vi.mocked(useSelectionStore).mockImplementation(
-      <TState = SelectionState,>(
-        selector?: (state: SelectionState) => TState
-      ): TState | SelectionState => {
-        const state: SelectionState = {
-          selectedCell: { rowIndex: 0, colIndex: 0 },
-          selectionArea: {
-            startCell: { rowIndex: 0, colIndex: 0 },
-            endCell: { rowIndex: 1, colIndex: 1 },
-          },
-          isSelecting: false,
-          setSelectedCell: vi.fn(),
-          startSelection: mockStartSelection,
-          moveSelection: vi.fn(),
-          endSelection: vi.fn(),
-          clearSelection: vi.fn(),
-        };
-        if (selector) {
-          return selector(state);
-        }
-        return state;
-      }
-    );
-
-    // Mock useSelectedCells to return multiple cells
     vi.mocked(useSelectedCells).mockReturnValue([
       { rowIndex: 0, colIndex: 0 },
       { rowIndex: 0, colIndex: 1 },
@@ -396,14 +449,18 @@ describe("LiveTableDisplay Cell Editing", () => {
       { rowIndex: 1, colIndex: 1 },
     ]);
 
-    rerender(
+    const { container } = render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
 
     // Type a character
-    fireEvent.keyDown(document, { key: "A" });
+    if (container.firstChild) {
+      fireEvent.keyDown(container.firstChild as HTMLElement, { key: "A" });
+    } else {
+      throw new Error("Test setup error: container.firstChild is null");
+    }
 
     // Should NOT enter edit mode when multiple cells are selected
     expect(mockSetEditingCell).not.toHaveBeenCalled();
@@ -412,62 +469,95 @@ describe("LiveTableDisplay Cell Editing", () => {
   });
 
   it("handles backspace on empty cell correctly", async () => {
-    // Update the mock to return empty cell data by overriding the tableData
-    (useLiveTable as MockedFunction<typeof useLiveTable>).mockReturnValue(
-      getLiveTableMockValues({
-        liveTableDocInstance,
-        handleCellChange: mockHandleCellChange,
-        handleCellFocus: mockHandleCellFocus,
-        handleCellBlur: mockHandleCellBlur,
-        setEditingCell: mockSetEditingCell,
-        editingCell: currentEditingCell,
-        tableData: [
-          { name: "", age: "30" }, // Empty name cell
-          { name: "Jane Smith", age: "25" },
-        ],
-      }) as LiveTableContextType
-    );
+    const user = userEvent.setup();
 
-    const { rerender } = render(
+    const mockSetEditingCell = vi.fn();
+    vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
+    const mockHandleCellChange = vi.fn();
+    vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
+    const mockHandleCellFocus = vi.fn();
+    vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
+    const mockSelectionStart = vi.fn();
+    vi.mocked(useSelectionStart).mockReturnValue(mockSelectionStart);
+
+    vi.mocked(useEditingCell).mockReturnValue(null); // Initially not editing
+
+    // Create specific data for this test
+    const localInitialRowData = JSON.parse(JSON.stringify(initialRowData));
+    localInitialRowData[rowIdJD][colIdN] = ""; // Set John Doe's name to empty
+
+    // Update yDoc to reflect this change for TestDataStoreWrapper
+    const yRowMapForJD = liveTableDocInstance.yRowData.get(rowIdJD);
+    if (yRowMapForJD) {
+      yRowMapForJD.set(colIdN, "");
+    }
+
+    const localLiveTableContext = getLiveTableMockValues({
+      liveTableDocInstance, // yDoc is implicitly used by this instance
+      initialColumnDefinitions,
+      initialColumnOrder,
+      initialRowOrder,
+      initialRowData: localInitialRowData,
+    });
+
+    // Temporarily override the useLiveTable mock for this test
+    const originalUseLiveTableMock = LiveTableProviderModule.useLiveTable;
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
+      ...(localLiveTableContext as ReturnType<
+        typeof LiveTableProviderModule.useLiveTable
+      >),
+    });
+
+    const { rerender, container } = render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
 
-    // Clear previous calls
-    mockSetEditingCell.mockClear();
-    mockHandleCellChange.mockClear();
-    mockHandleCellFocus.mockClear();
+    // Select the (now empty) cell (0,0)
+    const cellToClickEmpty = screen.getByDisplayValue("");
+    await user.click(cellToClickEmpty);
+    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
 
-    // Mock the selection state to simulate selecting the empty cell
+    // Explicitly mock the direct dependencies of handleKeyDown for this state
+    vi.mocked(useEditingCell).mockReturnValue(null); // Ensure not editing
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]); // Ensure single cell selected
+
+    // Mock useSelectionStore to ensure selectedCell is correctly picked up by handleKeyDown
+    const mockCurrentSelectedCellEmpty = { rowIndex: 0, colIndex: 0 }; // Variable name changed to avoid conflict
     vi.mocked(useSelectionStore).mockImplementation(
-      <TState = SelectionState,>(
-        selector?: (state: SelectionState) => TState
-      ): TState | SelectionState => {
+      (selector?: (state: SelectionState) => unknown) => {
         const state: SelectionState = {
-          selectedCell: { rowIndex: 0, colIndex: 0 },
+          selectedCell: mockCurrentSelectedCellEmpty,
           selectionArea: {
-            startCell: { rowIndex: 0, colIndex: 0 },
-            endCell: { rowIndex: 0, colIndex: 0 },
+            startCell: mockCurrentSelectedCellEmpty,
+            endCell: mockCurrentSelectedCellEmpty,
           },
           isSelecting: false,
           setSelectedCell: vi.fn(),
-          startSelection: mockStartSelection,
+          startSelection: mockSelectionStart,
           moveSelection: vi.fn(),
           endSelection: vi.fn(),
           clearSelection: vi.fn(),
         };
-        if (selector) {
-          return selector(state);
-        }
-        return state;
+        return selector ? selector(state) : state;
       }
     );
 
-    // Mock useSelectedCells to return single cell
-    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
+    // Ensure no input element within the cell has focus before keydown
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
 
+    // Clear mocks
+    mockSetEditingCell.mockClear();
+    mockHandleCellChange.mockClear();
+    mockHandleCellFocus.mockClear();
+
+    // Mock the selection state
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
     rerender(
+      // Rerender for useSelectedCells mock to take effect
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
@@ -476,7 +566,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Press backspace on empty cell
     fireEvent.keyDown(document, { key: "Backspace" });
 
-    // Should enter edit mode and keep the cell empty (removing from empty string results in empty string)
+    // Should enter edit mode and keep the cell empty
     expect(mockSetEditingCell).toHaveBeenCalledWith({
       rowIndex: 0,
       colIndex: 0,
@@ -487,6 +577,21 @@ describe("LiveTableDisplay Cell Editing", () => {
       0,
       headerNameForFirstCol,
       "" // Empty string remains empty
+    );
+
+    // Verify UI changes to editing mode
+    vi.mocked(useEditingCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
+    rerender(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
+    const editingTd = container.querySelector('td[data-editing="true"]');
+    expect(editingTd).toBeInTheDocument();
+
+    // Restore original useLiveTable mock if it was changed for this test
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockImplementation(
+      originalUseLiveTableMock
     );
   });
 });

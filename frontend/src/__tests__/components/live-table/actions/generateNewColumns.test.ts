@@ -89,15 +89,9 @@ Return an array of ${numColsToGenerate} generated columns, where each element in
 Ensure all generated headers are unique (case-insensitive) among themselves and with respect to existing headers.
 The 'columnData' array for each generated column must have the same length as the input 'tableData'.`;
     const expectedUserPrompt = `Here is the existing table data:
-${JSON.stringify(
-      mockTableData,
-      null,
-      2
-    )}
+${JSON.stringify(mockTableData, null, 2)}
 
-Existing Headers: ${JSON.stringify(
-      mockHeaders
-    )}
+Existing Headers: ${JSON.stringify(mockHeaders)}
 
 Please generate ${numColsToGenerate} new column(s) with their corresponding data.`;
 

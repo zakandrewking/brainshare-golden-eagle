@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { toast } from "sonner";
+import { UndoManager } from "yjs";
 import {
   createStore,
   StoreApi,
@@ -29,6 +30,7 @@ interface DataState {
   lockedCells: Set<string>;
   editingHeaderIndex: number | null;
   editingHeaderValue: string;
+  editingCell: { rowIndex: number; colIndex: number } | null;
 }
 
 interface DataActions {
@@ -40,10 +42,17 @@ interface DataActions {
   handleCellFocus: (rowIndex: number, colIndex: number) => void;
   handleCellBlur: () => void;
   handleHeaderDoubleClick: (colIndex: number) => void;
-  handleHeaderChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleHeaderChange: (value: string) => void;
   handleHeaderBlur: () => void;
-  handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   handleColumnResize: (header: string, newWidth: number) => void;
+  handleCellChange: (
+    rowIndex: number,
+    header: string,
+    newValue: string
+  ) => void;
+  setEditingCell: (cell: { rowIndex: number; colIndex: number } | null) => void;
+  getUndoManager: () => UndoManager;
+  setEditingHeaderIndex: (index: number | null) => void;
 }
 
 export type DataStore = DataState & DataActions;
@@ -58,6 +67,7 @@ const initialState: DataState = {
   lockedCells: new Set<string>(),
   editingHeaderIndex: null,
   editingHeaderValue: "",
+  editingCell: null,
 };
 
 /**
@@ -181,9 +191,9 @@ export const DataStoreProvider = ({
             state.editingHeaderValue = headers[colIndex];
           });
         },
-        handleHeaderChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+        handleHeaderChange: (value: string) => {
           set((state) => {
-            state.editingHeaderValue = event.target.value;
+            state.editingHeaderValue = value;
           });
         },
         handleHeaderBlur: () => {
@@ -201,19 +211,28 @@ export const DataStoreProvider = ({
             state.editingHeaderIndex = null;
           });
         },
-        handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            get().handleHeaderBlur();
-          } else if (event.key === "Escape") {
-            event.preventDefault();
-            set((state) => {
-              state.editingHeaderIndex = null;
-            });
-          }
-        },
         handleColumnResize: (header: string, newWidth: number) => {
           liveTableDoc.updateColumnWidth(header, newWidth);
+        },
+        handleCellChange: (
+          rowIndex: number,
+          header: string,
+          newValue: string
+        ) => {
+          liveTableDoc.updateCell(rowIndex, header, newValue);
+        },
+        setEditingCell: (
+          cell: { rowIndex: number; colIndex: number } | null
+        ) => {
+          set((state) => {
+            state.editingCell = cell;
+          });
+        },
+        getUndoManager: () => liveTableDoc.undoManager,
+        setEditingHeaderIndex: (index: number | null) => {
+          set((state) => {
+            state.editingHeaderIndex = index;
+          });
         },
       }))
     )
@@ -236,7 +255,6 @@ export function useDataStore<T>(selector?: (state: DataStore) => T) {
   return useStore(store, selector!);
 }
 
-// selector hooks
 export const useLockedCells = () => useDataStore((state) => state.lockedCells);
 export const useLockSelectedRange = () =>
   useDataStore((state) => state.lockSelectedRange);
@@ -244,8 +262,6 @@ export const useUnlockRange = () => useDataStore((state) => state.unlockRange);
 export const useUnlockAll = () => useDataStore((state) => state.unlockAll);
 export const useIsCellLocked = () =>
   useDataStore((state) => state.isCellLocked);
-
-// handler hooks
 export const useHandleCellFocus = () =>
   useDataStore((state) => state.handleCellFocus);
 export const useHandleCellBlur = () =>
@@ -256,13 +272,18 @@ export const useHandleHeaderChange = () =>
   useDataStore((state) => state.handleHeaderChange);
 export const useHandleHeaderBlur = () =>
   useDataStore((state) => state.handleHeaderBlur);
-export const useHandleHeaderKeyDown = () =>
-  useDataStore((state) => state.handleHeaderKeyDown);
 export const useHandleColumnResize = () =>
   useDataStore((state) => state.handleColumnResize);
-
-// editing state hooks
 export const useEditingHeaderIndex = () =>
   useDataStore((state) => state.editingHeaderIndex);
 export const useEditingHeaderValue = () =>
   useDataStore((state) => state.editingHeaderValue);
+export const useHandleCellChange = () =>
+  useDataStore((state) => state.handleCellChange);
+export const useSetEditingCell = () =>
+  useDataStore((state) => state.setEditingCell);
+export const useEditingCell = () => useDataStore((state) => state.editingCell);
+export const useUndoManager = () =>
+  useDataStore((state) => state.getUndoManager());
+export const useSetEditingHeaderIndex = () =>
+  useDataStore((state) => state.setEditingHeaderIndex);

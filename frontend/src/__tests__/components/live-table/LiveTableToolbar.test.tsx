@@ -17,31 +17,60 @@ import {
 
 import generateNewColumns
   from "@/components/live-table/actions/generateNewColumns";
+import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
-import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
+import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
-import { getLiveTableMockValues } from "./liveTableTestUtils";
+import {
+  getLiveTableMockValues,
+  TestDataStoreWrapper,
+} from "./liveTableTestUtils";
 
-vi.mock("@/components/live-table/LiveTableProvider", () => ({
-  useLiveTable: vi.fn(),
-}));
+vi.mock(
+  "@/components/live-table/LiveTableProvider",
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    useLiveTable: vi.fn(),
+  })
+);
 
 vi.mock("@/components/live-table/actions/generateNewColumns", () => ({
   default: vi.fn(),
 }));
 
-vi.mock("@/stores/selectionStore", () => ({
+vi.mock("@/stores/selectionStore", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useSelectedCell: vi.fn(),
   useSelectedCells: vi.fn(),
-  useSelectionStore: vi.fn(),
 }));
 
-vi.mock("@/stores/dataStore", () => ({
+vi.mock("@/stores/dataStore", async (importOriginal) => ({
+  ...(await importOriginal()),
   useLockedCells: () => new Set(),
   useLockSelectedRange: () => vi.fn(),
   useUnlockAll: () => vi.fn(),
   useUnlockRange: () => vi.fn(),
   useIsCellLocked: () => vi.fn(() => false),
+  useUndoManager: () => ({
+    undo: vi.fn(),
+    redo: vi.fn(),
+    undoStack: [],
+    redoStack: [],
+    on: vi.fn(),
+    off: vi.fn(),
+  }),
+  useHandleCellFocus: () => vi.fn(),
+  useHandleCellBlur: () => vi.fn(),
+  useHandleHeaderDoubleClick: () => vi.fn(),
+  useHandleHeaderChange: () => vi.fn(),
+  useHandleHeaderBlur: () => vi.fn(),
+  useHandleColumnResize: () => vi.fn(),
+  useEditingHeaderIndex: () => null,
+  useEditingHeaderValue: () => "",
+  useHandleCellChange: () => vi.fn(),
+  useSetEditingCell: () => vi.fn(),
+  useEditingCell: () => null,
 }));
 
 const mockGenerateAndInsertRows = vi.fn();
@@ -51,27 +80,23 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
   let mockYDoc: Y.Doc;
   let mockYHeaders: Y.Array<string>;
   let mockYTable: Y.Array<Y.Map<unknown>>;
-  let mockUndoManager: Y.UndoManager;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.useFakeTimers();
-    mockGenerateAndInsertRows.mockReset();
-    mockGenerateAndInsertColumns.mockReset();
 
     mockYDoc = new Y.Doc();
     mockYHeaders = mockYDoc.getArray<string>("headers");
     mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
-    mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
 
     const mockData = getLiveTableMockValues({
       yDoc: mockYDoc,
       yHeaders: mockYHeaders,
       yTable: mockYTable,
-      undoManager: mockUndoManager,
       generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
+
     vi.mocked(useLiveTable).mockReturnValue(mockData);
   });
 
@@ -108,11 +133,10 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       headers: [],
       tableData: testYTable.toArray().map((r) => r.toJSON()),
       columnWidths: baseMockData.columnWidths,
-      undoManager: baseMockData.undoManager,
       isTableLoaded: baseMockData.isTableLoaded,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
-    vi.mocked(useSelectionStore).mockReturnValue({
+    vi.mocked(useSelectedCell).mockReturnValue({
       rowIndex: 0,
       colIndex: 0,
     });
@@ -156,7 +180,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
-    vi.mocked(useSelectionStore).mockReturnValue(mockSelectedCell);
+    vi.mocked(useSelectedCell).mockReturnValue(mockSelectedCell);
     vi.mocked(useSelectedCells).mockReturnValue([mockSelectedCell]);
 
     render(<LiveTableToolbar />);
@@ -197,7 +221,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
-    vi.mocked(useSelectionStore).mockReturnValue({ rowIndex: 0, colIndex: 0 });
+    vi.mocked(useSelectedCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
 
     render(<LiveTableToolbar />);
@@ -242,7 +266,7 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
-    vi.mocked(useSelectionStore).mockReturnValue({ rowIndex: 0, colIndex: 0 });
+    vi.mocked(useSelectedCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
     vi.mocked(useSelectedCells).mockReturnValue([
       { rowIndex: 0, colIndex: 0 },
       { rowIndex: 0, colIndex: 1 },
@@ -264,9 +288,9 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
 
 describe("LiveTableToolbar - Add Row Buttons", () => {
   let mockYDoc: Y.Doc;
+  let mockLiveTable: LiveTableDoc;
   let mockYHeaders: Y.Array<string>;
   let mockYTable: Y.Array<Y.Map<unknown>>;
-  let mockUndoManager: Y.UndoManager;
 
   const setupYjsData = (
     headers: string[],
@@ -293,7 +317,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     mockYDoc = new Y.Doc();
     mockYHeaders = mockYDoc.getArray<string>("headers");
     mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
-    mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
+    mockLiveTable = new LiveTableDoc(mockYDoc);
 
     const initialHeaders = ["Name", "Age"];
     mockYHeaders.push(initialHeaders);
@@ -303,16 +327,11 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     mockYTable.push([yRow]);
 
     const mockData = getLiveTableMockValues({
-      undoManager: mockUndoManager,
-      selectedCells: [],
-      headers: initialHeaders,
-      tableData: mockYTable.toArray().map((r) => r.toJSON()),
-      columnWidths: {},
       generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
-    vi.mocked(useSelectionStore).mockReturnValue({ rowIndex: 0, colIndex: 0 });
+    vi.mocked(useSelectedCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
 
     mockGenerateAndInsertRows.mockResolvedValue({
@@ -331,22 +350,26 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     const yTableDataForCall = mockYTable.toArray().map((r) => r.toJSON());
     const yHeadersDataForCall = mockYHeaders.toArray();
 
+    vi.mocked(useSelectedCell).mockReturnValue(selectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue([selectedCell]);
+
     const mockData = getLiveTableMockValues({
       yDoc: mockYDoc,
       yHeaders: mockYHeaders,
       yTable: mockYTable,
-      undoManager: mockUndoManager,
-      selectedCells: [selectedCell],
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
       generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
-    vi.mocked(useSelectionStore).mockReturnValue(selectedCell);
-    vi.mocked(useSelectedCells).mockReturnValue([selectedCell]);
 
-    render(<LiveTableToolbar />);
+    render(
+      <TestDataStoreWrapper liveTableDoc={mockLiveTable}>
+        <LiveTableToolbar />
+      </TestDataStoreWrapper>
+    );
+
     const button = screen.getByRole("button", { name: "Add Row Above" });
     await act(async () => {
       fireEvent.mouseDown(button);
@@ -363,12 +386,13 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     const yTableDataForCall = mockYTable.toArray().map((r) => r.toJSON());
     const yHeadersDataForCall = mockYHeaders.toArray();
 
+    vi.mocked(useSelectedCell).mockReturnValue(selectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue([selectedCell]);
+
     const mockData = getLiveTableMockValues({
       yDoc: mockYDoc,
       yHeaders: mockYHeaders,
       yTable: mockYTable,
-      undoManager: mockUndoManager,
-      selectedCells: [selectedCell],
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
       generateAndInsertRows: mockGenerateAndInsertRows,
@@ -400,7 +424,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     const mockData = getLiveTableMockValues({
       yHeaders: mockYHeaders,
       yTable: mockYTable,
-      undoManager: mockUndoManager,
       selectedCells: selectedCellsData,
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
@@ -408,7 +431,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
-    vi.mocked(useSelectionStore).mockReturnValue(primarySelectedCell);
+    vi.mocked(useSelectedCell).mockReturnValue(primarySelectedCell);
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsData);
 
     render(<LiveTableToolbar />);
@@ -437,15 +460,14 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     const yHeadersDataForCall = mockYHeaders.toArray();
 
     const mockData = getLiveTableMockValues({
-      undoManager: mockUndoManager,
-      selectedCells: selectedCellsData,
+      selectedCells: [],
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
       generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
-    vi.mocked(useSelectionStore).mockReturnValue(primarySelectedCell);
+    vi.mocked(useSelectedCell).mockReturnValue(primarySelectedCell);
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsData);
 
     render(<LiveTableToolbar />);
@@ -461,13 +483,10 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
 
   it("Add Row Above: selectedCell is set but selectedCells is empty, calls generateAndInsertRows", async () => {
     setupYjsData(["H1"], [{ H1: "R0" }]);
-    const selectedCell = { rowIndex: 0, colIndex: 0 };
     const yTableDataForCall = mockYTable.toArray().map((r) => r.toJSON());
     const yHeadersDataForCall = mockYHeaders.toArray();
 
     const mockData = getLiveTableMockValues({
-      undoManager: mockUndoManager,
-      selectedCell,
       selectedCells: [],
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
@@ -492,7 +511,6 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
   let mockYDoc: Y.Doc;
   let mockYHeaders: Y.Array<string>;
   let mockYTable: Y.Array<Y.Map<unknown>>;
-  let mockUndoManager: Y.UndoManager;
 
   const setupYjsBaseDoc = (
     initialHeaders: string[],
@@ -529,7 +547,6 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       initialHeaders.forEach((h) => emptyRow.set(h, undefined));
       mockYTable.push([emptyRow]);
     }
-    mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
   };
 
   beforeEach(() => {
@@ -539,7 +556,6 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
     mockYDoc = new Y.Doc();
     mockYHeaders = mockYDoc.getArray<string>("headers");
     mockYTable = mockYDoc.getArray<Y.Map<unknown>>("table");
-    mockUndoManager = new Y.UndoManager([mockYHeaders, mockYTable]);
 
     setupYjsBaseDoc(["H1", "H2"], [{ H1: "r1v1", H2: "r1v2" }]);
 
@@ -547,10 +563,7 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       yDoc: mockYDoc,
       yHeaders: mockYHeaders,
       yTable: mockYTable,
-      undoManager: mockUndoManager,
-      selectedCells: [{ rowIndex: 0, colIndex: 0 }],
-      headers: mockYHeaders.toArray(),
-      tableData: mockYTable.toArray().map((r: Y.Map<unknown>) => r.toJSON()),
+      generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
@@ -580,7 +593,6 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       ],
       headers: currentHeadersArray,
       tableData: currentTableDataJson,
-      undoManager: mockUndoManager,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
@@ -632,7 +644,6 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       ],
       headers: currentHeadersArray,
       tableData: currentTableDataJson,
-      undoManager: mockUndoManager,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);

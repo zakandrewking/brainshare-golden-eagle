@@ -77,6 +77,21 @@ export function useSelectionStore<T>(selector?: (state: SelectionState) => T) {
 
 // Selectors
 
+export const useSelectionStart = () =>
+  useSelectionStore((state) => state.startSelection);
+
+export const useSelectionMove = () =>
+  useSelectionStore((state) => state.moveSelection);
+
+export const useSelectionEnd = () =>
+  useSelectionStore((state) => state.endSelection);
+
+export const useIsSelecting = () =>
+  useSelectionStore((state) => state.isSelecting);
+
+export const useSelectedCell = () =>
+  useSelectionStore((state) => state.selectedCell);
+
 export const selectSelectedCells = (state: SelectionState): CellPosition[] => {
   const { selectionArea } = state;
   if (!selectionArea.startCell || !selectionArea.endCell) {

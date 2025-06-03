@@ -2,9 +2,19 @@
 
 import React, { useCallback } from "react";
 
-import { useIsCellLocked } from "@/stores/dataStore";
+import {
+  useEditingCell,
+  useHandleCellBlur,
+  useHandleCellChange,
+  useHandleCellFocus,
+  useIsCellLocked,
+  useSetEditingCell,
+} from "@/stores/dataStore";
 import {
   selectIsCellSelected,
+  useSelectedCell,
+  useSelectionMove,
+  useSelectionStart,
   useSelectionStore,
 } from "@/stores/selectionStore";
 
@@ -23,19 +33,18 @@ const TableCell: React.FC<TableCellProps> = ({
   header,
   value,
 }) => {
-  const {
-    editingCell,
-    handleCellChange,
-    handleCellBlur,
-    setEditingCell,
-    handleCellFocus,
-    getCursorsForCell,
-  } = useLiveTable();
+  const { getCursorsForCell } = useLiveTable();
 
   const isCellLocked = useIsCellLocked();
-  const selectedCell = useSelectionStore((state) => state.selectedCell);
-  const startSelection = useSelectionStore((state) => state.startSelection);
-  const moveSelection = useSelectionStore((state) => state.moveSelection);
+  const editingCell = useEditingCell();
+  const handleCellChange = useHandleCellChange();
+  const handleCellBlur = useHandleCellBlur();
+  const setEditingCell = useSetEditingCell();
+  const handleCellFocus = useHandleCellFocus();
+
+  const selectedCell = useSelectedCell();
+  const startSelection = useSelectionStart();
+  const moveSelection = useSelectionMove();
   const isInSelection = useSelectionStore((state) =>
     selectIsCellSelected(state, rowIndex, colIndex)
   );

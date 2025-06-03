@@ -17,7 +17,6 @@ import React, {
 } from "react";
 
 import { toast } from "sonner";
-import { UndoManager } from "yjs";
 
 import { useRoom } from "@liveblocks/react/suspense";
 
@@ -49,16 +48,6 @@ export interface LiveTableContextType {
   headers: string[] | undefined;
   columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
-  // undo
-  undoManager: UndoManager;
-  // editing
-  handleCellChange: (
-    rowIndex: number,
-    header: string,
-    newValue: string
-  ) => void;
-  editingCell: { rowIndex: number; colIndex: number } | null;
-  setEditingCell: (cell: { rowIndex: number; colIndex: number } | null) => void;
   // row operations
   generateAndInsertRows: (
     initialInsertIndex: number,
@@ -136,12 +125,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     CursorDataForCell[] | undefined
   >(undefined);
 
-  // State for tracking the cell being edited
-  const [editingCell, setEditingCell] = useState<{
-    rowIndex: number;
-    colIndex: number;
-  } | null>(null);
-
   // liveblocks
   const room = useRoom();
   const { liveTableDoc, yProvider } = useMemo(
@@ -153,7 +136,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   liveTableDoc.columnWidthsUpdateCallback = setColumnWidths;
   liveTableDoc.awarenessStatesUpdateCallback = setAwarenessStates;
   liveTableDoc.cursorsDataUpdateCallback = setCursorsData;
-  const undoManager = useMemo(() => liveTableDoc.undoManager, [liveTableDoc]);
 
   // update self info in awareness
   useUpdatedSelf(yProvider);
@@ -226,14 +208,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       liveTableDoc.cleanupObservers();
     };
   }, [liveTableDoc]);
-
-  // Function to handle cell changes
-  const handleCellChange = useCallback(
-    (rowIndex: number, header: string, newValue: string) => {
-      liveTableDoc.updateCell(rowIndex, header, newValue);
-    },
-    [liveTableDoc]
-  );
 
   const generateAndInsertRows = useCallback(
     async (initialInsertIndex: number, numRowsToAdd: number) => {
@@ -602,10 +576,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         headers,
         columnWidths,
         isTableLoaded,
-        handleCellChange,
-        undoManager,
-        editingCell,
-        setEditingCell,
         generateAndInsertRows,
         deleteRows,
         generateAndInsertColumns,

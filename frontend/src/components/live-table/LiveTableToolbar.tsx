@@ -38,8 +38,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useIsCellLocked } from "@/stores/dataStore";
-import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
+import { useIsCellLocked, useUndoManager } from "@/stores/dataStore";
+import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import { useLiveTable } from "./LiveTableProvider";
@@ -107,7 +107,6 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
 
 const LiveTableToolbar: React.FC = () => {
   const {
-    undoManager,
     isTableLoaded,
     generateAndInsertRows,
     deleteRows,
@@ -118,7 +117,8 @@ const LiveTableToolbar: React.FC = () => {
   } = useLiveTable();
 
   const isCellLocked = useIsCellLocked();
-  const selectedCell = useSelectionStore((state) => state.selectedCell);
+  const undoManager = useUndoManager();
+  const selectedCell = useSelectedCell();
   const selectedCells = useSelectedCells();
 
   const [isPending, startTransition] = useTransition();

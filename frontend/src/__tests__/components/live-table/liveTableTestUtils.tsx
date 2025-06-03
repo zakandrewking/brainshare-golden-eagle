@@ -3,6 +3,8 @@ import React from "react";
 import { vi } from "vitest";
 import * as Y from "yjs";
 
+import type { LiveblocksYjsProvider } from "@liveblocks/yjs";
+
 import type {
   CellValue,
   ColumnDefinition,
@@ -33,6 +35,13 @@ export interface LiveTableMockOverrides
   // Explicitly include selectionArea and selectedCells for clarity if they are overridden
   selectionArea?: LiveTableProvider.SelectionArea;
   selectedCells?: LiveTableProvider.CellPosition[];
+  // Add header editing handlers
+  editingHeaderIndex?: number | null;
+  editingHeaderValue?: string;
+  handleHeaderDoubleClick?: (index: number) => void;
+  handleHeaderChange?: (value: string) => void;
+  handleHeaderBlur?: () => void;
+  handleHeaderKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export const getLiveTableMockValues = (
@@ -133,7 +142,6 @@ export const getLiveTableMockValues = (
   liveTableDoc.updateColWidthsState();
 
   const defaultMockValue: ReturnType<typeof LiveTableProvider.useLiveTable> = {
-    undoManager: liveTableDoc.undoManager,
     isTableLoaded: true,
     tableId: "test-table",
     documentTitle: "Test Document",
@@ -141,18 +149,6 @@ export const getLiveTableMockValues = (
     tableData: currentTableData,
     headers: currentHeaders,
     columnWidths: currentColWidths,
-    handleCellChange: vi.fn(),
-    handleCellFocus: vi.fn(),
-    handleCellBlur: vi.fn(),
-    editingHeaderIndex: null,
-    editingHeaderValue: "",
-    handleHeaderDoubleClick: vi.fn(),
-    handleHeaderChange: vi.fn(),
-    handleHeaderBlur: vi.fn(),
-    handleHeaderKeyDown: vi.fn(),
-    handleColumnResize: vi.fn(),
-    editingCell: null,
-    setEditingCell: vi.fn(),
     generateAndInsertRows: vi
       .fn()
       .mockResolvedValue({ aiRowsAdded: 0, defaultRowsAdded: 0 }),
@@ -176,7 +172,8 @@ export const getLiveTableMockValues = (
 export const TestDataStoreWrapper: React.FC<{
   children: React.ReactNode;
   liveTableDoc?: LiveTableDoc;
-}> = ({ children, liveTableDoc }) => {
+  headers?: string[];
+}> = ({ children, liveTableDoc, headers = [] }) => {
   // Create a default LiveTableDoc if none provided
   const defaultDoc = React.useMemo(() => {
     if (liveTableDoc) return liveTableDoc;
@@ -184,7 +181,27 @@ export const TestDataStoreWrapper: React.FC<{
     return new LiveTableDoc(yDoc);
   }, [liveTableDoc]);
 
+  // Create a mock yProvider
+  const mockYProvider = React.useMemo(
+    () => ({
+      awareness: {
+        setLocalStateField: vi.fn(),
+        getStates: vi.fn(() => new Map()),
+        on: vi.fn(),
+        off: vi.fn(),
+      },
+      getYDoc: vi.fn(() => defaultDoc.yDoc),
+    }),
+    [defaultDoc]
+  );
+
   return (
-    <DataStoreProvider liveTableDoc={defaultDoc}>{children}</DataStoreProvider>
+    <DataStoreProvider
+      liveTableDoc={defaultDoc}
+      yProvider={mockYProvider as unknown as LiveblocksYjsProvider}
+      headers={headers}
+    >
+      {children}
+    </DataStoreProvider>
   );
 };
