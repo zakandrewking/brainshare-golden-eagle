@@ -4,8 +4,8 @@ import { Wand2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { useHandleCellChange } from "@/stores/dataStore";
-import { useSelectedCells } from "@/stores/selectionStore";
+import { useHandleCellChange } from "@/stores/data-store";
+import { useSelectedCells } from "@/stores/selection-store";
 
 import generateSelectedCellsSuggestions
   from "./actions/generateSelectedCellsSuggestions";

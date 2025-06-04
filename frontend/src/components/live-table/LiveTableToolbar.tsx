@@ -38,8 +38,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useIsCellLocked, useUndoManager } from "@/stores/dataStore";
-import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
+import { useIsCellLocked, useUndoManager } from "@/stores/data-store";
+import { useSelectedCell, useSelectedCells } from "@/stores/selection-store";
 
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import { useLiveTable } from "./LiveTableProvider";

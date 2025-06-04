@@ -51,7 +51,7 @@ vi.mock("@/stores/dataStore", () => {
 });
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
+  ...(await importOriginal<typeof import("@/stores/selection-store")>()),
   useSelectedCells: () => [],
 }));
 

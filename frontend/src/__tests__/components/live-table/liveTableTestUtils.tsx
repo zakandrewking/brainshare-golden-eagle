@@ -10,12 +10,12 @@ import type {
   ColumnDefinition,
   ColumnId,
   RowId,
-} from "@/components/live-table/LiveTableDoc";
+} from "@/components/live-table/live-table-doc";
 import {
   LiveTableDoc,
-} from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
+} from "@/components/live-table/live-table-doc"; // Import the actual LiveTableDoc
 import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
-import { DataStoreProvider } from "@/stores/dataStore";
+import { DataStoreProvider } from "@/stores/data-store";
 
 // Define a more specific type for overrides that allows yColWidths (Y.Map)
 // and other context properties.

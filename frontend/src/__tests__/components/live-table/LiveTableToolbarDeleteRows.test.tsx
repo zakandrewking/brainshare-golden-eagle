@@ -24,12 +24,12 @@ import {
   type ColumnId,
   LiveTableDoc,
   type RowId,
-} from "@/components/live-table/LiveTableDoc";
+} from "@/components/live-table/live-table-doc";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useIsCellLocked } from "@/stores/dataStore";
-import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
+import { useIsCellLocked } from "@/stores/data-store";
+import { useSelectedCell, useSelectedCells } from "@/stores/selection-store";
 
 import {
   getLiveTableMockValues,
@@ -61,13 +61,13 @@ vi.mock(
 );
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
+  ...(await importOriginal<typeof import("@/stores/selection-store")>()),
   useSelectedCell: vi.fn(),
   useSelectedCells: vi.fn(),
 }));
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/stores/dataStore")>()),
+  ...(await importOriginal<typeof import("@/stores/data-store")>()),
   useLockedCells: vi.fn(),
   useLockSelectedRange: vi.fn(),
   useUnlockAll: vi.fn(),

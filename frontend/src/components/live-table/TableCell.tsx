@@ -9,13 +9,13 @@ import {
   useHandleCellFocus,
   useIsCellLocked,
   useSetEditingCell,
-} from "@/stores/dataStore";
+} from "@/stores/data-store";
 import {
   useSelectedCell,
   useSelectionMove,
   useSelectionStart,
   useSelectIsCellSelected,
-} from "@/stores/selectionStore";
+} from "@/stores/selection-store";
 
 import { useLiveTable } from "./LiveTableProvider";
 

@@ -19,14 +19,14 @@ import {
 } from "@testing-library/react";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
-import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import {
   type CellValue,
   type ColumnDefinition,
   type ColumnId,
   LiveTableDoc,
   type RowId,
-} from "@/components/live-table/LiveTableDoc";
+} from "@/components/live-table/live-table-doc";
+import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import {
   useClearSelection,
@@ -35,7 +35,7 @@ import {
   useSelectedCells,
   useSelectionArea,
   useSelectionStart,
-} from "@/stores/selectionStore";
+} from "@/stores/selection-store";
 
 import {
   getLiveTableMockValues,
@@ -48,7 +48,7 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
 
 // Mock the dataStore
 vi.mock("@/stores/dataStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/stores/dataStore")>();
+  const actual = await importOriginal<typeof import("@/stores/data-store")>();
   return {
     ...actual,
     useIsCellLocked: () => vi.fn(() => false),

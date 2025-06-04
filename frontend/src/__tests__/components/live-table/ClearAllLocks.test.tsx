@@ -19,12 +19,12 @@ import {
   useLockedCells,
   useLockSelectedRange,
   useUnlockAll,
-} from "@/stores/dataStore";
-import { useSelectedCells } from "@/stores/selectionStore";
+} from "@/stores/data-store";
+import { useSelectedCells } from "@/stores/selection-store";
 
 // Mock the dependencies
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
+  ...(await importOriginal<typeof import("@/stores/selection-store")>()),
   useSelectedCells: vi.fn(),
   useSelectedCell: vi.fn(),
 }));

@@ -14,7 +14,7 @@ import {
   type ColumnId,
   LiveTableDoc,
   type RowId,
-} from "@/components/live-table/LiveTableDoc";
+} from "@/components/live-table/live-table-doc";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -270,11 +270,31 @@ describe("LiveTableDoc - V2 Operations on Clean V2 State", () => {
         liveTableDoc.yColumnDefinitions.clear();
 
         // Set up 5 columns
-        liveTableDoc.yColumnDefinitions.set(colA, { id: colA, name: "A", width: 150 });
-        liveTableDoc.yColumnDefinitions.set(colB, { id: colB, name: "B", width: 150 });
-        liveTableDoc.yColumnDefinitions.set(colC, { id: colC, name: "C", width: 150 });
-        liveTableDoc.yColumnDefinitions.set(colD, { id: colD, name: "D", width: 150 });
-        liveTableDoc.yColumnDefinitions.set(colE, { id: colE, name: "E", width: 150 });
+        liveTableDoc.yColumnDefinitions.set(colA, {
+          id: colA,
+          name: "A",
+          width: 150,
+        });
+        liveTableDoc.yColumnDefinitions.set(colB, {
+          id: colB,
+          name: "B",
+          width: 150,
+        });
+        liveTableDoc.yColumnDefinitions.set(colC, {
+          id: colC,
+          name: "C",
+          width: 150,
+        });
+        liveTableDoc.yColumnDefinitions.set(colD, {
+          id: colD,
+          name: "D",
+          width: 150,
+        });
+        liveTableDoc.yColumnDefinitions.set(colE, {
+          id: colE,
+          name: "E",
+          width: 150,
+        });
         liveTableDoc.yColumnOrder.push([colA, colB, colC, colD, colE]);
       });
 

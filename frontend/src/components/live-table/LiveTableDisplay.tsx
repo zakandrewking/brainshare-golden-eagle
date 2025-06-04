@@ -27,10 +27,11 @@ import {
   useHandleHeaderBlur,
   useHandleHeaderChange,
   useHandleHeaderDoubleClick,
+  useHeaders,
   useIsCellLocked,
   useSetEditingCell,
   useSetEditingHeaderIndex,
-} from "@/stores/dataStore";
+} from "@/stores/data-store";
 import {
   useClearSelection,
   useIsSelecting,
@@ -38,7 +39,7 @@ import {
   useSelectedCells,
   useSelectionEnd,
   useSelectionMove,
-} from "@/stores/selectionStore";
+} from "@/stores/selection-store";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
 import { useLiveTable } from "./LiveTableProvider";
@@ -59,7 +60,7 @@ const MIN_COL_WIDTH = 50;
 const ROW_NUMBER_COL_WIDTH = 50;
 
 const LiveTable: React.FC = () => {
-  const { isTableLoaded, tableData, headers, columnWidths, reorderColumn } =
+  const { isTableLoaded, tableData, columnWidths, reorderColumn } =
     useLiveTable();
 
   const isCellLocked = useIsCellLocked();
@@ -74,6 +75,7 @@ const LiveTable: React.FC = () => {
   const handleHeaderDoubleClick = useHandleHeaderDoubleClick();
   const setEditingHeaderIndex = useSetEditingHeaderIndex();
   const handleColumnResize = useHandleColumnResize();
+  const headers = useHeaders();
 
   const selectedCell = useSelectedCell();
   const moveSelection = useSelectionMove();

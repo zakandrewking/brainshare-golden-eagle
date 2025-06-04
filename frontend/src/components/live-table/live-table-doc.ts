@@ -100,7 +100,7 @@ export class LiveTableDoc {
     | undefined;
   public headersUpdateCallback: ((headers: string[]) => void) | undefined;
   public columnWidthsUpdateCallback:
-    | ((widths: Record<string, number>) => void)
+    | ((columnWidths: Record<string, number>) => void)
     | undefined;
   public lockedCellsUpdateCallback:
     | ((lockedCells: Set<string>) => void)
@@ -113,8 +113,6 @@ export class LiveTableDoc {
   public cursorsDataUpdateCallback:
     | ((cursorsData: CursorDataForCell[]) => void)
     | undefined;
-
-  // public editLocks: Y.Map<EditLock>;
 
   // undo/redo manager
   public undoManager: UndoManager;
@@ -312,9 +310,9 @@ export class LiveTableDoc {
       // Attempt to populate yColumnOrder based on available definitions (e.g., sorted by ID).
       // This is a recovery mechanism, ideally migration ensures yColumnOrder is populated.
       const derivedColOrder = Array.from(this.yColumnDefinitions.keys()).sort();
-      this.yDoc.transact(() => {
-        if (this.yColumnOrder.length === 0) {
-          // Check again inside transaction
+      if (this.yColumnOrder.length === 0) {
+        // Check again inside transaction
+        this.yDoc.transact(() => {
           this.yColumnOrder.push(derivedColOrder);
           // Re-derive currentHeaders with the new order
           const reDerivedHeaders: string[] = [];
@@ -322,15 +320,13 @@ export class LiveTableDoc {
             const def = this.yColumnDefinitions.get(colId);
             if (def) reDerivedHeaders.push(def.name);
           });
-          this.headersUpdateCallback?.(reDerivedHeaders);
-        } else {
-          this.headersUpdateCallback?.(currentHeaders); // Use already populated currentHeaders if another client fixed it
-        }
-      });
-    } else {
-      if (this.headersUpdateCallback) {
-        this.headersUpdateCallback(currentHeaders);
+          this.headersUpdateCallback?.(currentHeaders);
+        });
+      } else {
+        this.headersUpdateCallback?.(currentHeaders);
       }
+    } else {
+      this.headersUpdateCallback?.(currentHeaders);
     }
   }
 

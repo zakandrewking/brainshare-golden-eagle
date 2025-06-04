@@ -18,14 +18,14 @@ import {
 import userEvent from "@testing-library/user-event";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
-import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import {
   type CellValue,
   type ColumnDefinition,
   type ColumnId,
   LiveTableDoc,
   type RowId,
-} from "@/components/live-table/LiveTableDoc";
+} from "@/components/live-table/live-table-doc";
+import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import * as LiveTableProviderModule
   from "@/components/live-table/LiveTableProvider";
 import {
@@ -34,14 +34,14 @@ import {
   useHandleCellChange,
   useHandleCellFocus,
   useSetEditingCell,
-} from "@/stores/dataStore";
+} from "@/stores/data-store";
 import {
   useIsSelecting,
   useSelectedCell,
   useSelectedCells,
   useSelectionArea,
   useSelectionStart,
-} from "@/stores/selectionStore";
+} from "@/stores/selection-store";
 
 import {
   getLiveTableMockValues,

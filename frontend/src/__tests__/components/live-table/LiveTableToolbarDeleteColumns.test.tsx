@@ -23,12 +23,12 @@ import {
   type ColumnId,
   LiveTableDoc,
   type RowId,
-} from "@/components/live-table/LiveTableDoc";
+} from "@/components/live-table/live-table-doc";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useIsCellLocked } from "@/stores/dataStore";
-import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
+import { useIsCellLocked } from "@/stores/data-store";
+import { useSelectedCell, useSelectedCells } from "@/stores/selection-store";
 
 import {
   getLiveTableMockValues,

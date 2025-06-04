@@ -27,21 +27,21 @@ import {
   useEditingHeaderValuePush,
 } from "@/__tests__/test-utils/useEditingHeaderValue";
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
-import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import {
   type CellValue,
   type ColumnDefinition,
   type ColumnId,
   LiveTableDoc,
   type RowId,
-} from "@/components/live-table/LiveTableDoc";
+} from "@/components/live-table/live-table-doc";
+import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import {
   useHandleHeaderBlur,
   useHandleHeaderChange,
   useHandleHeaderDoubleClick,
   useIsCellLocked,
-} from "@/stores/dataStore";
+} from "@/stores/data-store";
 
 import {
   getLiveTableMockValues,
