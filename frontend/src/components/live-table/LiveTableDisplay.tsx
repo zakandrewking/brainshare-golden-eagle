@@ -544,6 +544,11 @@ const LiveTable: React.FC = () => {
                     onDragOver={(e) => handleColumnDragOver(e, index)}
                     onDragLeave={handleColumnDragLeave}
                     onDrop={handleColumnDrop}
+                    onDoubleClick={(e) => {
+                      if (!(e.target as HTMLElement).closest(".cursor-col-resize")) {
+                        handleHeaderDoubleClick(index);
+                      }
+                    }}
                     className={`border border-slate-300 p-0 text-left relative group overflow-hidden ${
                       isDragging ? "opacity-50" : ""
                     }`}
@@ -580,9 +585,6 @@ const LiveTable: React.FC = () => {
                       ) : (
                         <div
                           className="p-2 cursor-text flex-grow break-words flex items-center"
-                          onDoubleClick={() => {
-                            handleHeaderDoubleClick(index);
-                          }}
                           style={{ cursor: "grab" }}
                           onMouseDown={(e) => {
                             // Prevent drag when clicking on resize handle
