@@ -53,7 +53,6 @@ vi.mock("@/stores/dataStore", () => {
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
   useSelectedCells: () => [],
-  useSelectionStore: vi.fn(() => ({ selectedCell: null })),
 }));
 
 describe("LiveTableToolbar - Undo/Redo Functionality", () => {

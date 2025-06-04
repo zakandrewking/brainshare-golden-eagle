@@ -32,11 +32,12 @@ import {
   useSetEditingHeaderIndex,
 } from "@/stores/dataStore";
 import {
+  useClearSelection,
   useIsSelecting,
+  useSelectedCell,
   useSelectedCells,
   useSelectionEnd,
   useSelectionMove,
-  useSelectionStore,
 } from "@/stores/selectionStore";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
@@ -74,10 +75,10 @@ const LiveTable: React.FC = () => {
   const setEditingHeaderIndex = useSetEditingHeaderIndex();
   const handleColumnResize = useHandleColumnResize();
 
-  const selectedCell = useSelectionStore((state) => state.selectedCell);
+  const selectedCell = useSelectedCell();
   const moveSelection = useSelectionMove();
   const endSelection = useSelectionEnd();
-  const clearSelection = useSelectionStore((state) => state.clearSelection);
+  const clearSelection = useClearSelection();
   const isSelecting = useIsSelecting();
   const selectedCells = useSelectedCells();
 

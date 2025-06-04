@@ -36,10 +36,11 @@ import {
   useSetEditingCell,
 } from "@/stores/dataStore";
 import {
-  type SelectionState,
+  useIsSelecting,
+  useSelectedCell,
   useSelectedCells,
+  useSelectionArea,
   useSelectionStart,
-  useSelectionStore,
 } from "@/stores/selectionStore";
 
 import {
@@ -57,9 +58,11 @@ vi.mock(
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal()),
-  useSelectionStore: vi.fn(),
+  useSelectedCell: vi.fn(),
   useSelectedCells: vi.fn(),
   useSelectionStart: vi.fn(),
+  useSelectionArea: vi.fn(),
+  useIsSelecting: vi.fn(),
 }));
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
@@ -266,27 +269,13 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Explicitly mock the direct dependencies of handleKeyDown for this state
     vi.mocked(useEditingCell).mockReturnValue(null); // Ensure not editing
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]); // Ensure single cell selected
-
-    // Mock useSelectionStore to ensure selectedCell is correctly picked up by handleKeyDown
     const mockCurrentSelectedCell = { rowIndex: 0, colIndex: 0 };
-    vi.mocked(useSelectionStore).mockImplementation(
-      (selector?: (state: SelectionState) => unknown) => {
-        const state: SelectionState = {
-          selectedCell: mockCurrentSelectedCell,
-          selectionArea: {
-            startCell: mockCurrentSelectedCell,
-            endCell: mockCurrentSelectedCell,
-          },
-          isSelecting: false,
-          setSelectedCell: vi.fn(),
-          startSelection: mockSelectionStart,
-          moveSelection: vi.fn(),
-          endSelection: vi.fn(),
-          clearSelection: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      }
-    );
+    vi.mocked(useSelectedCell).mockReturnValue(mockCurrentSelectedCell);
+    vi.mocked(useSelectionArea).mockReturnValue({
+      startCell: mockCurrentSelectedCell,
+      endCell: mockCurrentSelectedCell,
+    });
+    vi.mocked(useIsSelecting).mockReturnValue(false);
 
     // Ensure no input element within the cell has focus before keydown
     if (document.activeElement instanceof HTMLElement) {
@@ -365,26 +354,14 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useEditingCell).mockReturnValue(null); // Ensure not editing
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]); // Ensure single cell selected
 
-    // Mock useSelectionStore to ensure selectedCell is correctly picked up by handleKeyDown
     const mockCurrentSelectedCell = { rowIndex: 0, colIndex: 0 };
-    vi.mocked(useSelectionStore).mockImplementation(
-      (selector?: (state: SelectionState) => unknown) => {
-        const state: SelectionState = {
-          selectedCell: mockCurrentSelectedCell,
-          selectionArea: {
-            startCell: mockCurrentSelectedCell,
-            endCell: mockCurrentSelectedCell,
-          },
-          isSelecting: false,
-          setSelectedCell: vi.fn(),
-          startSelection: mockSelectionStart,
-          moveSelection: vi.fn(),
-          endSelection: vi.fn(),
-          clearSelection: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      }
-    );
+    vi.mocked(useSelectedCell).mockReturnValue(mockCurrentSelectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue([mockCurrentSelectedCell]);
+    vi.mocked(useSelectionArea).mockReturnValue({
+      startCell: mockCurrentSelectedCell,
+      endCell: mockCurrentSelectedCell,
+    });
+    vi.mocked(useIsSelecting).mockReturnValue(false);
 
     // Ensure no input element within the cell has focus before keydown
     if (document.activeElement instanceof HTMLElement) {
@@ -523,26 +500,14 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useEditingCell).mockReturnValue(null); // Ensure not editing
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]); // Ensure single cell selected
 
-    // Mock useSelectionStore to ensure selectedCell is correctly picked up by handleKeyDown
     const mockCurrentSelectedCellEmpty = { rowIndex: 0, colIndex: 0 }; // Variable name changed to avoid conflict
-    vi.mocked(useSelectionStore).mockImplementation(
-      (selector?: (state: SelectionState) => unknown) => {
-        const state: SelectionState = {
-          selectedCell: mockCurrentSelectedCellEmpty,
-          selectionArea: {
-            startCell: mockCurrentSelectedCellEmpty,
-            endCell: mockCurrentSelectedCellEmpty,
-          },
-          isSelecting: false,
-          setSelectedCell: vi.fn(),
-          startSelection: mockSelectionStart,
-          moveSelection: vi.fn(),
-          endSelection: vi.fn(),
-          clearSelection: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      }
-    );
+    vi.mocked(useSelectedCell).mockReturnValue(mockCurrentSelectedCellEmpty);
+    vi.mocked(useSelectedCells).mockReturnValue([mockCurrentSelectedCellEmpty]);
+    vi.mocked(useSelectionArea).mockReturnValue({
+      startCell: mockCurrentSelectedCellEmpty,
+      endCell: mockCurrentSelectedCellEmpty,
+    });
+    vi.mocked(useIsSelecting).mockReturnValue(false);
 
     // Ensure no input element within the cell has focus before keydown
     if (document.activeElement instanceof HTMLElement) {

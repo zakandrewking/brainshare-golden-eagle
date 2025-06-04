@@ -29,7 +29,7 @@ import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsCellLocked } from "@/stores/dataStore";
-import { useSelectedCells, useSelectionStore } from "@/stores/selectionStore";
+import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
 import {
   getLiveTableMockValues,
@@ -62,7 +62,7 @@ vi.mock(
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
-  useSelectionStore: vi.fn(),
+  useSelectedCell: vi.fn(),
   useSelectedCells: vi.fn(),
 }));
 
@@ -198,7 +198,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
 
     const currentMockData = useLiveTable();
     vi.mocked(useLiveTable).mockReturnValue(currentMockData);
-    vi.mocked(useSelectionStore).mockReturnValue(selectedCellForTest);
+    vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
     vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
 
     render(
@@ -236,7 +236,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
     vi.mocked(useLiveTable).mockReturnValue({
       ...currentMockData,
     });
-    vi.mocked(useSelectionStore).mockReturnValue(selectedCellsForTest[0]);
+    vi.mocked(useSelectedCell).mockReturnValue(selectedCellsForTest[0]);
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
 
     render(
@@ -266,7 +266,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
   it("should not delete any row if no cells are selected and button should be disabled", () => {
     const currentMockData = useLiveTable();
     vi.mocked(useLiveTable).mockReturnValue(currentMockData);
-    vi.mocked(useSelectionStore).mockReturnValue(null);
+    vi.mocked(useSelectedCell).mockReturnValue(null);
     vi.mocked(useSelectedCells).mockReturnValue([]);
 
     render(
@@ -299,7 +299,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
     vi.mocked(useLiveTable).mockReturnValue({
       ...currentMockData,
     });
-    vi.mocked(useSelectionStore).mockReturnValue(selectedCellsForTest[0]);
+    vi.mocked(useSelectedCell).mockReturnValue(selectedCellsForTest[0]);
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
     vi.mocked(useIsCellLocked).mockReturnValue(() => true);
 

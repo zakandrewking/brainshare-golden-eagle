@@ -62,7 +62,6 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal()),
-  useSelectionStore: vi.fn(),
   selectIsCellSelected: vi.fn(),
   selectSelectedCells: vi.fn(),
   useSelectedCells: vi.fn(),

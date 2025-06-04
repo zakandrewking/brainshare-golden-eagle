@@ -11,11 +11,10 @@ import {
   useSetEditingCell,
 } from "@/stores/dataStore";
 import {
-  selectIsCellSelected,
   useSelectedCell,
   useSelectionMove,
   useSelectionStart,
-  useSelectionStore,
+  useSelectIsCellSelected,
 } from "@/stores/selectionStore";
 
 import { useLiveTable } from "./LiveTableProvider";
@@ -45,9 +44,7 @@ const TableCell: React.FC<TableCellProps> = ({
   const selectedCell = useSelectedCell();
   const startSelection = useSelectionStart();
   const moveSelection = useSelectionMove();
-  const isInSelection = useSelectionStore((state) =>
-    selectIsCellSelected(state, rowIndex, colIndex)
-  );
+  const isInSelection = useSelectIsCellSelected(rowIndex, colIndex);
 
   const isSelected =
     selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;

@@ -25,7 +25,7 @@ import {
   type CellPosition,
   type SelectionArea,
   useSelectedCells,
-  useSelectionStore,
+  useSelectionArea,
 } from "@/stores/selectionStore";
 
 import generateNewColumns, {
@@ -142,7 +142,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   // selection store
   const selectedCells = useSelectedCells();
-  const selectionArea = useSelectionStore((state) => state.selectionArea);
+  const selectionArea = useSelectionArea();
 
   // --- Load status ---
 

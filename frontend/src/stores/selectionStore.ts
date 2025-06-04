@@ -69,9 +69,9 @@ export const selectionStore = createStore<SelectionState>((set) => ({
   clearSelection: () => set({ ...initialState }),
 }));
 
-export function useSelectionStore(): SelectionState;
-export function useSelectionStore<T>(selector: (state: SelectionState) => T): T;
-export function useSelectionStore<T>(selector?: (state: SelectionState) => T) {
+function useSelectionStore(): SelectionState;
+function useSelectionStore<T>(selector: (state: SelectionState) => T): T;
+function useSelectionStore<T>(selector?: (state: SelectionState) => T) {
   return useStore(selectionStore, selector!);
 }
 
@@ -91,6 +91,12 @@ export const useIsSelecting = () =>
 
 export const useSelectedCell = () =>
   useSelectionStore((state) => state.selectedCell);
+
+export const useClearSelection = () =>
+  useSelectionStore((state) => state.clearSelection);
+
+export const useSelectionArea = () =>
+  useSelectionStore((state) => state.selectionArea);
 
 export const selectSelectedCells = (state: SelectionState): CellPosition[] => {
   const { selectionArea } = state;
@@ -136,7 +142,7 @@ export const useSelectedCells = () =>
     return shallow(makeSet(a), makeSet(b));
   });
 
-export const selectIsCellSelected = (
+const selectIsCellSelected = (
   state: SelectionState,
   rowIndex: number,
   colIndex: number
@@ -144,5 +150,14 @@ export const selectIsCellSelected = (
   const selectedCells = selectSelectedCells(state);
   return selectedCells.some(
     (cell) => cell.rowIndex === rowIndex && cell.colIndex === colIndex
+  );
+};
+
+export const useSelectIsCellSelected = (
+  rowIndex: number,
+  colIndex: number
+): boolean => {
+  return useSelectionStore((state) =>
+    selectIsCellSelected(state, rowIndex, colIndex)
   );
 };

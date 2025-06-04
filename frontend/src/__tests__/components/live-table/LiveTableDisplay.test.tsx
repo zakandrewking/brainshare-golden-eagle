@@ -29,8 +29,12 @@ import {
 } from "@/components/live-table/LiveTableDoc";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import {
-  type SelectionState,
-  useSelectionStore,
+  useClearSelection,
+  useIsSelecting,
+  useSelectedCell,
+  useSelectedCells,
+  useSelectionArea,
+  useSelectionStart,
 } from "@/stores/selectionStore";
 
 import {
@@ -51,26 +55,21 @@ vi.mock("@/stores/dataStore", async (importOriginal) => {
   };
 });
 
-vi.mock("@/stores/selectionStore", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("@/stores/selectionStore")
-  >();
-  return {
-    ...actual,
-    useSelectionStore: vi.fn(),
-    // Keep selectIsCellSelected as actual implementation for now, or mock if needed for specific test cases
-  };
-});
+vi.mock("@/stores/selectionStore", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useSelectedCell: vi.fn(),
+  useSelectedCells: vi.fn(),
+  useSelectionArea: vi.fn(),
+  useIsSelecting: vi.fn(),
+  useClearSelection: vi.fn(),
+  useSelectionStart: vi.fn(),
+  useSelectionMove: vi.fn(),
+  useSelectionEnd: vi.fn(),
+}));
 
 const mockedUseLiveTable = vi.mocked(useLiveTable);
 
 describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
-  const mockClearSelection = vi.fn();
-  const mockMoveSelection = vi.fn();
-  const mockEndSelection = vi.fn();
-  let mockCurrentSelectedCell: { rowIndex: number; colIndex: number } | null =
-    null;
-
   let yDoc: Y.Doc;
   let liveTableDocInstance: LiveTableDoc;
 
@@ -118,29 +117,6 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
         liveTableDocInstance,
       })
     );
-    // Mock useSelectionStore
-    vi.mocked(useSelectionStore).mockImplementation(
-      <TState = SelectionState,>(
-        selector?: (state: SelectionState) => TState
-      ): TState | SelectionState => {
-        const state: SelectionState = {
-          selectedCell: mockCurrentSelectedCell, // Use a mutable variable for selectedCell
-          selectionArea: { startCell: null, endCell: null },
-          isSelecting: false,
-          setSelectedCell: vi.fn((cell) => {
-            mockCurrentSelectedCell = cell;
-          }),
-          startSelection: vi.fn(),
-          moveSelection: mockMoveSelection,
-          endSelection: mockEndSelection,
-          clearSelection: mockClearSelection,
-        };
-        if (selector) {
-          return selector(state);
-        }
-        return state;
-      }
-    );
   });
 
   afterEach(() => {
@@ -149,15 +125,17 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
   });
 
   it("should clear selection when clicking outside the table", async () => {
-    // Setup initial state for this specific test
-    mockCurrentSelectedCell = { rowIndex: 0, colIndex: 0 };
-    // Ensure useLiveTable mock doesn't provide selection properties
-    mockedUseLiveTable.mockReturnValueOnce(
-      getLiveTableMockValues({
-        liveTableDocInstance,
-      })
-    );
-    // The global beforeEach mock for useSelectionStore will now use mockCurrentSelectedCell
+    const mockClearSelection = vi.fn();
+    vi.mocked(useClearSelection).mockImplementation(() => mockClearSelection);
+    vi.mocked(useSelectionStart).mockImplementation(() => vi.fn());
+
+    vi.mocked(useSelectedCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
+    vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
+    vi.mocked(useSelectionArea).mockReturnValue({
+      startCell: { rowIndex: 0, colIndex: 0 },
+      endCell: { rowIndex: 0, colIndex: 0 },
+    });
+    vi.mocked(useIsSelecting).mockReturnValue(false);
 
     const captureClick = vi.fn();
 
@@ -180,8 +158,17 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
   });
 
   it("should not clear selection when clicking inside the table", () => {
-    // Setup initial state for this specific test
-    mockCurrentSelectedCell = { rowIndex: 0, colIndex: 0 };
+    const mockCurrentSelectedCell = { rowIndex: 0, colIndex: 0 };
+    vi.mocked(useSelectedCell).mockReturnValue(mockCurrentSelectedCell);
+    vi.mocked(useSelectedCells).mockReturnValue([mockCurrentSelectedCell]);
+    vi.mocked(useSelectionArea).mockReturnValue({
+      startCell: mockCurrentSelectedCell,
+      endCell: mockCurrentSelectedCell,
+    });
+
+    const mockClearSelection = vi.fn();
+    vi.mocked(useClearSelection).mockImplementation(() => mockClearSelection);
+
     mockedUseLiveTable.mockReturnValueOnce(
       getLiveTableMockValues({
         liveTableDocInstance,
