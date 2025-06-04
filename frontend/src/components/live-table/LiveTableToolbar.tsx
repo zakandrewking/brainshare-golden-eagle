@@ -12,7 +12,9 @@ import {
   ArrowLeftFromLine,
   ArrowRightFromLine,
   ArrowUpFromLine,
+  ChevronDown,
   Columns3,
+  Sparkles,
   Download,
   Loader2,
   MoreVertical,
@@ -59,6 +61,7 @@ const BUTTON_TYPES = {
   REDO: "redo",
   ADD_ROW_ABOVE: "add-row-above",
   ADD_ROW_BELOW: "add-row-below",
+  ADD_ROW_BELOW_MENU: "add-row-below-menu",
   DELETE_ROWS: "delete-rows",
   ADD_COL_LEFT: "add-column-left",
   ADD_COL_RIGHT: "add-column-right",
@@ -75,6 +78,7 @@ const BUTTON_ORDER = [
   "separator-1",
   BUTTON_TYPES.ADD_ROW_ABOVE,
   BUTTON_TYPES.ADD_ROW_BELOW,
+  BUTTON_TYPES.ADD_ROW_BELOW_MENU,
   BUTTON_TYPES.DELETE_ROWS,
   "separator-2",
   BUTTON_TYPES.ADD_COL_LEFT,
@@ -92,6 +96,7 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
   [BUTTON_TYPES.REDO]: 36,
   [BUTTON_TYPES.ADD_ROW_ABOVE]: 36,
   [BUTTON_TYPES.ADD_ROW_BELOW]: 36,
+  [BUTTON_TYPES.ADD_ROW_BELOW_MENU]: 28,
   [BUTTON_TYPES.DELETE_ROWS]: 52,
   [BUTTON_TYPES.ADD_COL_LEFT]: 48,
   [BUTTON_TYPES.ADD_COL_RIGHT]: 48,
@@ -109,6 +114,7 @@ const LiveTableToolbar: React.FC = () => {
   const {
     isTableLoaded,
     generateAndInsertRows,
+    insertBlankRows,
     deleteRows,
     generateAndInsertColumns,
     deleteColumns,
@@ -249,6 +255,63 @@ const LiveTableToolbar: React.FC = () => {
       generateAndInsertRows,
     ]
   );
+
+  const handleAddBlankRowsBelow = useCallback(() => {
+    if (!isTableLoaded || isAnyOperationPending) return;
+    if (!headers || headers.length === 0) {
+      toast.info("Cannot add rows: No columns are defined yet.");
+      return;
+    }
+
+    let numRowsToAdd = 1;
+    let initialInsertIndex: number;
+    const currentIsTableEmptyOfRows = !tableData || tableData.length === 0;
+
+    if (!currentIsTableEmptyOfRows && selectedCell) {
+      const uniqueSelectedRowIndices = getSelectedRowIndices();
+      numRowsToAdd =
+        uniqueSelectedRowIndices.length > 0
+          ? uniqueSelectedRowIndices.length
+          : 1;
+      if (uniqueSelectedRowIndices.length > 0) {
+        const maxSelectedRowIndex =
+          uniqueSelectedRowIndices[uniqueSelectedRowIndices.length - 1];
+        initialInsertIndex = maxSelectedRowIndex + 1;
+      } else {
+        initialInsertIndex = selectedCell.rowIndex + 1;
+      }
+    } else if (currentIsTableEmptyOfRows) {
+      numRowsToAdd = 1;
+      initialInsertIndex = 0;
+    } else {
+      toast.info(
+        "Please select a cell to add rows relative to, or the table must be empty of rows."
+      );
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        await insertBlankRows(initialInsertIndex, numRowsToAdd);
+      } catch (error) {
+        console.error(
+          `Critical error in handleAddBlankRowsBelow transition:`,
+          error
+        );
+        toast.error(
+          "A critical error occurred while adding blank rows. Please try again."
+        );
+      }
+    });
+  }, [
+    isTableLoaded,
+    isAnyOperationPending,
+    headers,
+    tableData,
+    selectedCell,
+    getSelectedRowIndices,
+    insertBlankRows,
+  ]);
 
   const handleDeleteRows = useCallback(() => {
     const uniqueRowIndicesToDelete = getSelectedRowIndices().sort(
@@ -452,10 +515,14 @@ const LiveTableToolbar: React.FC = () => {
     numSelectedRowsForLabel <= 1
       ? "Add Row Above"
       : `Add ${numSelectedRowsForLabel} Rows Above`;
-  const addRowBelowButtonLabel =
+  const addRowBelowAiButtonLabel =
     numSelectedRowsForLabel <= 1
-      ? "Add Row Below"
-      : `Add ${numSelectedRowsForLabel} Rows Below`;
+      ? "Add Row Below (AI)"
+      : `Add ${numSelectedRowsForLabel} Rows Below (AI)`;
+  const addRowBelowPlainButtonLabel =
+    numSelectedRowsForLabel <= 1
+      ? "Add Blank Row Below"
+      : `Add ${numSelectedRowsForLabel} Blank Rows Below`;
   const deleteRowsButtonLabel =
     selectedRowIndices.length <= 1
       ? "Delete Row"
@@ -549,10 +616,16 @@ const LiveTableToolbar: React.FC = () => {
           isPending && pendingOperation === "add-row-below" ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <ArrowDownToLine className="h-4 w-4" />
+            <Sparkles className="h-4 w-4" />
           ),
-        label: addRowBelowButtonLabel,
+        label: addRowBelowAiButtonLabel,
         onClick: () => handleAddRowRelative("below"),
+        disabled: !canAddRows,
+      },
+      [BUTTON_TYPES.ADD_ROW_BELOW_MENU]: {
+        icon: <ChevronDown className="h-4 w-4" />,
+        label: "Row Options",
+        onClick: () => {},
         disabled: !canAddRows,
       },
       [BUTTON_TYPES.DELETE_ROWS]: {
@@ -611,7 +684,8 @@ const LiveTableToolbar: React.FC = () => {
       isPending,
       pendingOperation,
       addRowAboveButtonLabel,
-      addRowBelowButtonLabel,
+      addRowBelowAiButtonLabel,
+      addRowBelowPlainButtonLabel,
       deleteRowsButtonLabel,
       addColLeftButtonLabel,
       addColRightButtonLabel,
@@ -626,6 +700,7 @@ const LiveTableToolbar: React.FC = () => {
       handleUndo,
       handleRedo,
       handleAddRowRelative,
+      handleAddBlankRowsBelow,
       handleDeleteRows,
       handleAddColumnRelative,
       handleDeleteColumns,
@@ -843,6 +918,33 @@ const LiveTableToolbar: React.FC = () => {
         );
       }
       return <LockButton key={buttonId} />;
+    }
+
+    if (buttonId === BUTTON_TYPES.ADD_ROW_BELOW_MENU) {
+      return (
+        <DropdownMenu key={buttonId}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Row Options"
+              disabled={buttonConfigs[BUTTON_TYPES.ADD_ROW_BELOW_MENU].disabled}
+            >
+              {buttonConfigs[BUTTON_TYPES.ADD_ROW_BELOW_MENU].icon}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={buttonConfigs[BUTTON_TYPES.ADD_ROW_BELOW].onClick} disabled={buttonConfigs[BUTTON_TYPES.ADD_ROW_BELOW].disabled}>
+              <Sparkles className="h-4 w-4" />
+              <span className="ml-2">{addRowBelowAiButtonLabel}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleAddBlankRowsBelow} disabled={!canAddRows}>
+              <ArrowDownToLine className="h-4 w-4" />
+              <span className="ml-2">{addRowBelowPlainButtonLabel}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
     }
 
     const config = buttonConfigs[buttonId as keyof typeof buttonConfigs];

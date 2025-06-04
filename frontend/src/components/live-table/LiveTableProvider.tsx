@@ -56,6 +56,10 @@ export interface LiveTableContextType {
     aiRowsAdded: number;
     defaultRowsAdded: number;
   }>;
+  insertBlankRows: (
+    initialInsertIndex: number,
+    numRowsToAdd: number
+  ) => Promise<{ insertedCount: number }>;
   deleteRows: (rowIndices: number[]) => Promise<{
     deletedCount: number;
   }>;
@@ -331,10 +335,40 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           }
         }
         // Throw the original error to be caught by the toolbar
-        throw error instanceof Error ? error : new Error(String(error));
+      throw error instanceof Error ? error : new Error(String(error));
       }
     },
     [liveTableDoc, headers, tableData, documentTitle, documentDescription]
+  );
+
+  const insertBlankRows = useCallback(
+    async (initialInsertIndex: number, numRowsToAdd: number) => {
+      if (numRowsToAdd <= 0) {
+        toast.info("No rows were added as the number to add was zero.");
+        return { insertedCount: 0 };
+      }
+      if (!headers) {
+        throw new Error("Cannot add rows: table headers not loaded.");
+      }
+
+      const rowsToInsert: Record<string, string>[] = [];
+      for (let i = 0; i < numRowsToAdd; i++) {
+        const row: Record<string, string> = {};
+        headers.forEach((h) => {
+          row[h] = "";
+        });
+        rowsToInsert.push(row);
+      }
+
+      try {
+        liveTableDoc.insertRows(initialInsertIndex, rowsToInsert);
+        toast.success(`Added ${numRowsToAdd} blank row(s).`);
+        return { insertedCount: numRowsToAdd };
+      } catch (error) {
+        throw error instanceof Error ? error : new Error(String(error));
+      }
+    },
+    [liveTableDoc, headers]
   );
 
   const deleteRows = useCallback(
@@ -576,6 +610,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         columnWidths,
         isTableLoaded,
         generateAndInsertRows,
+        insertBlankRows,
         deleteRows,
         generateAndInsertColumns,
         deleteColumns,
