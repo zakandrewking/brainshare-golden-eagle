@@ -8,6 +8,11 @@
       "problemMatcher": []
     },
     {
+      "label": "[y-sweet] start",
+      "type": "shell",
+      "command": "npx y-sweet@latest serve ./y-sweet-data --port 8122"
+    },
+    {
       "label": "[supabase] start",
       "type": "shell",
       "command": "npx --yes supabase start"
