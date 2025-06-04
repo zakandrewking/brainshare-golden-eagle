@@ -2,20 +2,7 @@
 
 import React, { useCallback } from "react";
 
-import {
-  useEditingCell,
-  useHandleCellBlur,
-  useHandleCellChange,
-  useHandleCellFocus,
-  useIsCellLocked,
-  useSetEditingCell,
-} from "@/stores/dataStore";
-import {
-  useSelectedCell,
-  useSelectionMove,
-  useSelectionStart,
-  useSelectIsCellSelected,
-} from "@/stores/selectionStore";
+import { useIsSelectedCell, useSelectionStart } from "@/stores/selectionStore";
 
 import { useLiveTable } from "./LiveTableProvider";
 
@@ -32,25 +19,28 @@ const TableCell: React.FC<TableCellProps> = ({
   header,
   value,
 }) => {
+  console.log("Rendering TableCell", rowIndex, colIndex);
+
   const { getCursorsForCell } = useLiveTable();
 
-  const isCellLocked = useIsCellLocked();
-  const editingCell = useEditingCell();
-  const handleCellChange = useHandleCellChange();
-  const handleCellBlur = useHandleCellBlur();
-  const setEditingCell = useSetEditingCell();
-  const handleCellFocus = useHandleCellFocus();
+  // const isCellLocked = useIsCellLocked();
+  // const editingCell = useEditingCell();
+  // const handleCellChange = useHandleCellChange();
+  // const handleCellBlur = useHandleCellBlur();
+  // const setEditingCell = useSetEditingCell();
+  // const handleCellFocus = useHandleCellFocus();
 
-  const selectedCell = useSelectedCell();
+  // const selectedCell = useSelectedCell();
+  const isSelectedCell = useIsSelectedCell(rowIndex, colIndex);
   const startSelection = useSelectionStart();
-  const moveSelection = useSelectionMove();
-  const isInSelection = useSelectIsCellSelected(rowIndex, colIndex);
+  // const moveSelection = useSelectionMove();
+  // const isInSelection = useSelectIsCellSelected(rowIndex, colIndex);
 
-  const isSelected =
-    selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;
-  const isEditing =
-    editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
-  const isLocked = isCellLocked(rowIndex, colIndex);
+  const isSelected = isSelectedCell;
+  // selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;
+  const isEditing = false;
+  // editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
+  const isLocked = false; //isCellLocked(rowIndex, colIndex);
 
   // Get cursors for this cell (other users' selections)
   const cursorsForCell = getCursorsForCell(rowIndex, colIndex);
@@ -64,9 +54,9 @@ const TableCell: React.FC<TableCellProps> = ({
   if (isSelected) {
     borderColor = "blue";
     borderWidth = "2px";
-  } else if (isInSelection) {
-    borderColor = "rgba(59, 130, 246, 0.5)";
-    borderWidth = "1px";
+    // } else if (isInSelection) {
+    //   borderColor = "rgba(59, 130, 246, 0.5)";
+    //   borderWidth = "1px";
   } else if (hasOtherUserCursors) {
     // Use the first user's color for the border
     const firstUserColor = cursorsForCell.cursors[0]?.user?.color ?? "gray";
@@ -76,18 +66,18 @@ const TableCell: React.FC<TableCellProps> = ({
 
   const handleCellMouseDown = useCallback(
     (event: React.MouseEvent) => {
-      const isCurrentlyEditing =
-        editingCell?.rowIndex === rowIndex &&
-        editingCell?.colIndex === colIndex;
+      const isCurrentlyEditing = false;
+      // editingCell?.rowIndex === rowIndex &&
+      // editingCell?.colIndex === colIndex;
 
       if (isCurrentlyEditing) {
         return;
       }
       event.preventDefault();
 
-      if (editingCell) {
-        setEditingCell(null);
-      }
+      // if (editingCell) {
+      //   setEditingCell(null);
+      // }
       if (
         document.activeElement instanceof HTMLElement &&
         !event.currentTarget.contains(document.activeElement)
@@ -95,54 +85,46 @@ const TableCell: React.FC<TableCellProps> = ({
         document.activeElement.blur();
       }
 
-      if (event.shiftKey && selectedCell) {
-        moveSelection(rowIndex, colIndex);
-      } else {
-        startSelection(rowIndex, colIndex);
-      }
+      // if (event.shiftKey && selectedCell) {
+      //   moveSelection(rowIndex, colIndex);
+      // } else {
+      startSelection(rowIndex, colIndex);
+      // }
     },
-    [
-      editingCell,
-      rowIndex,
-      colIndex,
-      selectedCell,
-      setEditingCell,
-      moveSelection,
-      startSelection,
-    ]
+    [rowIndex, colIndex, startSelection]
   );
 
-  const handleCellDoubleClick = useCallback(
-    (event: React.MouseEvent) => {
-      // Don't allow editing locked cells
-      if (isLocked) {
-        return;
-      }
+  // const handleCellDoubleClick = useCallback(
+  //   (event: React.MouseEvent) => {
+  //     // Don't allow editing locked cells
+  //     if (isLocked) {
+  //       return;
+  //     }
 
-      // First, set the editing state
-      setEditingCell({ rowIndex, colIndex });
+  //     // First, set the editing state
+  //     setEditingCell({ rowIndex, colIndex });
 
-      // notify that the cell has focus
-      handleCellFocus(rowIndex, colIndex);
+  //     // notify that the cell has focus
+  //     handleCellFocus(rowIndex, colIndex);
 
-      // Find and focus the input inside the current cell
-      const cell = event.currentTarget as HTMLElement;
-      if (cell) {
-        const inputElement = cell.querySelector("input");
-        if (inputElement) {
-          inputElement.focus();
-        }
-      }
-    },
-    [rowIndex, colIndex, setEditingCell, handleCellFocus, isLocked]
-  );
+  //     // Find and focus the input inside the current cell
+  //     const cell = event.currentTarget as HTMLElement;
+  //     if (cell) {
+  //       const inputElement = cell.querySelector("input");
+  //       if (inputElement) {
+  //         inputElement.focus();
+  //       }
+  //     }
+  //   },
+  //   [rowIndex, colIndex, setEditingCell, handleCellFocus, isLocked]
+  // );
 
   return (
     <td
       className="border p-0 relative"
       data-row-index={rowIndex}
       data-col-index={colIndex}
-      data-selected={isInSelection ? "true" : "false"}
+      // data-selected={isInSelection ? "true" : "false"}
       data-editing={isEditing ? "true" : "false"}
       data-locked={isLocked ? "true" : "false"}
       data-testid="table-cell"
@@ -152,30 +134,30 @@ const TableCell: React.FC<TableCellProps> = ({
           ? "rgba(128, 128, 128, 0.2)"
           : isEditing
           ? "rgba(255, 255, 200, 0.2)"
-          : isInSelection
-          ? "rgba(59, 130, 246, 0.1)"
-          : hasOtherUserCursors
+          : // : isInSelection
+          // ? "rgba(59, 130, 246, 0.1)"
+          hasOtherUserCursors
           ? `${cursorsForCell.cursors[0]?.user?.color}20` // 20 for low opacity
           : undefined,
       }}
       onMouseDown={handleCellMouseDown}
-      onDoubleClick={handleCellDoubleClick}
+      // onDoubleClick={handleCellDoubleClick}
     >
       <input
         type="text"
         value={String(value ?? "")}
-        onChange={(e) => {
-          // Don't allow changes to locked cells
-          if (!isLocked) {
-            handleCellChange(rowIndex, header, e.target.value);
-          }
-        }}
-        onBlur={() => {
-          handleCellBlur();
-          if (isEditing) {
-            setEditingCell(null);
-          }
-        }}
+        onChange={(e) => {}}
+        //   // Don't allow changes to locked cells
+        //   if (!isLocked) {
+        //     handleCellChange(rowIndex, header, e.target.value);
+        //   }
+        // }}
+        // onBlur={() => {
+        //   handleCellBlur();
+        //   if (isEditing) {
+        //     setEditingCell(null);
+        //   }
+        // }}
         className={`w-full h-full p-2 border-none focus:outline-none ${
           isLocked
             ? "bg-gray-300 dark:bg-gray-700"

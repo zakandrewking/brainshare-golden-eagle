@@ -21,12 +21,6 @@ import { toast } from "sonner";
 import { useRoom } from "@liveblocks/react/suspense";
 
 import { DataStoreProvider } from "@/stores/dataStore";
-import {
-  type CellPosition,
-  type SelectionArea,
-  useSelectedCells,
-  useSelectionArea,
-} from "@/stores/selectionStore";
 
 import generateNewColumns, {
   GeneratedColumn,
@@ -78,8 +72,6 @@ export interface LiveTableContextType {
     colIndex: number
   ) => CursorDataForCell | undefined;
 }
-
-export type { CellPosition, SelectionArea };
 
 interface LiveTableProviderProps {
   children: React.ReactNode;
@@ -140,10 +132,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // update self info in awareness
   useUpdatedSelf(yProvider);
 
-  // selection store
-  const selectedCells = useSelectedCells();
-  const selectionArea = useSelectionArea();
-
   // --- Load status ---
 
   useEffect(() => {
@@ -182,14 +170,14 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   }, [updateAwarenessStateCallback, yProvider.awareness]);
 
   // Update awareness when local selection changes
-  useEffect(() => {
-    yProvider.awareness.setLocalStateField("selectionArea", {
-      startCell: selectionArea.startCell
-        ? { ...selectionArea.startCell }
-        : null,
-      endCell: selectionArea.endCell ? { ...selectionArea.endCell } : null,
-    });
-  }, [selectedCells, yProvider.awareness, selectionArea]);
+  // useEffect(() => {
+  //   yProvider.awareness.setLocalStateField("selectionArea", {
+  //     startCell: selectionArea.startCell
+  //       ? { ...selectionArea.startCell }
+  //       : null,
+  //     endCell: selectionArea.endCell ? { ...selectionArea.endCell } : null,
+  //   });
+  // }, [selectedCells, yProvider.awareness, selectionArea]);
 
   // Helper to find cursors for a specific cell from the pre-computed data
   const getCursorsForCell = useCallback(
