@@ -18,7 +18,11 @@ export default function Planets() {
       >
         Next: some moons
       </InternalLink>
-      <FlexTitle title={pageTitle} description={pageDescription} />
+      <FlexTitle
+        title={pageTitle}
+        description={pageDescription}
+        className="fixed top-3 left-24 right-24 z-20 !mt-0"
+      />
       <LiveTable
         tableId="planet-editor"
         documentTitle={pageTitle}

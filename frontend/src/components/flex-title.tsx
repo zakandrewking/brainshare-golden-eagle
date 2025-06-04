@@ -13,12 +13,19 @@ import {
 export default function FlexTitle({
   title,
   description,
+  className,
 }: {
   title: string;
   description: string;
+  className?: string;
 }) {
   return (
-    <div className="mt-14 w-full flex items-center justify-start space-x-2">
+    <div
+      className={
+        "mt-14 w-full flex items-center justify-start space-x-2 " +
+        (className ?? "")
+      }
+    >
       <h2 className="text-2xl font-bold truncate min-w-0" title={title}>
         {title}
       </h2>

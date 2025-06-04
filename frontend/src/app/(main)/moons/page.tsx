@@ -7,7 +7,11 @@ export default function Moons() {
   const pageDescription = "Here is a list of the moons orbiting our planets.";
   return (
     <Container>
-      <FlexTitle title={pageTitle} description={pageDescription} />
+      <FlexTitle
+        title={pageTitle}
+        description={pageDescription}
+        className="fixed top-3 left-24 right-24 z-20 !mt-0"
+      />
       <LiveTable
         tableId="moons"
         documentTitle={pageTitle}

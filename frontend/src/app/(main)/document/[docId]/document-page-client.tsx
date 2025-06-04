@@ -68,6 +68,7 @@ export default function DocumentPageClient({
         title={pageTitle}
         description={pageDescription}
         onUpdate={handleUpdate}
+        className="fixed top-3 left-24 right-24 z-20"
       />
       <LiveTable
         tableId={document.liveblocks_id}

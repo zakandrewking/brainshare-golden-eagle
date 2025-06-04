@@ -29,12 +29,14 @@ interface EditableFlexTitleProps {
     title?: string;
     description?: string;
   }) => Promise<void>;
+  className?: string;
 }
 
 export default function EditableFlexTitle({
   title,
   description,
   onUpdate,
+  className,
 }: EditableFlexTitleProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -126,7 +128,12 @@ export default function EditableFlexTitle({
   };
 
   return (
-    <div className="mt-14 w-full flex items-center justify-start space-x-2">
+    <div
+      className={
+        "mt-14 w-full flex items-center justify-start space-x-2 " +
+        (className ?? "")
+      }
+    >
       {isEditingTitle ? (
         <div className="flex items-center space-x-2 flex-1">
           <Input
