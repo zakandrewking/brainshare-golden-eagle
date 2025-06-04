@@ -161,3 +161,19 @@ export const useSelectIsCellSelected = (
     selectIsCellSelected(state, rowIndex, colIndex)
   );
 };
+
+/**
+ * @param rowIndex
+ * @param colIndex
+ * @returns true if the cell is the selected cell (not just in the selection
+ * area)
+ */
+export const useIsSelectedCell = (
+  rowIndex: number,
+  colIndex: number
+): boolean =>
+  useSelectionStore(
+    (state) =>
+      state.selectedCell?.rowIndex === rowIndex &&
+      state.selectedCell?.colIndex === colIndex
+  );
