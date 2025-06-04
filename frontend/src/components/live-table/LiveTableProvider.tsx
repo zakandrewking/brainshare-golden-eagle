@@ -144,14 +144,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   const selectedCells = useSelectedCells();
   const selectionArea = useSelectionArea();
 
-  // --- Load status ---
-
-  useEffect(() => {
-    if (!isTableLoaded && tableData && headers && columnWidths) {
-      setIsTableLoaded(true);
-    }
-  }, [tableData, headers, isTableLoaded, columnWidths]);
-
   // --- Awareness Management ---
 
   // Memoized function to update React state with awareness changes
@@ -203,11 +195,18 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
 
   // wire up yjs observers
   useEffect(() => {
-    liveTableDoc.initializeObservers();
+    let synced = false;
+    yProvider.once("synced", () => {
+      liveTableDoc.initializeObservers();
+      setIsTableLoaded(true);
+      synced = true;
+    });
     return () => {
-      liveTableDoc.cleanupObservers();
+      if (synced) {
+        liveTableDoc.cleanupObservers();
+      }
     };
-  }, [liveTableDoc]);
+  }, [liveTableDoc, yProvider]);
 
   const generateAndInsertRows = useCallback(
     async (initialInsertIndex: number, numRowsToAdd: number) => {
