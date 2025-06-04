@@ -160,7 +160,11 @@ export default function EditableFlexTitle({
         </div>
       ) : (
         <div className="flex items-center space-x-2 flex-1">
-          <h2 className="text-2xl font-bold truncate min-w-0" title={title}>
+          <h2
+            className="text-2xl font-bold truncate min-w-0"
+            title={title}
+            onDoubleClick={handleTitleEdit}
+          >
             {title}
           </h2>
           <Button

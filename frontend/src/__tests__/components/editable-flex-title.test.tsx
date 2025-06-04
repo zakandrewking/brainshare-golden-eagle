@@ -54,6 +54,16 @@ describe("EditableFlexTitle", () => {
     expect(screen.getByRole("button", { name: /cancel editing/i })).toBeInTheDocument();
   });
 
+  it("should enter edit mode when title is double clicked", async () => {
+    const user = userEvent.setup();
+    render(<EditableFlexTitle {...defaultProps} />);
+
+    const title = screen.getByText("Test Document");
+    await user.dblClick(title);
+
+    expect(screen.getByDisplayValue("Test Document")).toBeInTheDocument();
+  });
+
   it("should save title changes when save button is clicked", async () => {
     const user = userEvent.setup();
     mockOnUpdate.mockResolvedValue(undefined);
