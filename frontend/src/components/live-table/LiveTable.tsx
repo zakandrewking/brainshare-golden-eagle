@@ -4,9 +4,9 @@ import React from "react";
 
 import LiveTableContainer from "./LiveTableContainer";
 import LiveTableDisplay from "./LiveTableDisplay";
-import LiveTableProvider from "./LiveTableProvider";
+import LiveTableProvider, { Backend } from "./LiveTableProvider";
 import LiveTableToolbar from "./LiveTableToolbar";
-import Room from "./Room";
+import YSweetDocProvider from "./YSweetDocProvider";
 
 interface LiveTableProps {
   tableId: string;
@@ -14,20 +14,25 @@ interface LiveTableProps {
   documentDescription: string;
 }
 
-const LiveTable: React.FC<LiveTableProps> = ({ tableId, documentTitle, documentDescription }) => {
-  // TODO When we switch to multiple rooms per table, we'll drop the Room
-  // component and move yDoc initialization into LiveTableProvider.
-  const roomId = tableId;
-
+const LiveTable: React.FC<LiveTableProps> = ({
+  tableId,
+  documentTitle,
+  documentDescription,
+}) => {
   return (
-    <Room roomId={roomId}>
-      <LiveTableProvider tableId={tableId} documentTitle={documentTitle} documentDescription={documentDescription}>
+    <YSweetDocProvider docId={tableId}>
+      <LiveTableProvider
+        tableId={tableId}
+        documentTitle={documentTitle}
+        documentDescription={documentDescription}
+        backend={Backend.Y_SWEET}
+      >
         <LiveTableContainer>
           <LiveTableToolbar />
           <LiveTableDisplay />
         </LiveTableContainer>
       </LiveTableProvider>
-    </Room>
+    </YSweetDocProvider>
   );
 };
 

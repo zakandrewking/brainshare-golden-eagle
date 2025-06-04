@@ -18,8 +18,6 @@ import React, {
 
 import { toast } from "sonner";
 
-import { useRoom } from "@liveblocks/react/suspense";
-
 import { DataStoreProvider } from "@/stores/dataStore";
 import {
   type CellPosition,
@@ -81,22 +79,34 @@ export interface LiveTableContextType {
 
 export type { CellPosition, SelectionArea };
 
+export enum Backend {
+  Y_SWEET = "y-sweet",
+  LIVEBLOCKS = "liveblocks",
+}
+
 interface LiveTableProviderProps {
   children: React.ReactNode;
   tableId: string;
   documentTitle: string;
   documentDescription: string;
+  backend: Backend;
 }
 
 const LiveTableContext = createContext<LiveTableContextType | undefined>(
   undefined
 );
 
+/**
+ * @param backend - If Backend.Y_SWEET, must have a parent component that is
+ * YSweetDocProvider. If Backend.LIVEBLOCKS, must have a parent component that
+ * is Room.
+ */
 const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   children,
   tableId,
   documentTitle,
   documentDescription,
+  backend,
 }) => {
   // yTable & friends are not going to reactively update, so we need to observe
   // changes to them and create react state that will reactively update UI.
@@ -126,6 +136,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   >(undefined);
 
   // liveblocks
+  // TODO move to a different component so we can selectively use liveblocks or y-sweet
   const room = useRoom();
   const { liveTableDoc, yProvider } = useMemo(
     () => initializeLiveblocksRoom(room),
@@ -157,7 +168,11 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // Memoized function to update React state with awareness changes
   const updateAwarenessStateCallback = useCallback(() => {
     const currentStates = new Map(
+<<<<<<< Updated upstream
       yProvider.awareness.getStates() as Map<number, AwarenessState | null>
+=======
+      yProvider.awareness.getStates() as Map<number, AwarenessState>
+>>>>>>> Stashed changes
     );
     liveTableDoc.updateAwarenessState(currentStates);
   }, [yProvider.awareness, liveTableDoc]);
@@ -197,6 +212,21 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       return cursorsData?.find(
         (data) => data.rowIndex === rowIndex && data.colIndex === colIndex
       );
+<<<<<<< Updated upstream
+=======
+    },
+    [cursorsData]
+  );
+
+  // --- Awareness & Focus ---
+
+  const handleCellFocus = useCallback(
+    (rowIndex: number, colIndex: number) => {
+      yProvider.awareness.setLocalStateField("selectedCell", {
+        rowIndex,
+        colIndex,
+      });
+>>>>>>> Stashed changes
     },
     [cursorsData]
   );
@@ -547,6 +577,66 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [liveTableDoc]
   );
 
+<<<<<<< Updated upstream
+=======
+  // Lock-related methods
+  const lockSelectedRange = useCallback(() => {
+    if (selectedCells.length === 0) {
+      toast.info("No cells selected to lock.");
+      return null;
+    }
+
+    // Find the bounds of the selection
+    const rowIndices = selectedCells.map((cell) => cell.rowIndex);
+    const colIndices = selectedCells.map((cell) => cell.colIndex);
+
+    const minRowIndex = Math.min(...rowIndices);
+    const maxRowIndex = Math.max(...rowIndices);
+    const minColIndex = Math.min(...colIndices);
+    const maxColIndex = Math.max(...colIndices);
+
+    const lockId = liveTableDoc.lockCellRange(
+      minRowIndex,
+      maxRowIndex,
+      minColIndex,
+      maxColIndex
+    );
+
+    if (lockId) {
+      toast.success(`Locked ${selectedCells.length} cell(s).`);
+    } else {
+      toast.error("Failed to lock the selected range.");
+    }
+
+    return lockId;
+  }, [selectedCells, liveTableDoc]);
+
+  const unlockRange = useCallback(
+    (lockId: string) => {
+      const success = liveTableDoc.unlockRange(lockId);
+      if (success) {
+        toast.success("Range unlocked successfully.");
+      } else {
+        toast.error("Failed to unlock range.");
+      }
+      return success;
+    },
+    [liveTableDoc]
+  );
+
+  const unlockAll = useCallback(() => {
+    liveTableDoc.unlockAll();
+    toast.success("All locks removed.");
+  }, [liveTableDoc]);
+
+  const isCellLocked = useCallback(
+    (rowIndex: number, colIndex: number) => {
+      return liveTableDoc.isCellLocked(rowIndex, colIndex);
+    },
+    [liveTableDoc]
+  );
+
+>>>>>>> Stashed changes
   // Helper for unique default header names
   function generateUniqueDefaultHeader(
     base: string,
