@@ -245,9 +245,9 @@ export const DataStoreProvider = ({
 };
 
 // hooks
-export function useDataStore(): DataStore;
-export function useDataStore<T>(selector: (state: DataStore) => T): T;
-export function useDataStore<T>(selector?: (state: DataStore) => T) {
+function useDataStore(): DataStore;
+function useDataStore<T>(selector: (state: DataStore) => T): T;
+function useDataStore<T>(selector?: (state: DataStore) => T) {
   const store = useContext(DataStoreContext);
   if (!store) {
     throw new Error("DataStoreContext not found");
