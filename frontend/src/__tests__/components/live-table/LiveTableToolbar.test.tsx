@@ -20,6 +20,7 @@ import generateNewColumns
 import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
+import { useGenerateAndInsertRows } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
 import {
@@ -71,6 +72,7 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
   useHandleCellChange: () => vi.fn(),
   useSetEditingCell: () => vi.fn(),
   useEditingCell: () => null,
+  useGenerateAndInsertRows: vi.fn(),
 }));
 
 const mockGenerateAndInsertRows = vi.fn();
@@ -93,11 +95,15 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
       yDoc: mockYDoc,
       yHeaders: mockYHeaders,
       yTable: mockYTable,
-      generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
 
     vi.mocked(useLiveTable).mockReturnValue(mockData);
+
+    // data store mocks
+    vi.mocked(useGenerateAndInsertRows).mockImplementation(
+      () => mockGenerateAndInsertRows
+    );
   });
 
   afterEach(() => {
@@ -327,7 +333,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     mockYTable.push([yRow]);
 
     const mockData = getLiveTableMockValues({
-      generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
@@ -359,7 +364,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       yTable: mockYTable,
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
-      generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
@@ -395,7 +399,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       yTable: mockYTable,
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
-      generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
@@ -427,7 +430,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       selectedCells: selectedCellsData,
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
-      generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
@@ -463,7 +465,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       selectedCells: [],
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
-      generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
@@ -490,7 +491,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       selectedCells: [],
       headers: yHeadersDataForCall,
       tableData: yTableDataForCall,
-      generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);
@@ -563,7 +563,6 @@ describe("LiveTableToolbar - Add Multiple Columns", () => {
       yDoc: mockYDoc,
       yHeaders: mockYHeaders,
       yTable: mockYTable,
-      generateAndInsertRows: mockGenerateAndInsertRows,
       generateAndInsertColumns: mockGenerateAndInsertColumns,
     });
     vi.mocked(useLiveTable).mockReturnValue(mockData);

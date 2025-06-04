@@ -8,6 +8,7 @@ import {
   type Mocked,
   vi,
 } from "vitest";
+import { UndoManager } from "yjs";
 
 import {
   act,
@@ -19,8 +20,12 @@ import {
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useUndoManager } from "@/stores/dataStore";
 
-import { getLiveTableMockValues } from "./liveTableTestUtils";
+import {
+  getLiveTableMockValues,
+  TestDataStoreWrapper,
+} from "./liveTableTestUtils";
 
 // Define a type for the mock UndoManager
 type MockUndoManagerType = {
@@ -37,18 +42,16 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
-vi.mock("@/stores/dataStore", () => {
-  const mockUseUndoManager = vi.fn();
-  return {
-    useLockedCells: () => new Set(),
-    useLockSelectedRange: () => vi.fn(),
-    useUnlockAll: () => vi.fn(),
-    useUnlockRange: () => vi.fn(),
-    useIsCellLocked: () => vi.fn(() => false),
-    useUndoManager: mockUseUndoManager,
-    useHandleCellChange: vi.fn(),
-  };
-});
+vi.mock("@/stores/dataStore", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useLockedCells: () => new Set(),
+  useLockSelectedRange: () => vi.fn(),
+  useUnlockAll: () => vi.fn(),
+  useUnlockRange: () => vi.fn(),
+  useIsCellLocked: () => vi.fn(() => false),
+  useUndoManager: vi.fn(),
+  useHandleCellChange: vi.fn(),
+}));
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
@@ -57,7 +60,6 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
 
 describe("LiveTableToolbar - Undo/Redo Functionality", () => {
   let mockUndoManagerInstance: MockUndoManagerType;
-  let mockUseUndoManager: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -82,12 +84,9 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
       stopCapturing: vi.fn(),
     };
 
-    // Get the mocked module and set up the useUndoManager mock
-    const dataStoreModule = await vi.importMock("@/stores/dataStore");
-    mockUseUndoManager = dataStoreModule.useUndoManager as ReturnType<
-      typeof vi.fn
-    >;
-    mockUseUndoManager.mockReturnValue(mockUndoManagerInstance);
+    vi.mocked(useUndoManager).mockImplementation(
+      () => mockUndoManagerInstance as UndoManager
+    );
 
     const mockData = getLiveTableMockValues({
       isTableLoaded: true,
@@ -113,9 +112,11 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
     mockUndoManagerInstance.redoStack = [];
 
     render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
 
     const undoButton = screen.getByRole("button", { name: /undo/i });
@@ -130,9 +131,11 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
     mockUndoManagerInstance.redoStack = [];
 
     render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
     triggerUndoManagerEvent("stack-item-added");
 
@@ -146,9 +149,11 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
     mockUndoManagerInstance.undoStack = [{}];
 
     render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
     triggerUndoManagerEvent("stack-item-added");
 
@@ -163,9 +168,11 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
     mockUndoManagerInstance.redoStack = [{}];
 
     render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
     triggerUndoManagerEvent("stack-item-popped"); // Simulates undo removing from undo stack
     triggerUndoManagerEvent("stack-item-added"); // Simulates undo adding to redo stack
@@ -181,9 +188,11 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
     mockUndoManagerInstance.redoStack = [{}];
 
     render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
     triggerUndoManagerEvent("stack-item-added"); // For redo stack
 
@@ -198,9 +207,11 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
     mockUndoManagerInstance.redoStack = [];
 
     render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
     triggerUndoManagerEvent("stack-item-added"); // Simulates redo adding to undo stack
     triggerUndoManagerEvent("stack-item-popped"); // Simulates redo removing from redo stack
@@ -214,9 +225,11 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
 
   it("should register and unregister event listeners on mount and unmount", () => {
     const { unmount } = render(
-      <TooltipProvider>
-        <LiveTableToolbar />
-      </TooltipProvider>
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
     );
 
     expect(mockUndoManagerInstance.on).toHaveBeenCalledWith(

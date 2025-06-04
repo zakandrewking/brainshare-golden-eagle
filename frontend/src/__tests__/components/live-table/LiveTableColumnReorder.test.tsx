@@ -53,7 +53,6 @@ const mockLiveTableContext: LiveTableContextType = {
     "Column E": 150,
   },
   isTableLoaded: true,
-  generateAndInsertRows: vi.fn(),
   deleteRows: vi.fn(),
   generateAndInsertColumns: vi.fn(),
   deleteColumns: vi.fn(),

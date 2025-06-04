@@ -20,6 +20,7 @@ import { immer } from "zustand/middleware/immer";
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
 import type { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
+import { generateAndInsertRows } from "@/components/live-table/manage-rows";
 import type { CellPosition } from "@/stores/selectionStore";
 
 // -----
@@ -53,6 +54,11 @@ interface DataActions {
   setEditingCell: (cell: { rowIndex: number; colIndex: number } | null) => void;
   getUndoManager: () => UndoManager;
   setEditingHeaderIndex: (index: number | null) => void;
+  // rows
+  generateAndInsertRows: (
+    initialInsertIndex: number,
+    numRowsToAdd: number
+  ) => Promise<{ aiRowsAdded: number; defaultRowsAdded: number }>;
 }
 
 export type DataStore = DataState & DataActions;
@@ -155,11 +161,17 @@ export const DataStoreProvider = ({
   liveTableDoc,
   yProvider,
   headers,
+  tableData,
+  documentTitle,
+  documentDescription,
 }: {
   children: React.ReactNode;
   liveTableDoc: LiveTableDoc;
   yProvider: LiveblocksYjsProvider;
   headers: string[] | undefined;
+  tableData: Record<string, unknown>[] | undefined;
+  documentTitle: string;
+  documentDescription: string;
 }) => {
   const [store] = useState(() =>
     createStore<DataStore>()(
@@ -234,6 +246,31 @@ export const DataStoreProvider = ({
             state.editingHeaderIndex = index;
           });
         },
+
+        generateAndInsertRows: (
+          initialInsertIndex: number,
+          numRowsToAdd: number
+        ) => {
+          if (
+            !headers ||
+            !tableData ||
+            !documentTitle ||
+            !documentDescription
+          ) {
+            throw new Error(
+              "Headers or table data not available. Cannot generate rows."
+            );
+          }
+          return generateAndInsertRows(
+            initialInsertIndex,
+            numRowsToAdd,
+            headers,
+            tableData,
+            documentTitle,
+            documentDescription,
+            liveTableDoc
+          );
+        },
       }))
     )
   );
@@ -287,3 +324,5 @@ export const useUndoManager = () =>
   useDataStore((state) => state.getUndoManager());
 export const useSetEditingHeaderIndex = () =>
   useDataStore((state) => state.setEditingHeaderIndex);
+export const useGenerateAndInsertRows = () =>
+  useDataStore((state) => state.generateAndInsertRows);
