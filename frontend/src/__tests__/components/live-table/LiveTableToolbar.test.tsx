@@ -14,6 +14,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import generateNewColumns
   from "@/components/live-table/actions/generateNewColumns";
@@ -401,7 +402,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     vi.mocked(useLiveTable).mockReturnValue(mockData);
 
     render(<LiveTableToolbar />);
-    const button = screen.getByRole("button", { name: "Add Row Below" });
+    const button = screen.getByRole("button", { name: "Add Row Below (AI)" });
     await act(async () => {
       fireEvent.mouseDown(button);
       await vi.runAllTimersAsync();
@@ -471,7 +472,7 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsData);
 
     render(<LiveTableToolbar />);
-    const button = screen.getByRole("button", { name: "Add 3 Rows Below" });
+    const button = screen.getByRole("button", { name: "Add 3 Rows Below (AI)" });
     await act(async () => {
       fireEvent.mouseDown(button);
       await vi.runAllTimersAsync();
@@ -504,6 +505,13 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
 
     expect(mockGenerateAndInsertRows).toHaveBeenCalledTimes(1);
     expect(mockGenerateAndInsertRows).toHaveBeenCalledWith(0, 1);
+  });
+
+  it("renders row options dropdown", () => {
+    render(<LiveTableToolbar />);
+    expect(
+      screen.getByRole("button", { name: "Row Options" })
+    ).toBeInTheDocument();
   });
 });
 

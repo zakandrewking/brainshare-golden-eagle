@@ -152,6 +152,7 @@ export const getLiveTableMockValues = (
     generateAndInsertRows: vi
       .fn()
       .mockResolvedValue({ aiRowsAdded: 0, defaultRowsAdded: 0 }),
+    insertBlankRows: vi.fn().mockResolvedValue({ insertedCount: 0 }),
     deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     generateAndInsertColumns: vi
       .fn()
