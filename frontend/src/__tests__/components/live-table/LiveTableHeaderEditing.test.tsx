@@ -169,6 +169,95 @@ describe("LiveTableDisplay Header Editing", () => {
     expect(input.value).toBe(headerNameForTest);
   });
 
+  it("should enter edit mode when double-clicking the header cell", async () => {
+    const user = userEvent.setup();
+
+    const mockHandleHeaderDoubleClick = vi.fn();
+    vi.mocked(useHandleHeaderDoubleClick).mockImplementation(
+      () => mockHandleHeaderDoubleClick
+    );
+    const mockHandleHeaderChange = vi.fn();
+    vi.mocked(useHandleHeaderChange).mockImplementation(
+      () => mockHandleHeaderChange
+    );
+    const mockHandleHeaderBlur = vi.fn();
+    vi.mocked(useHandleHeaderBlur).mockImplementation(
+      () => mockHandleHeaderBlur
+    );
+
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
+
+    const headerNameForTest = initialColumnDefinitions[0].name;
+
+    const thElement = screen.getAllByRole("columnheader")[1];
+    await user.dblClick(thElement);
+
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0);
+
+    act(() => {
+      useEditingHeaderValuePush(headerNameForTest);
+      useEditingHeaderIndexPush(0);
+    });
+
+    const input = screen.getByTestId(
+      `${headerNameForTest}-editing`
+    ) as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+  });
+
+  it("should enter edit mode when double tapping the header cell", async () => {
+    const user = userEvent.setup();
+
+    const mockHandleHeaderDoubleClick = vi.fn();
+    vi.mocked(useHandleHeaderDoubleClick).mockImplementation(
+      () => mockHandleHeaderDoubleClick
+    );
+    const mockHandleHeaderChange = vi.fn();
+    vi.mocked(useHandleHeaderChange).mockImplementation(
+      () => mockHandleHeaderChange
+    );
+    const mockHandleHeaderBlur = vi.fn();
+    vi.mocked(useHandleHeaderBlur).mockImplementation(
+      () => mockHandleHeaderBlur
+    );
+
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
+
+    const headerNameForTest = initialColumnDefinitions[0].name;
+
+    const thElement = screen.getAllByRole("columnheader")[1];
+
+    const nowSpy = vi
+      .spyOn(Date, "now")
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(100);
+
+    fireEvent.touchStart(thElement);
+    fireEvent.touchStart(thElement);
+
+    nowSpy.mockRestore();
+
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0);
+
+    act(() => {
+      useEditingHeaderValuePush(headerNameForTest);
+      useEditingHeaderIndexPush(0);
+    });
+
+    const input = screen.getByTestId(
+      `${headerNameForTest}-editing`
+    ) as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+  });
+
   it("should update header value on input change", async () => {
     const user = userEvent.setup();
 
