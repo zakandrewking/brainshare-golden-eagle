@@ -13,8 +13,8 @@ import {
   useLockedCells,
   useLockSelectedRange,
   useUnlockAll,
-} from "@/stores/dataStore";
-import { useSelectedCells } from "@/stores/selectionStore";
+} from "@/stores/data-store";
+import { useSelectedCells } from "@/stores/selection-store";
 
 import { ButtonGroup } from "../ui/button-group";
 import {

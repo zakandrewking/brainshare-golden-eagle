@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-import { CellPosition } from "@/stores/selectionStore";
+import { CellPosition } from "@/stores/selection-store";
 
 let current: CellPosition | null = null;
 const subscribers = new Set<() => void>();

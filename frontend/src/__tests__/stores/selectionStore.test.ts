@@ -12,7 +12,7 @@ import {
   type CellPosition,
   selectionStore,
   useSelectedCells,
-} from "@/stores/selectionStore";
+} from "@/stores/selection-store";
 
 describe("useSelectedCells", () => {
   beforeEach(() => {

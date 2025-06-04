@@ -22,8 +22,8 @@ import {
 } from "@/components/live-table/AiFillSelectionButton";
 import * as LiveTableProviderModule
   from "@/components/live-table/LiveTableProvider";
-import * as DataStoreModule from "@/stores/dataStore";
-import * as SelectionStoreModule from "@/stores/selectionStore";
+import * as DataStoreModule from "@/stores/data-store";
+import * as SelectionStoreModule from "@/stores/selection-store";
 
 import { TestDataStoreWrapper } from "./liveTableTestUtils";
 
@@ -32,7 +32,7 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
 }));
 
 vi.mock("@/stores/dataStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/stores/dataStore")>();
+  const actual = await importOriginal<typeof import("@/stores/data-store")>();
   return {
     ...actual,
     useHandleCellChange: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock("@/stores/dataStore", async (importOriginal) => {
 });
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
+  ...(await importOriginal<typeof import("@/stores/selection-store")>()),
   useSelectedCells: vi.fn(),
   useSelectedCell: vi.fn(),
 }));

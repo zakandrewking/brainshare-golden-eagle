@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Check,
@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import useSWR from "swr";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,9 +23,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+const SWR_DOCUMENT_KEY = "documentTitleAndDescription";
+
 interface EditableFlexTitleProps {
-  title: string;
-  description: string;
   onUpdate: (updates: {
     title?: string;
     description?: string;
@@ -32,78 +33,136 @@ interface EditableFlexTitleProps {
 }
 
 export default function EditableFlexTitle({
-  title,
-  description,
   onUpdate,
 }: EditableFlexTitleProps) {
+  const {
+    data: swrData,
+    error: swrError,
+    isLoading: swrIsLoading,
+    mutate: swrMutate,
+  } = useSWR<{ title: string; description: string } | undefined>(
+    SWR_DOCUMENT_KEY,
+    {
+      fallbackData: { title: "", description: "" },
+    }
+  );
+
+  const titleFromSWR = swrData?.title ?? "";
+  const descriptionFromSWR = swrData?.description ?? "";
+
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [editedTitle, setEditedTitle] = useState(title);
-  const [editedDescription, setEditedDescription] = useState(description);
+  const [editedTitle, setEditedTitle] = useState(titleFromSWR);
+  const [editedDescription, setEditedDescription] =
+    useState(descriptionFromSWR);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  useEffect(() => {
+    if (!isEditingTitle) {
+      setEditedTitle(titleFromSWR);
+    }
+  }, [titleFromSWR, isEditingTitle]);
+
+  useEffect(() => {
+    if (!isEditingDescription) {
+      setEditedDescription(descriptionFromSWR);
+    }
+  }, [descriptionFromSWR, isEditingDescription]);
+
+  if (swrError) {
+    console.error("SWR error in EditableFlexTitle:", swrError);
+    toast.error("Failed to load document details. Please try again later.");
+  }
+
   const handleTitleEdit = () => {
-    setEditedTitle(title);
+    setEditedTitle(titleFromSWR);
     setIsEditingTitle(true);
   };
 
   const handleTitleSave = async () => {
-    if (editedTitle.trim() === title) {
+    const trimmedTitle = editedTitle.trim();
+    if (trimmedTitle === titleFromSWR) {
       setIsEditingTitle(false);
       return;
     }
 
-    if (editedTitle.trim().length < 3) {
+    if (trimmedTitle.length < 3) {
       toast.error("Title must be at least 3 characters long");
       return;
     }
 
     setIsUpdating(true);
+    const previousData = swrData;
+
     try {
-      await onUpdate({ title: editedTitle.trim() });
+      swrMutate(
+        (currentData) => ({
+          title: trimmedTitle,
+          description: currentData?.description ?? descriptionFromSWR,
+        }),
+        { revalidate: false }
+      );
+      await onUpdate({ title: trimmedTitle });
       setIsEditingTitle(false);
       toast.success("Title updated successfully");
+      swrMutate();
     } catch (error) {
       console.error("Failed to update title:", error);
       toast.error("Failed to update title");
-      setEditedTitle(title);
+      if (previousData) {
+        swrMutate(previousData, { revalidate: false });
+      }
+      setEditedTitle(titleFromSWR);
     } finally {
       setIsUpdating(false);
     }
   };
 
   const handleTitleCancel = () => {
-    setEditedTitle(title);
+    setEditedTitle(titleFromSWR);
     setIsEditingTitle(false);
   };
 
   const handleDescriptionEdit = () => {
-    setEditedDescription(description);
+    setEditedDescription(descriptionFromSWR);
     setIsEditingDescription(true);
   };
 
   const handleDescriptionSave = async () => {
-    if (editedDescription.trim() === description) {
+    const trimmedDescription = editedDescription.trim();
+    if (trimmedDescription === descriptionFromSWR) {
       setIsEditingDescription(false);
       return;
     }
 
     setIsUpdating(true);
+    const previousData = swrData;
     try {
-      await onUpdate({ description: editedDescription.trim() });
+      swrMutate(
+        (currentData) => ({
+          description: trimmedDescription,
+          title: currentData?.title ?? titleFromSWR,
+        }),
+        { revalidate: false }
+      );
+      await onUpdate({ description: trimmedDescription });
       setIsEditingDescription(false);
       toast.success("Description updated successfully");
+      swrMutate();
     } catch (error) {
       console.error("Failed to update description:", error);
       toast.error("Failed to update description");
-      setEditedDescription(description);
+      if (previousData) {
+        swrMutate(previousData, { revalidate: false });
+      }
+      setEditedDescription(descriptionFromSWR);
     } finally {
       setIsUpdating(false);
     }
   };
 
   const handleDescriptionCancel = () => {
-    setEditedDescription(description);
+    setEditedDescription(descriptionFromSWR);
     setIsEditingDescription(false);
   };
 
@@ -160,8 +219,11 @@ export default function EditableFlexTitle({
         </div>
       ) : (
         <div className="flex items-center space-x-2 flex-1">
-          <h2 className="text-2xl font-bold truncate min-w-0" title={title}>
-            {title}
+          <h2
+            className="text-2xl font-bold truncate min-w-0"
+            title={titleFromSWR}
+          >
+            {swrIsLoading && !swrData?.title ? "Loading..." : titleFromSWR}
           </h2>
           <Button
             variant="ghost"
@@ -184,7 +246,9 @@ export default function EditableFlexTitle({
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
+            <DialogTitle>
+              {swrIsLoading && !swrData?.title ? "Loading..." : titleFromSWR}
+            </DialogTitle>
             <div className="space-y-4">
               {isEditingDescription ? (
                 <div className="space-y-2">
@@ -222,7 +286,11 @@ export default function EditableFlexTitle({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <DialogDescription>{description}</DialogDescription>
+                  <DialogDescription>
+                    {swrIsLoading && !swrData?.description
+                      ? "Loading..."
+                      : descriptionFromSWR}
+                  </DialogDescription>
                   <Button
                     variant="outline"
                     size="sm"

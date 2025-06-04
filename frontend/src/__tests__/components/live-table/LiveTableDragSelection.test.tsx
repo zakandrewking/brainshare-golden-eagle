@@ -23,22 +23,22 @@ import {
   useIsSelectingMock,
   useIsSelectingPush,
 } from "@/__tests__/test-utils/useIsSelecting";
-import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import {
   CellValue,
   ColumnDefinition,
   ColumnId,
   LiveTableDoc,
   RowId,
-} from "@/components/live-table/LiveTableDoc";
+} from "@/components/live-table/live-table-doc";
+import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import * as LiveTableProviderModule
   from "@/components/live-table/LiveTableProvider";
-import { useEditingCell } from "@/stores/dataStore";
+import { useEditingCell } from "@/stores/data-store";
 import {
   useSelectionEnd,
   useSelectionMove,
   useSelectionStart,
-} from "@/stores/selectionStore";
+} from "@/stores/selection-store";
 
 import {
   getLiveTableMockValues,
@@ -46,12 +46,12 @@ import {
 } from "./liveTableTestUtils";
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/stores/dataStore")>()),
+  ...(await importOriginal<typeof import("@/stores/data-store")>()),
   useEditingCell: vi.fn(() => null),
 }));
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
+  ...(await importOriginal<typeof import("@/stores/selection-store")>()),
   useSelectionStart: vi.fn(),
   useSelectionMove: vi.fn(),
   useSelectionEnd: vi.fn(),

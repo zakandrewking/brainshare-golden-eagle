@@ -14,8 +14,8 @@ import {
   screen,
 } from "@testing-library/react";
 
+import { LiveTableDoc } from "@/components/live-table/live-table-doc";
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
-import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import {
   type LiveTableContextType,
   useLiveTable,

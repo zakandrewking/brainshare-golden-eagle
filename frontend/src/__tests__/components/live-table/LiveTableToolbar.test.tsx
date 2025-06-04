@@ -17,10 +17,10 @@ import {
 
 import generateNewColumns
   from "@/components/live-table/actions/generateNewColumns";
-import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
+import { LiveTableDoc } from "@/components/live-table/live-table-doc";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
-import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
+import { useSelectedCell, useSelectedCells } from "@/stores/selection-store";
 
 import {
   getLiveTableMockValues,

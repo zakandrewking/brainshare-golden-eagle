@@ -20,8 +20,8 @@ import {
   useLockedCells,
   useLockSelectedRange,
   useUnlockAll,
-} from "@/stores/dataStore";
-import { useSelectedCells } from "@/stores/selectionStore";
+} from "@/stores/data-store";
+import { useSelectedCells } from "@/stores/selection-store";
 
 // Mock the dependencies
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
