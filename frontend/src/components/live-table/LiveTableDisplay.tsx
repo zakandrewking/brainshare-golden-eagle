@@ -28,6 +28,7 @@ import {
   useHandleHeaderChange,
   useHandleHeaderDoubleClick,
   useIsCellLocked,
+  useReorderColumn,
   useSetEditingCell,
   useSetEditingHeaderIndex,
 } from "@/stores/dataStore";
@@ -59,8 +60,7 @@ const MIN_COL_WIDTH = 50;
 const ROW_NUMBER_COL_WIDTH = 50;
 
 const LiveTable: React.FC = () => {
-  const { isTableLoaded, tableData, headers, columnWidths, reorderColumn } =
-    useLiveTable();
+  const { isTableLoaded, tableData, headers, columnWidths } = useLiveTable();
 
   const isCellLocked = useIsCellLocked();
   const handleCellFocus = useHandleCellFocus();
@@ -74,6 +74,8 @@ const LiveTable: React.FC = () => {
   const handleHeaderDoubleClick = useHandleHeaderDoubleClick();
   const setEditingHeaderIndex = useSetEditingHeaderIndex();
   const handleColumnResize = useHandleColumnResize();
+
+  const reorderColumn = useReorderColumn();
 
   const selectedCell = useSelectedCell();
   const moveSelection = useSelectionMove();

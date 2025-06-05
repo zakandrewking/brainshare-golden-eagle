@@ -49,8 +49,6 @@ export interface LiveTableContextType {
   }>;
   // column operations
   deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
-  // column reordering
-  reorderColumn: (fromIndex: number, toIndex: number) => void;
   // awareness
   awarenessStates: Map<number, AwarenessState | null> | undefined;
   cursorsData: CursorDataForCell[] | undefined;
@@ -260,13 +258,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [liveTableDoc]
   );
 
-  const reorderColumn = useCallback(
-    (fromIndex: number, toIndex: number) => {
-      liveTableDoc.reorderColumn(fromIndex, toIndex);
-    },
-    [liveTableDoc]
-  );
-
   return (
     <LiveTableContext.Provider
       value={{
@@ -279,7 +270,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         isTableLoaded,
         deleteRows,
         deleteColumns,
-        reorderColumn,
         awarenessStates,
         cursorsData,
         getCursorsForCell,

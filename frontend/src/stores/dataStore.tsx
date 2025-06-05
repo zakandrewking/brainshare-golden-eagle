@@ -67,6 +67,7 @@ interface DataActions {
     initialInsertIndex: number,
     numColsToAdd: number
   ) => Promise<{ aiColsAdded: number; defaultColsAdded: number }>;
+  reorderColumn: (fromIndex: number, toIndex: number) => void;
 }
 
 export type DataStore = DataState & DataActions;
@@ -296,6 +297,10 @@ export const DataStoreProvider = ({
             liveTableDoc
           );
         },
+
+        reorderColumn: (fromIndex: number, toIndex: number) => {
+          liveTableDoc.reorderColumn(fromIndex, toIndex);
+        },
       }))
     )
   );
@@ -353,3 +358,5 @@ export const useGenerateAndInsertRows = () =>
   useDataStore((state) => state.generateAndInsertRows);
 export const useGenerateAndInsertColumns = () =>
   useDataStore((state) => state.generateAndInsertColumns);
+export const useReorderColumn = () =>
+  useDataStore((state) => state.reorderColumn);

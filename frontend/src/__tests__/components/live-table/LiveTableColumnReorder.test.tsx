@@ -20,6 +20,7 @@ import {
   type LiveTableContextType,
   useLiveTable,
 } from "@/components/live-table/LiveTableProvider";
+import { useReorderColumn } from "@/stores/dataStore";
 
 import { TestDataStoreWrapper } from "./liveTableTestUtils";
 
@@ -54,9 +55,7 @@ const mockLiveTableContext: LiveTableContextType = {
   },
   isTableLoaded: true,
   deleteRows: vi.fn(),
-  generateAndInsertColumns: vi.fn(),
   deleteColumns: vi.fn(),
-  reorderColumn: vi.fn(),
   awarenessStates: new Map(),
   cursorsData: [],
   getCursorsForCell: vi.fn(() => undefined),
@@ -105,6 +104,7 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
     on: vi.fn(),
     off: vi.fn(),
   }),
+  useReorderColumn: vi.fn(),
 }));
 
 // Mock TableCell component
@@ -121,6 +121,8 @@ vi.mock("@/components/live-table/TableCell", () => ({
   }) => <td data-testid={`cell-${rowIndex}-${colIndex}`}>{String(value)}</td>,
 }));
 
+const mockReorderColumnFn = vi.fn();
+
 describe("LiveTableDisplay - Column Reordering", () => {
   let yDoc: Y.Doc;
   let liveTableDocInstance: LiveTableDoc;
@@ -134,6 +136,7 @@ describe("LiveTableDisplay - Column Reordering", () => {
     vi.mocked(useLiveTable).mockImplementation(() => ({
       ...mockLiveTableContext,
     }));
+    vi.mocked(useReorderColumn).mockReturnValue(mockReorderColumnFn);
   });
 
   afterEach(() => {
@@ -152,18 +155,6 @@ describe("LiveTableDisplay - Column Reordering", () => {
 
     expect(columnAHeader).toHaveAttribute("draggable", "true");
     expect(columnBHeader).toHaveAttribute("draggable", "true");
-  });
-
-  it("should have reorderColumn function available in context", () => {
-    render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
-        <LiveTableDisplay />
-      </TestDataStoreWrapper>
-    );
-
-    // Verify that the reorderColumn function is available and is a function
-    expect(mockLiveTableContext.reorderColumn).toBeDefined();
-    expect(typeof mockLiveTableContext.reorderColumn).toBe("function");
   });
 
   it("should render table headers with proper styling for drag operations", () => {
@@ -218,8 +209,8 @@ describe("LiveTableDisplay - Column Reordering", () => {
     });
 
     // Verify reorderColumn was called exactly once
-    expect(mockLiveTableContext.reorderColumn).toHaveBeenCalledTimes(1);
-    expect(mockLiveTableContext.reorderColumn).toHaveBeenCalledWith(0, 2); // Column A (index 0) to final position 2 (after Column C)
+    expect(mockReorderColumnFn).toHaveBeenCalledTimes(1);
+    expect(mockReorderColumnFn).toHaveBeenCalledWith(0, 2); // Column A (index 0) to final position 2 (after Column C)
   });
 
   it("should correctly calculate insertion positions for column reordering", () => {
