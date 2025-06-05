@@ -369,4 +369,31 @@ describe("LiveTableDisplay Header Editing", () => {
     expect(mockHandleHeaderChange).toHaveBeenCalledOnce();
     expect(mockHandleHeaderBlur).toHaveBeenCalled();
   });
+
+  it("should enter edit mode on header double-tap (touch event) and display input", async () => {
+    const mockHandleHeaderDoubleClick = vi.fn();
+    vi.mocked(useHandleHeaderDoubleClick).mockImplementation(
+      () => mockHandleHeaderDoubleClick
+    );
+
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
+
+    const headerNameForTest = initialColumnDefinitions[0].name;
+    const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
+    expect(headerCellDiv).toBeInTheDocument();
+
+    // Simulate double tap
+    fireEvent.touchEnd(headerCellDiv!);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fireEvent.touchEnd(headerCellDiv!);
+
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0, [
+      "Name",
+      "Age",
+    ]);
+  });
 });

@@ -94,6 +94,8 @@ const LiveTable: React.FC = () => {
     null
   );
   const tableRef = useRef<HTMLTableElement>(null);
+  const lastTapTimeRef = useRef(0);
+  const lastTapTargetRef = useRef<EventTarget | null>(null);
 
   const handleColumnDragStart = useCallback(
     (event: React.DragEvent, columnIndex: number) => {
@@ -586,6 +588,23 @@ const LiveTable: React.FC = () => {
                             if (headers) {
                               handleHeaderDoubleClick(index, headers);
                             }
+                          }}
+                          onTouchEnd={(e) => {
+                            const currentTime = new Date().getTime();
+                            const tapLength =
+                              currentTime - lastTapTimeRef.current;
+                            if (
+                              tapLength < 300 && // Double tap threshold (300ms)
+                              tapLength > 0 &&
+                              lastTapTargetRef.current === e.currentTarget && // Ensure taps are on the same element
+                              headers
+                            ) {
+                              handleHeaderDoubleClick(index, headers);
+                              // Prevent zoom on double tap
+                              e.preventDefault();
+                            }
+                            lastTapTimeRef.current = currentTime;
+                            lastTapTargetRef.current = e.currentTarget;
                           }}
                           style={{ cursor: "grab" }}
                           onMouseDown={(e) => {
