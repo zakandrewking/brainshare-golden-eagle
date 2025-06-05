@@ -285,16 +285,19 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         getCursorsForCell,
       }}
     >
-      <DataStoreProvider
-        liveTableDoc={liveTableDoc}
-        yProvider={yProvider}
-        headers={headers}
-        tableData={tableData}
-        documentTitle={documentTitle}
-        documentDescription={documentDescription}
-      >
-        {children}
-      </DataStoreProvider>
+      {/* temp fix for headers & tableData not being set */}
+      {headers && tableData && (
+        <DataStoreProvider
+          liveTableDoc={liveTableDoc}
+          yProvider={yProvider}
+          headers={headers}
+          tableData={tableData}
+          documentTitle={documentTitle}
+          documentDescription={documentDescription}
+        >
+          {children}
+        </DataStoreProvider>
+      )}
     </LiveTableContext.Provider>
   );
 };
