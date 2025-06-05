@@ -12,6 +12,7 @@ import {
   ArrowLeftFromLine,
   ArrowRightFromLine,
   ArrowUpFromLine,
+  ChevronDownIcon,
   Columns3,
   Download,
   Loader2,
@@ -24,6 +25,7 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +43,7 @@ import {
 import {
   useGenerateAndInsertColumns,
   useGenerateAndInsertRows,
+  useInsertEmptyColumns,
   useIsCellLocked,
   useUndoManager,
 } from "@/stores/dataStore";
@@ -55,7 +58,9 @@ type PendingOperation =
   | "add-row-above"
   | "add-row-below"
   | "add-column-left"
+  | "add-empty-column-left"
   | "add-column-right"
+  | "add-empty-column-right"
   | null;
 
 // Button type constants
@@ -65,8 +70,11 @@ const BUTTON_TYPES = {
   ADD_ROW_ABOVE: "add-row-above",
   ADD_ROW_BELOW: "add-row-below",
   DELETE_ROWS: "delete-rows",
+  ADD_COLUMN_GROUP: "add-column-group",
   ADD_COL_LEFT: "add-column-left",
+  ADD_EMPTY_COL_LEFT: "add-empty-column-left",
   ADD_COL_RIGHT: "add-column-right",
+  ADD_EMPTY_COL_RIGHT: "add-empty-column-right",
   DELETE_COLS: "delete-columns",
   AI_FILL: "ai-fill",
   LOCK: "lock",
@@ -82,8 +90,7 @@ const BUTTON_ORDER = [
   BUTTON_TYPES.ADD_ROW_BELOW,
   BUTTON_TYPES.DELETE_ROWS,
   "separator-2",
-  BUTTON_TYPES.ADD_COL_LEFT,
-  BUTTON_TYPES.ADD_COL_RIGHT,
+  BUTTON_TYPES.ADD_COLUMN_GROUP,
   BUTTON_TYPES.DELETE_COLS,
   "separator-3",
   BUTTON_TYPES.AI_FILL,
@@ -98,8 +105,7 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
   [BUTTON_TYPES.ADD_ROW_ABOVE]: 36,
   [BUTTON_TYPES.ADD_ROW_BELOW]: 36,
   [BUTTON_TYPES.DELETE_ROWS]: 52,
-  [BUTTON_TYPES.ADD_COL_LEFT]: 48,
-  [BUTTON_TYPES.ADD_COL_RIGHT]: 48,
+  [BUTTON_TYPES.ADD_COLUMN_GROUP]: 120,
   [BUTTON_TYPES.DELETE_COLS]: 64,
   [BUTTON_TYPES.AI_FILL]: 100,
   [BUTTON_TYPES.LOCK]: 83,
@@ -108,6 +114,8 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
   "separator-2": 16,
   "separator-3": 16,
   "separator-4": 16,
+  [BUTTON_TYPES.ADD_COL_LEFT]: 36,
+  [BUTTON_TYPES.ADD_COL_RIGHT]: 36,
 };
 
 const LiveTableToolbar: React.FC = () => {
@@ -120,6 +128,7 @@ const LiveTableToolbar: React.FC = () => {
   const selectedCells = useSelectedCells();
   const generateAndInsertRows = useGenerateAndInsertRows();
   const generateAndInsertColumns = useGenerateAndInsertColumns();
+  const insertEmptyColumns = useInsertEmptyColumns();
 
   const [isPending, startTransition] = useTransition();
   const [pendingOperation, setPendingOperation] =
@@ -135,7 +144,6 @@ const LiveTableToolbar: React.FC = () => {
   const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isTableEmptyOfRows = !tableData || tableData.length === 0;
-  // For disabling buttons, check for any pending operations
   const isAnyOperationPending = isPending && pendingOperation !== null;
 
   const getUniqueSelectedColumnIndices = useCallback((): number[] => {
@@ -212,7 +220,6 @@ const LiveTableToolbar: React.FC = () => {
         numRowsToAdd = 1;
         initialInsertIndex = 0;
       } else {
-        // Table has columns, rows, but no cell selected
         toast.info(
           "Please select a cell to add rows relative to, or the table must be empty of rows."
         );
@@ -343,6 +350,76 @@ const LiveTableToolbar: React.FC = () => {
     ]
   );
 
+  const handleAddEmptyColumn = useCallback(
+    (direction: "left" | "right") => {
+      if (!isTableLoaded || isAnyOperationPending) return;
+
+      let numColsToAdd = 1;
+      let initialInsertIndex: number;
+      const currentHeaders = headers || [];
+
+      if (currentHeaders.length === 0) {
+        numColsToAdd = 1;
+        initialInsertIndex = 0;
+      } else if (selectedCell) {
+        const uniqueSelectedColIndices = getUniqueSelectedColumnIndices();
+        const isMultiColumnSelection =
+          selectedCells.length > 1 &&
+          new Set(selectedCells.map((s) => s.colIndex)).size > 1;
+
+        numColsToAdd =
+          isMultiColumnSelection && uniqueSelectedColIndices.length > 0
+            ? uniqueSelectedColIndices.length
+            : 1;
+
+        if (uniqueSelectedColIndices.length > 0) {
+          const minSelectedColIndex = uniqueSelectedColIndices[0];
+          const maxSelectedColIndex =
+            uniqueSelectedColIndices[uniqueSelectedColIndices.length - 1];
+          initialInsertIndex =
+            direction === "left"
+              ? minSelectedColIndex
+              : maxSelectedColIndex + 1;
+        } else {
+          initialInsertIndex =
+            direction === "left"
+              ? selectedCell.colIndex
+              : selectedCell.colIndex + 1;
+        }
+      } else {
+        numColsToAdd = 1;
+        initialInsertIndex = direction === "left" ? 0 : currentHeaders.length;
+      }
+
+      setPendingOperation(
+        direction === "left"
+          ? "add-empty-column-left"
+          : "add-empty-column-right"
+      );
+      startTransition(async () => {
+        try {
+          await insertEmptyColumns(initialInsertIndex, numColsToAdd);
+        } catch (error) {
+          console.error("Error in handleAddEmptyColumn transition:", error);
+          toast.error(
+            "A critical error occurred while adding empty columns. Please try again."
+          );
+        } finally {
+          setPendingOperation(null);
+        }
+      });
+    },
+    [
+      isTableLoaded,
+      isAnyOperationPending,
+      headers,
+      selectedCell,
+      getUniqueSelectedColumnIndices,
+      selectedCells,
+      insertEmptyColumns,
+    ]
+  );
+
   const handleDeleteColumns = useCallback(() => {
     const uniqueColIndicesToDelete = getUniqueSelectedColumnIndices().sort(
       (a, b) => b - a
@@ -367,33 +444,24 @@ const LiveTableToolbar: React.FC = () => {
     });
   }, [deleteColumns, getUniqueSelectedColumnIndices]);
 
-  // --- CSV Download Handler ---
   const handleDownloadCsv = useCallback(() => {
     if (!isTableLoaded || !headers || headers.length === 0 || !tableData) {
       console.warn("CSV Download aborted: No headers or table data.");
       return;
     }
-
-    // Function to escape CSV special characters (comma, quote, newline)
     const escapeCsvCell = (cellData: unknown): string => {
-      const stringValue = String(cellData ?? ""); // Handle null/undefined
-      // If the value contains a comma, newline, or double quote, enclose it in double quotes
+      const stringValue = String(cellData ?? "");
       if (
         stringValue.includes(",") ||
         stringValue.includes("\n") ||
         stringValue.includes('"')
       ) {
-        // Escape existing double quotes by doubling them
         const escapedValue = stringValue.replace(/"/g, '""');
         return `"${escapedValue}"`;
       }
       return stringValue;
     };
-
-    // Create Header Row
     const csvHeader = headers.map(escapeCsvCell).join(",");
-
-    // Create Data Rows
     const csvRows = tableData.map((row) => {
       return headers
         .map((header) => {
@@ -402,11 +470,7 @@ const LiveTableToolbar: React.FC = () => {
         })
         .join(",");
     });
-
-    // Combine header and rows
     const csvContent = [csvHeader, ...csvRows].join("\n");
-
-    // Create Blob and Trigger Download
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -434,17 +498,14 @@ const LiveTableToolbar: React.FC = () => {
   const selectedRowIndices = getSelectedRowIndices();
   const uniqueSelectedColIndices = getUniqueSelectedColumnIndices();
 
-  let numSelectedRowsForLabel = 1; // Default for adding a single row
+  let numSelectedRowsForLabel = 1;
   if (isTableEmptyOfRows && !selectedCell) {
     numSelectedRowsForLabel = 1;
   } else if (selectedRowIndices.length > 0) {
     numSelectedRowsForLabel = selectedRowIndices.length;
   } else if (selectedCell) {
-    // Single cell selected, not part of a multi-row selection for adding
     numSelectedRowsForLabel = 1;
   } else if (!isTableEmptyOfRows && !selectedCell) {
-    // Table has rows, but nothing selected. Label will imply adding 'a' row.
-    // The button's action handler (handleAddRowRelative) will toast if this state is problematic for an action.
     numSelectedRowsForLabel = 1;
   }
 
@@ -462,20 +523,17 @@ const LiveTableToolbar: React.FC = () => {
       : `Delete ${selectedRowIndices.length} Rows`;
 
   const isTableEmptyOfColumns = !headers || headers.length === 0;
-  let numColsForLabel = 1; // Default for adding a single column
+  let numColsForLabel = 1;
   if (isTableEmptyOfColumns && !selectedCell) {
     numColsForLabel = 1;
   } else if (
     uniqueSelectedColIndices.length > 0 &&
     new Set(selectedCells.map((s) => s.colIndex)).size > 1
   ) {
-    // Multiple distinct columns selected
     numColsForLabel = uniqueSelectedColIndices.length;
   } else if (selectedCell) {
-    // Single cell or single column selection
     numColsForLabel = 1;
   } else if (!isTableEmptyOfColumns && !selectedCell) {
-    // Has columns, no selection
     numColsForLabel = 1;
   }
 
@@ -483,16 +541,23 @@ const LiveTableToolbar: React.FC = () => {
     numColsForLabel <= 1
       ? "Add Column to the Left"
       : `Add ${numColsForLabel} Columns to the Left`;
+  const addEmptyColLeftButtonLabel =
+    numColsForLabel <= 1
+      ? "Add Empty Column Left"
+      : `Add ${numColsForLabel} Empty Columns Left`;
   const addColRightButtonLabel =
     numColsForLabel <= 1
       ? "Add Column to the Right"
       : `Add ${numColsForLabel} Columns to the Right`;
+  const addEmptyColRightButtonLabel =
+    numColsForLabel <= 1
+      ? "Add Empty Column Right"
+      : `Add ${numColsForLabel} Empty Columns Right`;
   const deleteColButtonLabel =
     uniqueSelectedColIndices.length <= 1
       ? "Delete Selected Column"
       : `Delete ${uniqueSelectedColIndices.length} Columns`;
 
-  // Button enable/disable conditions
   const canAddRows =
     isTableLoaded && !isAnyOperationPending && headers && headers.length > 0;
   const canAddColumns = isTableLoaded && !isAnyOperationPending;
@@ -515,10 +580,13 @@ const LiveTableToolbar: React.FC = () => {
 
   const isAddColumnLeftPending =
     isPending && pendingOperation === "add-column-left";
+  const isAddEmptyColumnLeftPending =
+    isPending && pendingOperation === "add-empty-column-left";
   const isAddColumnRightPending =
     isPending && pendingOperation === "add-column-right";
+  const isAddEmptyColumnRightPending =
+    isPending && pendingOperation === "add-empty-column-right";
 
-  // Memoize button configurations
   const buttonConfigs = useMemo(
     () => ({
       [BUTTON_TYPES.UNDO]: {
@@ -574,7 +642,25 @@ const LiveTableToolbar: React.FC = () => {
         ),
         label: addColLeftButtonLabel,
         onClick: () => handleAddColumnRelative("left"),
-        disabled: !canAddColumns || isAddColumnRightPending,
+        disabled:
+          !canAddColumns ||
+          isAddColumnRightPending ||
+          isAddEmptyColumnRightPending ||
+          isAddEmptyColumnLeftPending,
+      },
+      [BUTTON_TYPES.ADD_EMPTY_COL_LEFT]: {
+        icon: isAddEmptyColumnLeftPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ArrowLeftFromLine className="h-4 w-4" />
+        ),
+        label: addEmptyColLeftButtonLabel,
+        onClick: () => handleAddEmptyColumn("left"),
+        disabled:
+          !canAddColumns ||
+          isAddColumnRightPending ||
+          isAddEmptyColumnRightPending ||
+          isAddColumnLeftPending,
       },
       [BUTTON_TYPES.ADD_COL_RIGHT]: {
         icon: isAddColumnRightPending ? (
@@ -584,7 +670,25 @@ const LiveTableToolbar: React.FC = () => {
         ),
         label: addColRightButtonLabel,
         onClick: () => handleAddColumnRelative("right"),
-        disabled: !canAddColumns || isAddColumnLeftPending,
+        disabled:
+          !canAddColumns ||
+          isAddColumnLeftPending ||
+          isAddEmptyColumnLeftPending ||
+          isAddEmptyColumnRightPending,
+      },
+      [BUTTON_TYPES.ADD_EMPTY_COL_RIGHT]: {
+        icon: isAddEmptyColumnRightPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ArrowRightFromLine className="h-4 w-4" />
+        ),
+        label: addEmptyColRightButtonLabel,
+        onClick: () => handleAddEmptyColumn("right"),
+        disabled:
+          !canAddColumns ||
+          isAddColumnLeftPending ||
+          isAddEmptyColumnLeftPending ||
+          isAddColumnRightPending,
       },
       [BUTTON_TYPES.DELETE_COLS]: {
         icon: (
@@ -614,7 +718,9 @@ const LiveTableToolbar: React.FC = () => {
       addRowBelowButtonLabel,
       deleteRowsButtonLabel,
       addColLeftButtonLabel,
+      addEmptyColLeftButtonLabel,
       addColRightButtonLabel,
+      addEmptyColRightButtonLabel,
       deleteColButtonLabel,
       canAddRows,
       canAddColumns,
@@ -622,50 +728,49 @@ const LiveTableToolbar: React.FC = () => {
       canDeleteColumn,
       canDownload,
       isAddColumnLeftPending,
+      isAddEmptyColumnLeftPending,
       isAddColumnRightPending,
+      isAddEmptyColumnRightPending,
       handleUndo,
       handleRedo,
       handleAddRowRelative,
       handleDeleteRows,
       handleAddColumnRelative,
+      handleAddEmptyColumn,
       handleDeleteColumns,
       handleDownloadCsv,
     ]
   );
 
-  // Calculate which buttons should be visible
   const calculateVisibleButtons = useCallback(() => {
     if (!toolbarRef.current) return;
 
     const toolbarWidth = toolbarRef.current.offsetWidth;
-    const overflowButtonWidth = 48; // Width of the overflow button
-    const padding = 16; // Toolbar padding (8px on each side)
-    const gapWidth = 4; // Gap between buttons
+    const overflowButtonWidth = 48;
+    const padding = 16;
+    const gapWidth = 4;
 
     let currentWidth = 0;
     const visible: string[] = [];
     let hasHiddenButtons = false;
 
-    // Calculate total width needed for all buttons
     let totalWidthNeeded = 0;
     for (let i = 0; i < BUTTON_ORDER.length; i++) {
       const buttonId = BUTTON_ORDER[i];
       const buttonWidth =
         measuredWidthsRef.current[buttonId] || ESTIMATED_WIDTHS[buttonId] || 36;
       totalWidthNeeded += buttonWidth;
-      if (i > 0) totalWidthNeeded += gapWidth; // Add gap except for first button
+      if (i > 0) totalWidthNeeded += gapWidth;
     }
 
-    // If all buttons fit, show them all
     if (totalWidthNeeded + padding <= toolbarWidth) {
       setShowOverflowMenu(false);
       setVisibleButtonIds(BUTTON_ORDER);
       return;
     }
 
-    // Otherwise, calculate which buttons can fit with overflow button
     const availableWidth =
-      toolbarWidth - padding - overflowButtonWidth - gapWidth; // Reserve space for overflow button and gap
+      toolbarWidth - padding - overflowButtonWidth - gapWidth;
 
     for (let i = 0; i < BUTTON_ORDER.length; i++) {
       const buttonId = BUTTON_ORDER[i];
@@ -681,8 +786,6 @@ const LiveTableToolbar: React.FC = () => {
         break;
       }
     }
-
-    // Only update state if values have changed
     setShowOverflowMenu((prev) => {
       if (prev !== hasHiddenButtons) return hasHiddenButtons;
       return prev;
@@ -694,7 +797,6 @@ const LiveTableToolbar: React.FC = () => {
     });
   }, []);
 
-  // Initial measurement of button widths
   useEffect(() => {
     const measureButtons = () => {
       const toolbar = toolbarRef.current;
@@ -705,27 +807,28 @@ const LiveTableToolbar: React.FC = () => {
       tempContainer.style.visibility = "hidden";
       tempContainer.style.display = "flex";
       tempContainer.style.gap = "4px";
-      tempContainer.style.padding = "4px"; // Match toolbar padding
+      tempContainer.style.padding = "4px";
       tempContainer.className = "rounded-md border border-input bg-transparent";
       document.body.appendChild(tempContainer);
 
       BUTTON_ORDER.forEach((buttonId) => {
         if (buttonId.startsWith("separator-")) {
-          // Separators: 1px width + 8px margin (4px on each side)
-          measuredWidthsRef.current[buttonId] = 17; // 1 + 8 + 8
+          measuredWidthsRef.current[buttonId] = 17;
         } else if (buttonId === BUTTON_TYPES.AI_FILL) {
-          // AI Fill button is wider - measure more accurately
           measuredWidthsRef.current[buttonId] = 120;
         } else if (buttonId === BUTTON_TYPES.LOCK) {
-          // Lock button
           measuredWidthsRef.current[buttonId] = 40;
         } else {
-          // Regular buttons - create a temporary button to measure
           const tempButton = document.createElement("button");
           tempButton.className =
             "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 px-3";
 
-          // Add icon placeholder
+          if (buttonId === BUTTON_TYPES.ADD_COLUMN_GROUP) {
+            measuredWidthsRef.current[buttonId] =
+              ESTIMATED_WIDTHS[buttonId] || 120;
+            return;
+          }
+
           const iconSpan = document.createElement("span");
           iconSpan.style.width = "16px";
           iconSpan.style.height = "16px";
@@ -733,8 +836,6 @@ const LiveTableToolbar: React.FC = () => {
           tempButton.appendChild(iconSpan);
 
           tempContainer.appendChild(tempButton);
-
-          // Force layout calculation
           void tempContainer.offsetHeight;
 
           const computedStyle = window.getComputedStyle(tempButton);
@@ -751,22 +852,16 @@ const LiveTableToolbar: React.FC = () => {
       document.body.removeChild(tempContainer);
       calculateVisibleButtons();
     };
-
-    // Delay measurement to ensure styles are loaded
     const timeoutId = setTimeout(measureButtons, 100);
     return () => clearTimeout(timeoutId);
   }, [calculateVisibleButtons]);
 
-  // Set up ResizeObserver with debouncing
   useEffect(() => {
-    // Check if ResizeObserver is available (not available in some test environments)
     if (typeof ResizeObserver === "undefined") {
-      // Fallback: show all buttons if ResizeObserver is not available
       setVisibleButtonIds(BUTTON_ORDER);
       setShowOverflowMenu(false);
       return;
     }
-
     const handleResize = () => {
       if (resizeTimeoutRef.current) {
         clearTimeout(resizeTimeoutRef.current);
@@ -775,13 +870,10 @@ const LiveTableToolbar: React.FC = () => {
         calculateVisibleButtons();
       }, 100);
     };
-
     const observer = new ResizeObserver(handleResize);
-
     if (toolbarRef.current) {
       observer.observe(toolbarRef.current);
     }
-
     return () => {
       observer.disconnect();
       if (resizeTimeoutRef.current) {
@@ -790,23 +882,15 @@ const LiveTableToolbar: React.FC = () => {
     };
   }, [calculateVisibleButtons]);
 
-  // Effect to listen to UndoManager stack changes
   useEffect(() => {
     if (!undoManager) return;
-
     const updateUndoRedoState = () => {
       setCanUndo(undoManager.undoStack.length > 0);
       setCanRedo(undoManager.redoStack.length > 0);
     };
-
-    // Initial check
     updateUndoRedoState();
-
-    // Listen for changes that affect the stacks
     undoManager.on("stack-item-added", updateUndoRedoState);
-    undoManager.on("stack-item-popped", updateUndoRedoState); // Popped during undo/redo
-
-    // Cleanup
+    undoManager.on("stack-item-popped", updateUndoRedoState);
     return () => {
       undoManager.off("stack-item-added", updateUndoRedoState);
       undoManager.off("stack-item-popped", updateUndoRedoState);
@@ -845,8 +929,166 @@ const LiveTableToolbar: React.FC = () => {
       return <LockButton key={buttonId} />;
     }
 
+    if (buttonId === BUTTON_TYPES.ADD_COLUMN_GROUP) {
+      const aiLeftConfig = buttonConfigs[BUTTON_TYPES.ADD_COL_LEFT];
+      const aiRightConfig = buttonConfigs[BUTTON_TYPES.ADD_COL_RIGHT];
+      const emptyLeftConfig = buttonConfigs[BUTTON_TYPES.ADD_EMPTY_COL_LEFT];
+      const emptyRightConfig = buttonConfigs[BUTTON_TYPES.ADD_EMPTY_COL_RIGHT];
+
+      if (
+        !aiLeftConfig ||
+        !aiRightConfig ||
+        !emptyLeftConfig ||
+        !emptyRightConfig
+      )
+        return null;
+
+      const anySubActionPending =
+        isPending &&
+        (pendingOperation === "add-column-left" ||
+          pendingOperation === "add-empty-column-left" ||
+          pendingOperation === "add-column-right" ||
+          pendingOperation === "add-empty-column-right");
+
+      if (isInDropdown) {
+        return (
+          <React.Fragment key={buttonId}>
+            <DropdownMenuItem
+              onClick={aiLeftConfig.onClick}
+              disabled={aiLeftConfig.disabled || anySubActionPending}
+            >
+              {aiLeftConfig.icon}{" "}
+              <span className="ml-2">{aiLeftConfig.label}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={aiRightConfig.onClick}
+              disabled={aiRightConfig.disabled || anySubActionPending}
+            >
+              {aiRightConfig.icon}{" "}
+              <span className="ml-2">{aiRightConfig.label}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={emptyLeftConfig.onClick}
+              disabled={emptyLeftConfig.disabled || anySubActionPending}
+            >
+              {emptyLeftConfig.icon}{" "}
+              <span className="ml-2">{emptyLeftConfig.label}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={emptyRightConfig.onClick}
+              disabled={emptyRightConfig.disabled || anySubActionPending}
+            >
+              {emptyRightConfig.icon}{" "}
+              <span className="ml-2">{emptyRightConfig.label}</span>
+            </DropdownMenuItem>
+          </React.Fragment>
+        );
+      } else {
+        return (
+          <ButtonGroup key={buttonId} orientation="horizontal">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label={aiLeftConfig.label}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    aiLeftConfig.onClick();
+                  }}
+                  disabled={
+                    aiLeftConfig.disabled ||
+                    isAddColumnRightPending ||
+                    isAddEmptyColumnRightPending ||
+                    isAddEmptyColumnLeftPending
+                  }
+                  className="rounded-r-none"
+                >
+                  {aiLeftConfig.icon}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{aiLeftConfig.label}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label={aiRightConfig.label}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    aiRightConfig.onClick();
+                  }}
+                  disabled={
+                    aiRightConfig.disabled ||
+                    isAddColumnLeftPending ||
+                    isAddEmptyColumnLeftPending ||
+                    isAddEmptyColumnRightPending
+                  }
+                  className="rounded-none border-l-0"
+                >
+                  {aiRightConfig.icon}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{aiRightConfig.label}</TooltipContent>
+            </Tooltip>
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label="More add column options"
+                      disabled={
+                        !canAddColumns ||
+                        anySubActionPending ||
+                        isAddColumnLeftPending ||
+                        isAddColumnRightPending
+                      }
+                      className="rounded-l-none border-l-0 px-2"
+                    >
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>More options</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={emptyLeftConfig.onClick}
+                  disabled={emptyLeftConfig.disabled || anySubActionPending}
+                >
+                  {emptyLeftConfig.icon}{" "}
+                  <span className="ml-2">{emptyLeftConfig.label}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={emptyRightConfig.onClick}
+                  disabled={emptyRightConfig.disabled || anySubActionPending}
+                >
+                  {emptyRightConfig.icon}{" "}
+                  <span className="ml-2">{emptyRightConfig.label}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ButtonGroup>
+        );
+      }
+    }
+
     const config = buttonConfigs[buttonId as keyof typeof buttonConfigs];
-    if (!config) return null;
+    if (!config) {
+      if (
+        !isInDropdown &&
+        (buttonId === BUTTON_TYPES.ADD_COL_LEFT ||
+          buttonId === BUTTON_TYPES.ADD_COL_RIGHT)
+      ) {
+        return null;
+      }
+      console.warn(`Config not found for buttonId: ${buttonId}`);
+      return null;
+    }
 
     if (isInDropdown) {
       return (
@@ -888,12 +1130,10 @@ const LiveTableToolbar: React.FC = () => {
         ref={toolbarRef}
         className="relative flex overflow-hidden items-center gap-1 rounded-md border border-input bg-transparent p-1 mb-2"
       >
-        {/* Visible buttons */}
         <div className="flex items-center gap-1 flex-1">
           {visibleButtonIds.map((buttonId) => renderButton(buttonId))}
         </div>
 
-        {/* Overflow menu - positioned absolutely to the right */}
         {showOverflowMenu && (
           <div className="absolute right-1 top-1 bottom-1 bg-inherit">
             <DropdownMenu>

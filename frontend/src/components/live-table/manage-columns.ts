@@ -6,7 +6,7 @@ import generateNewColumns, {
 import { LiveTableDoc } from "./LiveTableDoc";
 
 // Helper for unique default header names - copied from LiveTableProvider
-function generateUniqueDefaultHeader(
+export function generateUniqueDefaultHeader(
   base: string,
   existingHeaders: string[],
   columnsToInsert: { headerName: string }[]

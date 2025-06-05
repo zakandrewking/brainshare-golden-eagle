@@ -42,36 +42,42 @@ export function LockButton() {
   const isClearAllDisabled = !lockedCells || lockedCells.size === 0;
 
   return (
-    <ButtonGroup orientation="horizontal">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleClick}
-        disabled={isLockDisabled}
-        aria-label="Lock Selected Cells"
-        className="p-0" // to enable tooltip to work
-      >
-        <TooltipProvider delayDuration={0}>
+    <TooltipProvider delayDuration={0}>
+      <ButtonGroup orientation="horizontal">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClick}
+              disabled={isLockDisabled}
+              aria-label="Lock Selected Cells"
+              className="rounded-r-none p-2" // Ensure padding for icon
+            >
+              <Lock className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isLockDisabled ? "Select cells to lock" : "Lock Selected Cells"}
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center justify-center w-full h-full p-3">
-                <Lock className="h-4 w-4" />
-              </div>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="More lock options" // More specific aria-label
+                  className="rounded-l-none border-l-0 px-2" // Standard styling for dropdown trigger in a group
+                >
+                  <ChevronDownIcon className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent>
-              {isLockDisabled ? "Select cells to lock" : "Lock Selected Cells"}
-            </TooltipContent>
+            <TooltipContent>More options</TooltipContent>
           </Tooltip>
-        </TooltipProvider>
-      </Button>
-      <Button variant="outline" size="sm" className="p-0">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <div className="flex items-center justify-center w-full h-full p-3">
-              <ChevronDownIcon className="h-4 w-4" />
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
+          <DropdownMenuContent align="end">
             <DropdownMenuItem
               onClick={handleClearAllLocks}
               disabled={isClearAllDisabled}
@@ -80,8 +86,8 @@ export function LockButton() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </Button>
-    </ButtonGroup>
+      </ButtonGroup>
+    </TooltipProvider>
   );
 }
 

@@ -22,6 +22,7 @@ import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 import type { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import {
   generateAndInsertColumns,
+  generateUniqueDefaultHeader,
 } from "@/components/live-table/manage-columns";
 import { generateAndInsertRows } from "@/components/live-table/manage-rows";
 import type { CellPosition } from "@/stores/selectionStore";
@@ -67,6 +68,10 @@ interface DataActions {
     initialInsertIndex: number,
     numColsToAdd: number
   ) => Promise<{ aiColsAdded: number; defaultColsAdded: number }>;
+  insertEmptyColumns: (
+    initialInsertIndex: number,
+    numColsToAdd: number
+  ) => Promise<{ count: number }>;
   reorderColumn: (fromIndex: number, toIndex: number) => void;
 }
 
@@ -248,26 +253,20 @@ export const DataStoreProvider = ({
         setEditingCell: (
           cell: { rowIndex: number; colIndex: number } | null
         ) => {
-          set((state) => {
-            state.editingCell = cell;
-          });
+          set({ editingCell: cell });
         },
         getUndoManager: () => liveTableDoc.undoManager,
         setEditingHeaderIndex: (index: number | null) => {
-          set((state) => {
-            state.editingHeaderIndex = index;
-          });
+          set({ editingHeaderIndex: index });
         },
 
         generateAndInsertRows: async (
           initialInsertIndex: number,
           numRowsToAdd: number
         ) => {
-          if (!headers || !tableData || !liveTableDoc) {
-            toast.error(
-              "Table data or document not available. Cannot add rows."
-            );
-            return { aiRowsAdded: 0, defaultRowsAdded: 0 };
+          if (!liveTableDoc || !headers || !tableData) {
+            toast.error("Table data not fully loaded.");
+            throw new Error("Table data not fully loaded.");
           }
           return generateAndInsertRows(
             initialInsertIndex,
@@ -284,11 +283,9 @@ export const DataStoreProvider = ({
           initialInsertIndex: number,
           numColsToAdd: number
         ) => {
-          if (!headers || !tableData || !liveTableDoc) {
-            toast.error(
-              "Table data or document not available. Cannot add columns."
-            );
-            return { aiColsAdded: 0, defaultColsAdded: 0 };
+          if (!liveTableDoc || !headers || !tableData) {
+            toast.error("Table data not fully loaded.");
+            throw new Error("Table data not fully loaded.");
           }
           return generateAndInsertColumns(
             initialInsertIndex,
@@ -299,6 +296,64 @@ export const DataStoreProvider = ({
             documentDescription,
             liveTableDoc
           );
+        },
+
+        insertEmptyColumns: async (
+          initialInsertIndex: number,
+          numColsToAdd: number
+        ) => {
+          if (!liveTableDoc) {
+            toast.error("Table document not available.");
+            throw new Error("Table document not available.");
+          }
+          if (numColsToAdd <= 0) {
+            toast.info("Number of columns to add must be positive.");
+            return { count: 0 };
+          }
+
+          const currentHeaders = headers || [];
+
+          const columnsToInsert: {
+            headerName: string;
+            columnData: null;
+          }[] = [];
+
+          for (let i = 0; i < numColsToAdd; i++) {
+            const headerName = generateUniqueDefaultHeader(
+              "Column",
+              currentHeaders,
+              columnsToInsert
+            );
+            columnsToInsert.push({
+              headerName,
+              columnData: null,
+            });
+          }
+
+          try {
+            const insertedCount = liveTableDoc.insertColumns(
+              initialInsertIndex,
+              columnsToInsert
+            );
+            if (insertedCount > 0) {
+              toast.success(
+                `Successfully added ${insertedCount} empty column(s).`
+              );
+            } else if (numColsToAdd > 0 && insertedCount === 0) {
+              toast.info(
+                "No empty columns were added. This might be an internal issue."
+              );
+            }
+            return { count: insertedCount };
+          } catch (error) {
+            console.error("Error inserting empty columns:", error);
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : "An unknown error occurred.";
+            toast.error(`Failed to add empty columns: ${errorMessage}`);
+            throw error;
+          }
         },
 
         reorderColumn: (fromIndex: number, toIndex: number) => {
@@ -361,5 +416,7 @@ export const useGenerateAndInsertRows = () =>
   useDataStore((state) => state.generateAndInsertRows);
 export const useGenerateAndInsertColumns = () =>
   useDataStore((state) => state.generateAndInsertColumns);
+export const useInsertEmptyColumns = () =>
+  useDataStore((state) => state.insertEmptyColumns);
 export const useReorderColumn = () =>
   useDataStore((state) => state.reorderColumn);
