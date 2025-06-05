@@ -45,7 +45,7 @@ interface DataActions {
   isCellLocked: (rowIndex: number, colIndex: number) => boolean;
   handleCellFocus: (rowIndex: number, colIndex: number) => void;
   handleCellBlur: () => void;
-  handleHeaderDoubleClick: (colIndex: number) => void;
+  handleHeaderDoubleClick: (colIndex: number, currentHeaders: string[]) => void;
   handleHeaderChange: (value: string) => void;
   handleHeaderBlur: () => void;
   handleColumnResize: (header: string, newWidth: number) => void;
@@ -205,11 +205,14 @@ export const DataStoreProvider = ({
         handleCellBlur: () => {
           yProvider.awareness.setLocalStateField("selectedCell", null);
         },
-        handleHeaderDoubleClick: (colIndex: number) => {
-          if (!headers) return;
+        handleHeaderDoubleClick: (
+          colIndex: number,
+          currentHeaders: string[]
+        ) => {
+          if (!currentHeaders) return;
           set((state) => {
             state.editingHeaderIndex = colIndex;
-            state.editingHeaderValue = headers[colIndex];
+            state.editingHeaderValue = currentHeaders[colIndex];
           });
         },
         handleHeaderChange: (value: string) => {

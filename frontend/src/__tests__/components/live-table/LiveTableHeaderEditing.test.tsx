@@ -90,7 +90,7 @@ describe("LiveTableDisplay Header Editing", () => {
     vi.resetAllMocks();
 
     vi.mocked(useIsCellLocked).mockImplementation(() => () => false);
-    vi.mocked(useHandleHeaderDoubleClick).mockImplementation(() => () => {});
+    vi.mocked(useHandleHeaderDoubleClick).mockImplementation(() => vi.fn());
     vi.mocked(useHandleHeaderChange).mockImplementation(() => () => {});
     vi.mocked(useHandleHeaderBlur).mockImplementation(() => () => {});
 
@@ -155,7 +155,10 @@ describe("LiveTableDisplay Header Editing", () => {
     expect(headerCellDiv).toBeInTheDocument();
     await user.dblClick(headerCellDiv!);
 
-    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0);
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0, [
+      "Name",
+      "Age",
+    ]);
 
     act(() => {
       useEditingHeaderValuePush(headerNameForTest);
@@ -243,7 +246,10 @@ describe("LiveTableDisplay Header Editing", () => {
 
     await user.dblClick(headerCellDiv!);
 
-    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(headerIndexToEdit);
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(
+      headerIndexToEdit,
+      ["Name", "Age"]
+    );
 
     act(() => {
       useEditingHeaderValuePush(headerNameForTest);
@@ -293,7 +299,10 @@ describe("LiveTableDisplay Header Editing", () => {
 
     await user.dblClick(headerCellDiv!);
 
-    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(headerIndexToEdit);
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(
+      headerIndexToEdit,
+      ["Name", "Age"]
+    );
 
     act(() => {
       useEditingHeaderValuePush(headerNameForTest);

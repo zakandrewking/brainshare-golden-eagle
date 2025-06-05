@@ -583,7 +583,9 @@ const LiveTable: React.FC = () => {
                         <div
                           className="p-2 cursor-text flex-grow break-words flex items-center"
                           onDoubleClick={() => {
-                            handleHeaderDoubleClick(index);
+                            if (headers) {
+                              handleHeaderDoubleClick(index, headers);
+                            }
                           }}
                           style={{ cursor: "grab" }}
                           onMouseDown={(e) => {
