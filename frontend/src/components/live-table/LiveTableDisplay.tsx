@@ -117,6 +117,36 @@ const LiveTable: React.FC = () => {
     }
   }, []);
 
+  const lastHeaderTapRef = useRef<{ time: number; index: number } | null>(null);
+  const headerTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleHeaderTouchStart = useCallback(
+    (index: number) => {
+      const now = Date.now();
+      if (
+        lastHeaderTapRef.current &&
+        now - lastHeaderTapRef.current.time < 300 &&
+        lastHeaderTapRef.current.index === index
+      ) {
+        if (headerTapTimeoutRef.current) {
+          clearTimeout(headerTapTimeoutRef.current);
+          headerTapTimeoutRef.current = null;
+        }
+        lastHeaderTapRef.current = null;
+        handleHeaderDoubleClick(index);
+      } else {
+        lastHeaderTapRef.current = { time: now, index };
+        if (headerTapTimeoutRef.current) {
+          clearTimeout(headerTapTimeoutRef.current);
+        }
+        headerTapTimeoutRef.current = setTimeout(() => {
+          lastHeaderTapRef.current = null;
+        }, 300);
+      }
+    },
+    [handleHeaderDoubleClick]
+  );
+
   const handleColumnDragOver = useCallback(
     (event: React.DragEvent, columnIndex: number) => {
       event.preventDefault();
@@ -583,6 +613,7 @@ const LiveTable: React.FC = () => {
                           onDoubleClick={() => {
                             handleHeaderDoubleClick(index);
                           }}
+                          onTouchStart={() => handleHeaderTouchStart(index)}
                           style={{ cursor: "grab" }}
                           onMouseDown={(e) => {
                             // Prevent drag when clicking on resize handle

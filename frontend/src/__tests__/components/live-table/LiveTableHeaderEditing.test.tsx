@@ -169,6 +169,51 @@ describe("LiveTableDisplay Header Editing", () => {
     expect(input.value).toBe(headerNameForTest);
   });
 
+  it("should enter edit mode on header double-tap and display input", async () => {
+    vi.useFakeTimers();
+
+    const mockHandleHeaderDoubleClick = vi.fn();
+    vi.mocked(useHandleHeaderDoubleClick).mockImplementation(
+      () => mockHandleHeaderDoubleClick
+    );
+    const mockHandleHeaderChange = vi.fn();
+    vi.mocked(useHandleHeaderChange).mockImplementation(
+      () => mockHandleHeaderChange
+    );
+    const mockHandleHeaderBlur = vi.fn();
+    vi.mocked(useHandleHeaderBlur).mockImplementation(
+      () => mockHandleHeaderBlur
+    );
+
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <LiveTableDisplay />
+      </TestDataStoreWrapper>
+    );
+
+    const headerNameForTest = initialColumnDefinitions[0].name;
+
+    const headerCellDiv = screen.getByText(headerNameForTest).closest("div")!;
+    fireEvent.touchStart(headerCellDiv);
+    vi.advanceTimersByTime(100);
+    fireEvent.touchStart(headerCellDiv);
+    vi.runAllTimers();
+
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0);
+
+    act(() => {
+      useEditingHeaderValuePush(headerNameForTest);
+      useEditingHeaderIndexPush(0);
+    });
+
+    const input = screen.getByTestId(
+      `${headerNameForTest}-editing`
+    ) as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+    expect(input.value).toBe(headerNameForTest);
+    vi.useRealTimers();
+  });
+
   it("should update header value on input change", async () => {
     const user = userEvent.setup();
 
