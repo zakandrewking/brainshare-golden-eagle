@@ -20,6 +20,9 @@ import { immer } from "zustand/middleware/immer";
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
 import type { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
+import {
+  generateAndInsertColumns,
+} from "@/components/live-table/manage-columns";
 import { generateAndInsertRows } from "@/components/live-table/manage-rows";
 import type { CellPosition } from "@/stores/selectionStore";
 
@@ -59,6 +62,11 @@ interface DataActions {
     initialInsertIndex: number,
     numRowsToAdd: number
   ) => Promise<{ aiRowsAdded: number; defaultRowsAdded: number }>;
+  // columns
+  generateAndInsertColumns: (
+    initialInsertIndex: number,
+    numColsToAdd: number
+  ) => Promise<{ aiColsAdded: number; defaultColsAdded: number }>;
 }
 
 export type DataStore = DataState & DataActions;
@@ -247,23 +255,40 @@ export const DataStoreProvider = ({
           });
         },
 
-        generateAndInsertRows: (
+        generateAndInsertRows: async (
           initialInsertIndex: number,
           numRowsToAdd: number
         ) => {
-          if (
-            !headers ||
-            !tableData ||
-            !documentTitle ||
-            !documentDescription
-          ) {
-            throw new Error(
-              "Headers or table data not available. Cannot generate rows."
+          if (!headers || !tableData || !liveTableDoc) {
+            toast.error(
+              "Table data or document not available. Cannot add rows."
             );
+            return { aiRowsAdded: 0, defaultRowsAdded: 0 };
           }
           return generateAndInsertRows(
             initialInsertIndex,
             numRowsToAdd,
+            headers,
+            tableData,
+            documentTitle,
+            documentDescription,
+            liveTableDoc
+          );
+        },
+
+        generateAndInsertColumns: async (
+          initialInsertIndex: number,
+          numColsToAdd: number
+        ) => {
+          if (!headers || !tableData || !liveTableDoc) {
+            toast.error(
+              "Table data or document not available. Cannot add columns."
+            );
+            return { aiColsAdded: 0, defaultColsAdded: 0 };
+          }
+          return generateAndInsertColumns(
+            initialInsertIndex,
+            numColsToAdd,
             headers,
             tableData,
             documentTitle,
@@ -326,3 +351,5 @@ export const useSetEditingHeaderIndex = () =>
   useDataStore((state) => state.setEditingHeaderIndex);
 export const useGenerateAndInsertRows = () =>
   useDataStore((state) => state.generateAndInsertRows);
+export const useGenerateAndInsertColumns = () =>
+  useDataStore((state) => state.generateAndInsertColumns);

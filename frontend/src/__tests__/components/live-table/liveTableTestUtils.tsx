@@ -150,9 +150,6 @@ export const getLiveTableMockValues = (
     headers: currentHeaders,
     columnWidths: currentColWidths,
     deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
-    generateAndInsertColumns: vi
-      .fn()
-      .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
     deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     reorderColumn: vi.fn(),
     // awareness
@@ -170,7 +167,17 @@ export const TestDataStoreWrapper: React.FC<{
   children: React.ReactNode;
   liveTableDoc?: LiveTableDoc;
   headers?: string[];
-}> = ({ children, liveTableDoc, headers = [] }) => {
+  tableData?: Record<string, unknown>[];
+  documentTitle?: string;
+  documentDescription?: string;
+}> = ({
+  children,
+  liveTableDoc,
+  headers = [],
+  tableData = [],
+  documentTitle = "Test Doc Title",
+  documentDescription = "Test Doc Desc",
+}) => {
   // Create a default LiveTableDoc if none provided
   const defaultDoc = React.useMemo(() => {
     if (liveTableDoc) return liveTableDoc;
@@ -197,6 +204,9 @@ export const TestDataStoreWrapper: React.FC<{
       liveTableDoc={defaultDoc}
       yProvider={mockYProvider as unknown as LiveblocksYjsProvider}
       headers={headers}
+      tableData={tableData}
+      documentTitle={documentTitle}
+      documentDescription={documentDescription}
     >
       {children}
     </DataStoreProvider>
