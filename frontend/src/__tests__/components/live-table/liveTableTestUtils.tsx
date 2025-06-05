@@ -11,9 +11,7 @@ import type {
   ColumnId,
   RowId,
 } from "@/components/live-table/LiveTableDoc";
-import {
-  LiveTableDoc,
-} from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
+import { LiveTableDoc } from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
 import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
 import { DataStoreProvider } from "@/stores/dataStore";
 
@@ -45,7 +43,7 @@ export interface LiveTableMockOverrides
 }
 
 export const getLiveTableMockValues = (
-  overrides: LiveTableMockOverrides = {}
+  overrides: LiveTableMockOverrides = {},
 ) => {
   let liveTableDoc: LiveTableDoc;
   let yDoc: Y.Doc;
@@ -93,7 +91,7 @@ export const getLiveTableMockValues = (
           liveTableDoc.yColumnOrder.push(overrides.initialColumnOrder);
         } else if (overrides.initialColumnDefinitions) {
           liveTableDoc.yColumnOrder.push(
-            overrides.initialColumnDefinitions.map((d) => d.id)
+            overrides.initialColumnDefinitions.map((d) => d.id),
           );
         }
 
@@ -105,7 +103,7 @@ export const getLiveTableMockValues = (
             liveTableDoc.yRowOrder.push(overrides.initialRowOrder);
           } else {
             liveTableDoc.yRowOrder.push(
-              Object.keys(overrides.initialRowData) as RowId[]
+              Object.keys(overrides.initialRowData) as RowId[],
             );
           }
 
@@ -150,9 +148,6 @@ export const getLiveTableMockValues = (
     headers: currentHeaders,
     columnWidths: currentColWidths,
     deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
-    generateAndInsertColumns: vi
-      .fn()
-      .mockResolvedValue({ aiColsAdded: 0, defaultColsAdded: 0 }),
     deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     reorderColumn: vi.fn(),
     // awareness
@@ -189,7 +184,7 @@ export const TestDataStoreWrapper: React.FC<{
       },
       getYDoc: vi.fn(() => defaultDoc.yDoc),
     }),
-    [defaultDoc]
+    [defaultDoc],
   );
 
   return (

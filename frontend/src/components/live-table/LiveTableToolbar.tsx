@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/tooltip";
 import {
   useGenerateAndInsertRows,
+  useGenerateAndInsertColumns,
   useIsCellLocked,
   useUndoManager,
 } from "@/stores/dataStore";
@@ -110,20 +111,15 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
 };
 
 const LiveTableToolbar: React.FC = () => {
-  const {
-    isTableLoaded,
-    deleteRows,
-    generateAndInsertColumns,
-    deleteColumns,
-    headers,
-    tableData,
-  } = useLiveTable();
+  const { isTableLoaded, deleteRows, deleteColumns, headers, tableData } =
+    useLiveTable();
 
   const isCellLocked = useIsCellLocked();
   const undoManager = useUndoManager();
   const selectedCell = useSelectedCell();
   const selectedCells = useSelectedCells();
   const generateAndInsertRows = useGenerateAndInsertRows();
+  const generateAndInsertColumns = useGenerateAndInsertColumns();
 
   const [isPending, startTransition] = useTransition();
   const [pendingOperation, setPendingOperation] =
@@ -174,7 +170,7 @@ const LiveTableToolbar: React.FC = () => {
       return false;
     }
     return selectedCells.some((cell) =>
-      isCellLocked(cell.rowIndex, cell.colIndex)
+      isCellLocked(cell.rowIndex, cell.colIndex),
     );
   }, [selectedCells, selectedCell, isCellLocked]);
 
@@ -218,13 +214,13 @@ const LiveTableToolbar: React.FC = () => {
       } else {
         // Table has columns, rows, but no cell selected
         toast.info(
-          "Please select a cell to add rows relative to, or the table must be empty of rows."
+          "Please select a cell to add rows relative to, or the table must be empty of rows.",
         );
         return;
       }
 
       setPendingOperation(
-        direction === "above" ? "add-row-above" : "add-row-below"
+        direction === "above" ? "add-row-above" : "add-row-below",
       );
 
       startTransition(async () => {
@@ -233,10 +229,10 @@ const LiveTableToolbar: React.FC = () => {
         } catch (error) {
           console.error(
             `Critical error in handleAddRowRelative transition:`,
-            error
+            error,
           );
           toast.error(
-            "A critical error occurred while preparing to add rows. Please try again."
+            "A critical error occurred while preparing to add rows. Please try again.",
           );
         } finally {
           setPendingOperation(null);
@@ -251,12 +247,12 @@ const LiveTableToolbar: React.FC = () => {
       selectedCell,
       getSelectedRowIndices,
       generateAndInsertRows,
-    ]
+    ],
   );
 
   const handleDeleteRows = useCallback(() => {
     const uniqueRowIndicesToDelete = getSelectedRowIndices().sort(
-      (a, b) => b - a
+      (a, b) => b - a,
     );
 
     if (uniqueRowIndicesToDelete.length === 0) {
@@ -269,7 +265,7 @@ const LiveTableToolbar: React.FC = () => {
       } catch (error) {
         console.error("Critical error in handleDeleteRows transition:", error);
         toast.error(
-          "A critical error occurred while preparing to delete rows. Please try again."
+          "A critical error occurred while preparing to delete rows. Please try again.",
         );
       }
     });
@@ -317,7 +313,7 @@ const LiveTableToolbar: React.FC = () => {
       }
 
       setPendingOperation(
-        direction === "left" ? "add-column-left" : "add-column-right"
+        direction === "left" ? "add-column-left" : "add-column-right",
       );
 
       startTransition(async () => {
@@ -326,10 +322,10 @@ const LiveTableToolbar: React.FC = () => {
         } catch (error) {
           console.error(
             "Critical error in handleAddColumnRelative transition:",
-            error
+            error,
           );
           toast.error(
-            "A critical error occurred while preparing to add columns. Please try again."
+            "A critical error occurred while preparing to add columns. Please try again.",
           );
         } finally {
           setPendingOperation(null);
@@ -344,12 +340,12 @@ const LiveTableToolbar: React.FC = () => {
       getUniqueSelectedColumnIndices,
       selectedCells,
       generateAndInsertColumns,
-    ]
+    ],
   );
 
   const handleDeleteColumns = useCallback(() => {
     const uniqueColIndicesToDelete = getUniqueSelectedColumnIndices().sort(
-      (a, b) => b - a
+      (a, b) => b - a,
     );
 
     if (uniqueColIndicesToDelete.length === 0) {
@@ -362,10 +358,10 @@ const LiveTableToolbar: React.FC = () => {
       } catch (error) {
         console.error(
           "Critical error in handleDeleteColumns transition:",
-          error
+          error,
         );
         toast.error(
-          "A critical error occurred while preparing to delete columns. Please try again."
+          "A critical error occurred while preparing to delete columns. Please try again.",
         );
       }
     });
@@ -634,7 +630,7 @@ const LiveTableToolbar: React.FC = () => {
       handleAddColumnRelative,
       handleDeleteColumns,
       handleDownloadCsv,
-    ]
+    ],
   );
 
   // Calculate which buttons should be visible
@@ -913,7 +909,7 @@ const LiveTableToolbar: React.FC = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {BUTTON_ORDER.filter(
-                  (buttonId) => !visibleButtonIds.includes(buttonId)
+                  (buttonId) => !visibleButtonIds.includes(buttonId),
                 ).map((buttonId) => renderButton(buttonId, true))}
               </DropdownMenuContent>
             </DropdownMenu>

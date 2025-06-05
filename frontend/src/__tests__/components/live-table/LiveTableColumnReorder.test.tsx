@@ -1,18 +1,7 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
@@ -54,7 +43,6 @@ const mockLiveTableContext: LiveTableContextType = {
   },
   isTableLoaded: true,
   deleteRows: vi.fn(),
-  generateAndInsertColumns: vi.fn(),
   deleteColumns: vi.fn(),
   reorderColumn: vi.fn(),
   awarenessStates: new Map(),
@@ -67,7 +55,7 @@ vi.mock(
   async (importOriginal) => ({
     ...(await importOriginal()),
     useLiveTable: vi.fn(),
-  })
+  }),
 );
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
@@ -144,7 +132,7 @@ describe("LiveTableDisplay - Column Reordering", () => {
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
-      </TestDataStoreWrapper>
+      </TestDataStoreWrapper>,
     );
 
     const columnAHeader = screen.getByText("Column A").closest("th");
@@ -158,7 +146,7 @@ describe("LiveTableDisplay - Column Reordering", () => {
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
-      </TestDataStoreWrapper>
+      </TestDataStoreWrapper>,
     );
 
     // Verify that the reorderColumn function is available and is a function
@@ -170,7 +158,7 @@ describe("LiveTableDisplay - Column Reordering", () => {
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
-      </TestDataStoreWrapper>
+      </TestDataStoreWrapper>,
     );
 
     const columnAHeader = screen.getByText("Column A").closest("th");
@@ -183,7 +171,7 @@ describe("LiveTableDisplay - Column Reordering", () => {
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
         <LiveTableDisplay />
-      </TestDataStoreWrapper>
+      </TestDataStoreWrapper>,
     );
 
     const columnAHeader = screen
@@ -204,7 +192,7 @@ describe("LiveTableDisplay - Column Reordering", () => {
     // Simulate drag over Column C (should set insert position)
     const columnCRect = { left: 300, width: 150, right: 450 };
     vi.spyOn(columnCHeader, "getBoundingClientRect").mockReturnValue(
-      columnCRect as DOMRect
+      columnCRect as DOMRect,
     );
 
     fireEvent.dragOver(columnCHeader, {

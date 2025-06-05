@@ -28,9 +28,6 @@ import {
   useSelectionArea,
 } from "@/stores/selectionStore";
 
-import generateNewColumns, {
-  GeneratedColumn,
-} from "./actions/generateNewColumns";
 import {
   type AwarenessState,
   type CursorDataForCell,
@@ -51,13 +48,6 @@ export interface LiveTableContextType {
     deletedCount: number;
   }>;
   // column operations
-  generateAndInsertColumns: (
-    initialInsertIndex: number,
-    numColsToAdd: number
-  ) => Promise<{
-    aiColsAdded: number;
-    defaultColsAdded: number;
-  }>;
   deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
   // column reordering
   reorderColumn: (fromIndex: number, toIndex: number) => void;
@@ -66,7 +56,7 @@ export interface LiveTableContextType {
   cursorsData: CursorDataForCell[] | undefined;
   getCursorsForCell: (
     rowIndex: number,
-    colIndex: number
+    colIndex: number,
   ) => CursorDataForCell | undefined;
 }
 
@@ -80,7 +70,7 @@ interface LiveTableProviderProps {
 }
 
 const LiveTableContext = createContext<LiveTableContextType | undefined>(
-  undefined
+  undefined,
 );
 
 const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
@@ -120,7 +110,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   const room = useRoom();
   const { liveTableDoc, yProvider } = useMemo(
     () => initializeLiveblocksRoom(room),
-    [room]
+    [room],
   );
   liveTableDoc.tableDataUpdateCallback = setTableData;
   liveTableDoc.headersUpdateCallback = setHeaders;
@@ -140,7 +130,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // Memoized function to update React state with awareness changes
   const updateAwarenessStateCallback = useCallback(() => {
     const currentStates = new Map(
-      yProvider.awareness.getStates() as Map<number, AwarenessState | null>
+      yProvider.awareness.getStates() as Map<number, AwarenessState | null>,
     );
     liveTableDoc.updateAwarenessState(currentStates);
   }, [yProvider.awareness, liveTableDoc]);
@@ -178,10 +168,10 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   const getCursorsForCell = useCallback(
     (rowIndex: number, colIndex: number): CursorDataForCell | undefined => {
       return cursorsData?.find(
-        (data) => data.rowIndex === rowIndex && data.colIndex === colIndex
+        (data) => data.rowIndex === rowIndex && data.colIndex === colIndex,
       );
     },
-    [cursorsData]
+    [cursorsData],
   );
 
   // wire up yjs observers
@@ -220,12 +210,12 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
             toast.info(
               `${
                 rowIndices.length - deletedCount
-              } row(s) could not be deleted (possibly out of bounds). Check console for details.`
+              } row(s) could not be deleted (possibly out of bounds). Check console for details.`,
             );
           }
         } else if (rowIndices.length > 0 && deletedCount === 0) {
           toast.info(
-            "No rows were deleted. They might have been out of bounds. Check console for details."
+            "No rows were deleted. They might have been out of bounds. Check console for details.",
           );
         }
       } catch (error) {
@@ -233,138 +223,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       }
       return { deletedCount };
     },
-    [liveTableDoc]
-  );
-
-  const generateAndInsertColumns = useCallback(
-    async (initialInsertIndex: number, numColsToAdd: number) => {
-      if (numColsToAdd <= 0) {
-        toast.info("No columns were added as the number to add was zero.");
-        return { aiColsAdded: 0, defaultColsAdded: 0 };
-      }
-      if (!headers || !tableData) {
-        throw new Error(
-          "Cannot add columns: table headers or data not loaded."
-        );
-      }
-      const currentTableDataForAi = tableData.map((row) => ({ ...row }));
-      const currentHeadersForAi = [...headers];
-      let aiColsAddedCount = 0;
-      let defaultColsAddedCount = 0;
-      const columnsToInsert: {
-        headerName: string;
-        columnData: (string | null)[] | null;
-      }[] = [];
-      try {
-        const result = await generateNewColumns(
-          currentTableDataForAi,
-          currentHeadersForAi,
-          numColsToAdd,
-          documentTitle,
-          documentDescription
-        );
-        if (result.error) {
-          for (let i = 0; i < numColsToAdd; i++) {
-            columnsToInsert.push({
-              headerName: generateUniqueDefaultHeader(
-                "New Column",
-                currentHeadersForAi,
-                columnsToInsert
-              ),
-              columnData: null,
-            });
-            defaultColsAddedCount++;
-          }
-        } else if (
-          !result.generatedColumns ||
-          result.generatedColumns.length === 0
-        ) {
-          for (let i = 0; i < numColsToAdd; i++) {
-            columnsToInsert.push({
-              headerName: generateUniqueDefaultHeader(
-                "New Column",
-                currentHeadersForAi,
-                columnsToInsert
-              ),
-              columnData: null,
-            });
-            defaultColsAddedCount++;
-          }
-        } else {
-          result.generatedColumns.forEach((col: GeneratedColumn) => {
-            columnsToInsert.push({
-              headerName: col.headerName,
-              columnData: col.columnData,
-            });
-            aiColsAddedCount++;
-          });
-          const remainingColsToFill = numColsToAdd - aiColsAddedCount;
-          for (let i = 0; i < remainingColsToFill; i++) {
-            columnsToInsert.push({
-              headerName: generateUniqueDefaultHeader(
-                "New Column",
-                currentHeadersForAi,
-                columnsToInsert
-              ),
-              columnData: null,
-            });
-            defaultColsAddedCount++;
-          }
-        }
-        if (columnsToInsert.length === 0 && numColsToAdd > 0) {
-          toast.info("Attempted to add columns, but no columns were prepared.");
-          return { aiColsAdded: 0, defaultColsAdded: 0 };
-        }
-        if (columnsToInsert.length > 0) {
-          liveTableDoc.insertColumns(initialInsertIndex, columnsToInsert);
-        }
-        if (result.error) {
-          toast.error(
-            `AI column generation failed: ${result.error}. Added ${defaultColsAddedCount} default column(s).`
-          );
-        } else if (aiColsAddedCount > 0 && defaultColsAddedCount === 0) {
-          toast.success(
-            `Successfully added ${aiColsAddedCount} AI-suggested column(s).`
-          );
-        } else if (aiColsAddedCount > 0 && defaultColsAddedCount > 0) {
-          toast.info(
-            `Added ${numColsToAdd} column(s): ${aiColsAddedCount} AI-suggested, ${defaultColsAddedCount} default.`
-          );
-        } else if (defaultColsAddedCount > 0 && aiColsAddedCount === 0) {
-          toast.info(
-            `Added ${defaultColsAddedCount} default column(s) as AI suggestions were not available or an issue occurred.`
-          );
-        }
-        return {
-          aiColsAdded: aiColsAddedCount,
-          defaultColsAdded: defaultColsAddedCount,
-        };
-      } catch (error) {
-        // This catch is for errors during Yjs operations or other unexpected issues within the try block
-        // Fallback: attempt to insert default columns directly into Yjs
-        const fallbackColumns: { headerName: string; columnData: null }[] = [];
-        for (let i = 0; i < numColsToAdd; i++) {
-          fallbackColumns.push({
-            headerName: generateUniqueDefaultHeader(
-              "New Column",
-              currentHeadersForAi,
-              fallbackColumns
-            ),
-            columnData: null,
-          });
-        }
-        if (fallbackColumns.length > 0) {
-          try {
-            liveTableDoc.insertColumns(initialInsertIndex, fallbackColumns);
-          } catch {
-            // If even fallback fails, we throw the original error that led to this catch block.
-            // No need to throw yjsError specifically, as the primary error is more relevant to the user action.
-          }
-        }
-        throw error instanceof Error ? error : new Error(String(error));
-      }
-    },
-    [liveTableDoc, headers, tableData, documentTitle, documentDescription]
+    [liveTableDoc],
   );
 
   const deleteColumns = useCallback(
@@ -385,12 +244,12 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
             toast.info(
               `${
                 colIndices.length - deletedCount
-              } column(s) could not be deleted (possibly out of bounds). Check console for details.`
+              } column(s) could not be deleted (possibly out of bounds). Check console for details.`,
             );
           }
         } else if (colIndices.length > 0 && deletedCount === 0) {
           toast.info(
-            "No columns were deleted. They might have been out of bounds. Check console for details."
+            "No columns were deleted. They might have been out of bounds. Check console for details.",
           );
         }
       } catch (error) {
@@ -398,34 +257,17 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       }
       return { deletedCount };
     },
-    [liveTableDoc]
+    [liveTableDoc],
   );
 
   const reorderColumn = useCallback(
     (fromIndex: number, toIndex: number) => {
       liveTableDoc.reorderColumn(fromIndex, toIndex);
     },
-    [liveTableDoc]
+    [liveTableDoc],
   );
 
   // Helper for unique default header names
-  function generateUniqueDefaultHeader(
-    base: string,
-    existingHeaders: string[],
-    columnsToInsert: { headerName: string }[]
-  ): string {
-    let counter = 1;
-    let name = `${base} ${counter}`;
-    const allHeaders = [
-      ...existingHeaders.map((h) => h.toLowerCase()),
-      ...columnsToInsert.map((c) => c.headerName.toLowerCase()),
-    ];
-    while (allHeaders.includes(name.toLowerCase())) {
-      counter++;
-      name = `${base} ${counter}`;
-    }
-    return name;
-  }
 
   return (
     <LiveTableContext.Provider
@@ -438,7 +280,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         columnWidths,
         isTableLoaded,
         deleteRows,
-        generateAndInsertColumns,
         deleteColumns,
         reorderColumn,
         awarenessStates,
