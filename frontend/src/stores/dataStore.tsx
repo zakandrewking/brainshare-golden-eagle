@@ -2,25 +2,18 @@
  * TODO move data, locks, editing, etc. to this store from LiveTableProvider
  */
 
-import {
-  createContext,
-  useContext,
-  useState,
-} from "react";
+import { createContext, useContext, useState } from "react";
 
 import { toast } from "sonner";
 import { UndoManager } from "yjs";
-import {
-  createStore,
-  StoreApi,
-  useStore,
-} from "zustand";
+import { createStore, StoreApi, useStore } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
 import type { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import { generateAndInsertRows } from "@/components/live-table/manage-rows";
+import { generateAndInsertColumns } from "@/components/live-table/manage-columns";
 import type { CellPosition } from "@/stores/selectionStore";
 
 // -----
@@ -49,7 +42,7 @@ interface DataActions {
   handleCellChange: (
     rowIndex: number,
     header: string,
-    newValue: string
+    newValue: string,
   ) => void;
   setEditingCell: (cell: { rowIndex: number; colIndex: number } | null) => void;
   getUndoManager: () => UndoManager;
@@ -57,8 +50,13 @@ interface DataActions {
   // rows
   generateAndInsertRows: (
     initialInsertIndex: number,
-    numRowsToAdd: number
+    numRowsToAdd: number,
   ) => Promise<{ aiRowsAdded: number; defaultRowsAdded: number }>;
+  // columns
+  generateAndInsertColumns: (
+    initialInsertIndex: number,
+    numColsToAdd: number,
+  ) => Promise<{ aiColsAdded: number; defaultColsAdded: number }>;
 }
 
 export type DataStore = DataState & DataActions;
@@ -84,7 +82,7 @@ const initialState: DataState = {
  */
 function lockSelectedRange(
   selectedCells: CellPosition[],
-  liveTableDoc: LiveTableDoc
+  liveTableDoc: LiveTableDoc,
 ) {
   if (selectedCells.length === 0) {
     toast.info("No cells selected to lock.");
@@ -104,7 +102,7 @@ function lockSelectedRange(
     minRowIndex,
     maxRowIndex,
     minColIndex,
-    maxColIndex
+    maxColIndex,
   );
 
   if (lockId) {
@@ -151,7 +149,7 @@ function unlockAll(liveTableDoc: LiveTableDoc) {
 function isCellLocked(
   rowIndex: number,
   colIndex: number,
-  liveTableDoc: LiveTableDoc
+  liveTableDoc: LiveTableDoc,
 ) {
   return liveTableDoc.isCellLocked(rowIndex, colIndex);
 }
@@ -229,12 +227,12 @@ export const DataStoreProvider = ({
         handleCellChange: (
           rowIndex: number,
           header: string,
-          newValue: string
+          newValue: string,
         ) => {
           liveTableDoc.updateCell(rowIndex, header, newValue);
         },
         setEditingCell: (
-          cell: { rowIndex: number; colIndex: number } | null
+          cell: { rowIndex: number; colIndex: number } | null,
         ) => {
           set((state) => {
             state.editingCell = cell;
@@ -249,7 +247,7 @@ export const DataStoreProvider = ({
 
         generateAndInsertRows: (
           initialInsertIndex: number,
-          numRowsToAdd: number
+          numRowsToAdd: number,
         ) => {
           if (
             !headers ||
@@ -258,7 +256,7 @@ export const DataStoreProvider = ({
             !documentDescription
           ) {
             throw new Error(
-              "Headers or table data not available. Cannot generate rows."
+              "Headers or table data not available. Cannot generate rows.",
             );
           }
           return generateAndInsertRows(
@@ -268,11 +266,36 @@ export const DataStoreProvider = ({
             tableData,
             documentTitle,
             documentDescription,
-            liveTableDoc
+            liveTableDoc,
           );
         },
-      }))
-    )
+
+        generateAndInsertColumns: (
+          initialInsertIndex: number,
+          numColsToAdd: number,
+        ) => {
+          if (
+            !headers ||
+            !tableData ||
+            !documentTitle ||
+            !documentDescription
+          ) {
+            throw new Error(
+              "Headers or table data not available. Cannot generate columns.",
+            );
+          }
+          return generateAndInsertColumns(
+            initialInsertIndex,
+            numColsToAdd,
+            headers,
+            tableData,
+            documentTitle,
+            documentDescription,
+            liveTableDoc,
+          );
+        },
+      })),
+    ),
   );
   return (
     <DataStoreContext.Provider value={store}>
@@ -326,3 +349,5 @@ export const useSetEditingHeaderIndex = () =>
   useDataStore((state) => state.setEditingHeaderIndex);
 export const useGenerateAndInsertRows = () =>
   useDataStore((state) => state.generateAndInsertRows);
+export const useGenerateAndInsertColumns = () =>
+  useDataStore((state) => state.generateAndInsertColumns);
