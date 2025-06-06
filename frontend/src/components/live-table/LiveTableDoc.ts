@@ -455,6 +455,43 @@ export class LiveTableDoc {
   }
 
   /**
+   * insert empty rows into the table
+   * @param initialInsertIndex - the index to insert the rows at in yRowOrder
+   * @param count - the number of empty rows to insert
+   * @returns the number of rows inserted
+   */
+  insertEmptyRows(initialInsertIndex: number, count: number): number {
+    if (count <= 0) {
+      return 0;
+    }
+
+    let insertedCount = 0;
+    this.yDoc.transact(() => {
+      const newRowIds: RowId[] = [];
+      const columnDefs = Array.from(this.yColumnDefinitions.values());
+      if (columnDefs.length === 0) {
+        // cannot insert rows if there are no columns
+        return;
+      }
+
+      for (let i = 0; i < count; i++) {
+        const rowId = crypto.randomUUID() as RowId;
+        newRowIds.push(rowId);
+        const newRowYMap = new Y.Map<CellValue>();
+
+        columnDefs.forEach((def) => {
+          newRowYMap.set(def.id, "");
+        });
+        this.yRowData.set(rowId, newRowYMap);
+      }
+      this.yRowOrder.insert(initialInsertIndex, newRowIds);
+      insertedCount = count;
+    });
+
+    return insertedCount;
+  }
+
+  /**
    * Deletes rows from the table.
    * Assumes rowIndices are sorted in descending order by the caller to prevent index shifting issues.
    * @param rowIndices - An array of row indices (from yRowOrder) to delete (sorted descending).

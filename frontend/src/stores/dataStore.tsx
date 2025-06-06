@@ -17,7 +17,10 @@ import {
   generateAndInsertColumns,
   generateUniqueDefaultHeader,
 } from "@/components/live-table/manage-columns";
-import { generateAndInsertRows } from "@/components/live-table/manage-rows";
+import {
+  generateAndInsertRows,
+  insertEmptyRows,
+} from "@/components/live-table/manage-rows";
 import type { CellPosition } from "@/stores/selectionStore";
 
 enableMapSet();
@@ -56,6 +59,10 @@ interface DataActions {
     initialInsertIndex: number,
     numRowsToAdd: number
   ) => Promise<{ aiRowsAdded: number; defaultRowsAdded: number }>;
+  insertEmptyRows: (
+    initialInsertIndex: number,
+    numRowsToAdd: number
+  ) => Promise<{ defaultRowsAdded: number }>;
   // columns
   generateAndInsertColumns: (
     initialInsertIndex: number,
@@ -251,6 +258,21 @@ export const DataStoreProvider = ({
           );
         },
 
+        insertEmptyRows: async (
+          initialInsertIndex: number,
+          numRowsToAdd: number
+        ) => {
+          if (!liveTableDoc) {
+            toast.error("Table data not fully loaded.");
+            throw new Error("Table data not fully loaded.");
+          }
+          return insertEmptyRows(
+            initialInsertIndex,
+            numRowsToAdd,
+            liveTableDoc
+          );
+        },
+
         generateAndInsertColumns: async (
           initialInsertIndex: number,
           numColsToAdd: number
@@ -389,6 +411,8 @@ export const useSetEditingHeaderIndex = () =>
   useDataStore((state) => state.setEditingHeaderIndex);
 export const useGenerateAndInsertRows = () =>
   useDataStore((state) => state.generateAndInsertRows);
+export const useInsertEmptyRows = () =>
+  useDataStore((state) => state.insertEmptyRows);
 export const useGenerateAndInsertColumns = () =>
   useDataStore((state) => state.generateAndInsertColumns);
 export const useInsertEmptyColumns = () =>

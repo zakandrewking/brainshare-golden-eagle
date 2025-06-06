@@ -136,3 +136,28 @@ export async function generateAndInsertRows(
     throw error instanceof Error ? error : new Error(String(error));
   }
 }
+
+export async function insertEmptyRows(
+  initialInsertIndex: number,
+  numRowsToAdd: number,
+  liveTableDoc: LiveTableDoc
+) {
+  if (numRowsToAdd <= 0) {
+    toast.info("No rows were added as the number to add was zero.");
+    return { defaultRowsAdded: 0 };
+  }
+
+  try {
+    const insertedCount = liveTableDoc.insertEmptyRows(
+      initialInsertIndex,
+      numRowsToAdd
+    );
+    if (insertedCount > 0) {
+      toast.success(`Successfully added ${insertedCount} empty row(s).`);
+    }
+    return { defaultRowsAdded: insertedCount };
+  } catch (error) {
+    toast.error("An error occurred while adding empty rows.");
+    throw error;
+  }
+}

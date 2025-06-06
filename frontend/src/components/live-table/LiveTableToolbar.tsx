@@ -44,6 +44,7 @@ import {
   useGenerateAndInsertColumns,
   useGenerateAndInsertRows,
   useInsertEmptyColumns,
+  useInsertEmptyRows,
   useIsCellLockedFn,
   useUndoManager,
 } from "@/stores/dataStore";
@@ -57,6 +58,8 @@ import LockButton from "./LockButton";
 type PendingOperation =
   | "add-row-above"
   | "add-row-below"
+  | "add-empty-row-above"
+  | "add-empty-row-below"
   | "add-column-left"
   | "add-empty-column-left"
   | "add-column-right"
@@ -69,7 +72,10 @@ const BUTTON_TYPES = {
   REDO: "redo",
   ADD_ROW_ABOVE: "add-row-above",
   ADD_ROW_BELOW: "add-row-below",
+  ADD_EMPTY_ROW_ABOVE: "add-empty-row-above",
+  ADD_EMPTY_ROW_BELOW: "add-empty-row-below",
   DELETE_ROWS: "delete-rows",
+  ADD_ROW_GROUP: "add-row-group",
   ADD_COLUMN_GROUP: "add-column-group",
   ADD_COL_LEFT: "add-column-left",
   ADD_EMPTY_COL_LEFT: "add-empty-column-left",
@@ -86,8 +92,7 @@ const BUTTON_ORDER = [
   BUTTON_TYPES.UNDO,
   BUTTON_TYPES.REDO,
   "separator-1",
-  BUTTON_TYPES.ADD_ROW_ABOVE,
-  BUTTON_TYPES.ADD_ROW_BELOW,
+  BUTTON_TYPES.ADD_ROW_GROUP,
   BUTTON_TYPES.DELETE_ROWS,
   "separator-2",
   BUTTON_TYPES.ADD_COLUMN_GROUP,
@@ -104,6 +109,7 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
   [BUTTON_TYPES.REDO]: 36,
   [BUTTON_TYPES.ADD_ROW_ABOVE]: 36,
   [BUTTON_TYPES.ADD_ROW_BELOW]: 36,
+  [BUTTON_TYPES.ADD_ROW_GROUP]: 120,
   [BUTTON_TYPES.DELETE_ROWS]: 52,
   [BUTTON_TYPES.ADD_COLUMN_GROUP]: 120,
   [BUTTON_TYPES.DELETE_COLS]: 64,
@@ -127,6 +133,7 @@ const LiveTableToolbar: React.FC = () => {
   const selectedCell = useSelectedCell();
   const selectedCells = useSelectedCells();
   const generateAndInsertRows = useGenerateAndInsertRows();
+  const insertEmptyRows = useInsertEmptyRows();
   const generateAndInsertColumns = useGenerateAndInsertColumns();
   const insertEmptyColumns = useInsertEmptyColumns();
 
@@ -274,6 +281,81 @@ const LiveTableToolbar: React.FC = () => {
       selectedCell,
       getSelectedRowIndices,
       generateAndInsertRows,
+    ]
+  );
+
+  const handleAddEmptyRowRelative = useCallback(
+    (direction: "above" | "below") => {
+      if (!isTableLoaded || isAnyOperationPending) return;
+      if (!headers || headers.length === 0) {
+        toast.info("Cannot add rows: No columns are defined yet.");
+        return;
+      }
+
+      let numRowsToAdd = 1;
+      let initialInsertIndex: number;
+
+      const currentIsTableEmptyOfRows = !tableData || tableData.length === 0;
+
+      if (!currentIsTableEmptyOfRows && selectedCell) {
+        const uniqueSelectedRowIndices = getSelectedRowIndices();
+        numRowsToAdd =
+          uniqueSelectedRowIndices.length > 0
+            ? uniqueSelectedRowIndices.length
+            : 1;
+
+        if (uniqueSelectedRowIndices.length > 0) {
+          const minSelectedRowIndex = uniqueSelectedRowIndices[0];
+          const maxSelectedRowIndex =
+            uniqueSelectedRowIndices[uniqueSelectedRowIndices.length - 1];
+          initialInsertIndex =
+            direction === "above"
+              ? minSelectedRowIndex
+              : maxSelectedRowIndex + 1;
+        } else {
+          initialInsertIndex =
+            direction === "above"
+              ? selectedCell.rowIndex
+              : selectedCell.rowIndex + 1;
+        }
+      } else if (currentIsTableEmptyOfRows) {
+        numRowsToAdd = 1;
+        initialInsertIndex = 0;
+      } else {
+        toast.info(
+          "Please select a cell to add rows relative to, or the table must be empty of rows."
+        );
+        return;
+      }
+
+      setPendingOperation(
+        direction === "above" ? "add-empty-row-above" : "add-empty-row-below"
+      );
+
+      startTransition(async () => {
+        try {
+          await insertEmptyRows(initialInsertIndex, numRowsToAdd);
+        } catch (error) {
+          console.error(
+            `Critical error in handleAddEmptyRowRelative transition:`,
+            error
+          );
+          toast.error(
+            "A critical error occurred while preparing to add empty rows. Please try again."
+          );
+        } finally {
+          setPendingOperation(null);
+        }
+      });
+    },
+    [
+      isTableLoaded,
+      isAnyOperationPending,
+      headers,
+      tableData,
+      selectedCell,
+      getSelectedRowIndices,
+      insertEmptyRows,
     ]
   );
 
@@ -537,6 +619,14 @@ const LiveTableToolbar: React.FC = () => {
     numSelectedRowsForLabel <= 1
       ? "Add Row Below"
       : `Add ${numSelectedRowsForLabel} Rows Below`;
+  const addEmptyRowAboveButtonLabel =
+    numSelectedRowsForLabel <= 1
+      ? "Add Empty Row Above"
+      : `Add ${numSelectedRowsForLabel} Empty Rows Above`;
+  const addEmptyRowBelowButtonLabel =
+    numSelectedRowsForLabel <= 1
+      ? "Add Empty Row Below"
+      : `Add ${numSelectedRowsForLabel} Empty Rows Below`;
   const deleteRowsButtonLabel =
     selectedRowIndices.length <= 1
       ? "Delete Row"
@@ -606,6 +696,14 @@ const LiveTableToolbar: React.FC = () => {
     isPending && pendingOperation === "add-column-right";
   const isAddEmptyColumnRightPending =
     isPending && pendingOperation === "add-empty-column-right";
+  const isAddRowAbovePending =
+    isPending && pendingOperation === "add-row-above";
+  const isAddEmptyRowAbovePending =
+    isPending && pendingOperation === "add-empty-row-above";
+  const isAddRowBelowPending =
+    isPending && pendingOperation === "add-row-below";
+  const isAddEmptyRowBelowPending =
+    isPending && pendingOperation === "add-empty-row-below";
 
   const buttonConfigs = useMemo(
     () => ({
@@ -622,26 +720,60 @@ const LiveTableToolbar: React.FC = () => {
         disabled: !canRedo || isAnyOperationPending,
       },
       [BUTTON_TYPES.ADD_ROW_ABOVE]: {
-        icon:
-          isPending && pendingOperation === "add-row-above" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ArrowUpFromLine className="h-4 w-4" />
-          ),
+        icon: isAddRowAbovePending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ArrowUpFromLine className="h-4 w-4" />
+        ),
         label: addRowAboveButtonLabel,
         onClick: () => handleAddRowRelative("above"),
-        disabled: !canAddRows,
+        disabled:
+          !canAddRows ||
+          isAddRowBelowPending ||
+          isAddEmptyRowBelowPending ||
+          isAddEmptyRowAbovePending,
+      },
+      [BUTTON_TYPES.ADD_EMPTY_ROW_ABOVE]: {
+        icon: isAddEmptyRowAbovePending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ArrowUpFromLine className="h-4 w-4" />
+        ),
+        label: addEmptyRowAboveButtonLabel,
+        onClick: () => handleAddEmptyRowRelative("above"),
+        disabled:
+          !canAddRows ||
+          isAddRowBelowPending ||
+          isAddEmptyRowBelowPending ||
+          isAddRowAbovePending,
       },
       [BUTTON_TYPES.ADD_ROW_BELOW]: {
-        icon:
-          isPending && pendingOperation === "add-row-below" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ArrowDownToLine className="h-4 w-4" />
-          ),
+        icon: isAddRowBelowPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ArrowDownToLine className="h-4 w-4" />
+        ),
         label: addRowBelowButtonLabel,
         onClick: () => handleAddRowRelative("below"),
-        disabled: !canAddRows,
+        disabled:
+          !canAddRows ||
+          isAddRowAbovePending ||
+          isAddEmptyRowAbovePending ||
+          isAddEmptyRowBelowPending,
+      },
+      [BUTTON_TYPES.ADD_EMPTY_ROW_BELOW]: {
+        icon: isAddEmptyRowBelowPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ArrowDownToLine className="h-4 w-4" />
+        ),
+        label: addEmptyRowBelowButtonLabel,
+        onClick: () => handleAddEmptyRowRelative("below"),
+        disabled:
+          !canAddRows ||
+          isAddRowAbovePending ||
+          isAddEmptyRowAbovePending ||
+          isAddRowBelowPending,
       },
       [BUTTON_TYPES.DELETE_ROWS]: {
         icon: (
@@ -751,9 +883,14 @@ const LiveTableToolbar: React.FC = () => {
       isAddEmptyColumnLeftPending,
       isAddColumnRightPending,
       isAddEmptyColumnRightPending,
+      isAddRowAbovePending,
+      isAddEmptyRowAbovePending,
+      isAddRowBelowPending,
+      isAddEmptyRowBelowPending,
       handleUndo,
       handleRedo,
       handleAddRowRelative,
+      handleAddEmptyRowRelative,
       handleDeleteRows,
       handleAddColumnRelative,
       handleAddEmptyColumn,
@@ -1097,12 +1234,162 @@ const LiveTableToolbar: React.FC = () => {
       }
     }
 
+    if (buttonId === BUTTON_TYPES.ADD_ROW_GROUP) {
+      const aiAboveConfig = buttonConfigs[BUTTON_TYPES.ADD_ROW_ABOVE];
+      const aiBelowConfig = buttonConfigs[BUTTON_TYPES.ADD_ROW_BELOW];
+      const emptyAboveConfig = buttonConfigs[BUTTON_TYPES.ADD_EMPTY_ROW_ABOVE];
+      const emptyBelowConfig = buttonConfigs[BUTTON_TYPES.ADD_EMPTY_ROW_BELOW];
+
+      if (
+        !aiAboveConfig ||
+        !aiBelowConfig ||
+        !emptyAboveConfig ||
+        !emptyBelowConfig
+      )
+        return null;
+
+      const anySubActionPending =
+        isPending &&
+        (pendingOperation === "add-row-above" ||
+          pendingOperation === "add-empty-row-above" ||
+          pendingOperation === "add-row-below" ||
+          pendingOperation === "add-empty-row-below");
+
+      if (isInDropdown) {
+        return (
+          <React.Fragment key={buttonId}>
+            <DropdownMenuItem
+              onClick={aiAboveConfig.onClick}
+              disabled={aiAboveConfig.disabled || anySubActionPending}
+            >
+              {aiAboveConfig.icon}{" "}
+              <span className="ml-2">{aiAboveConfig.label}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={aiBelowConfig.onClick}
+              disabled={aiBelowConfig.disabled || anySubActionPending}
+            >
+              {aiBelowConfig.icon}{" "}
+              <span className="ml-2">{aiBelowConfig.label}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={emptyAboveConfig.onClick}
+              disabled={emptyAboveConfig.disabled || anySubActionPending}
+            >
+              {emptyAboveConfig.icon}{" "}
+              <span className="ml-2">{emptyAboveConfig.label}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={emptyBelowConfig.onClick}
+              disabled={emptyBelowConfig.disabled || anySubActionPending}
+            >
+              {emptyBelowConfig.icon}{" "}
+              <span className="ml-2">{emptyBelowConfig.label}</span>
+            </DropdownMenuItem>
+          </React.Fragment>
+        );
+      } else {
+        return (
+          <ButtonGroup key={buttonId} orientation="horizontal">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label={aiAboveConfig.label}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    aiAboveConfig.onClick();
+                  }}
+                  disabled={
+                    aiAboveConfig.disabled ||
+                    isAddRowBelowPending ||
+                    isAddEmptyRowBelowPending ||
+                    isAddEmptyRowAbovePending
+                  }
+                  className="rounded-r-none"
+                >
+                  {aiAboveConfig.icon}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{aiAboveConfig.label}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label={aiBelowConfig.label}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    aiBelowConfig.onClick();
+                  }}
+                  disabled={
+                    aiBelowConfig.disabled ||
+                    isAddRowAbovePending ||
+                    isAddEmptyRowAbovePending ||
+                    isAddEmptyRowBelowPending
+                  }
+                  className="rounded-none border-l-0"
+                >
+                  {aiBelowConfig.icon}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{aiBelowConfig.label}</TooltipContent>
+            </Tooltip>
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label="More add row options"
+                      disabled={
+                        !canAddRows ||
+                        anySubActionPending ||
+                        isAddRowAbovePending ||
+                        isAddRowBelowPending
+                      }
+                      className="rounded-l-none border-l-0 px-2"
+                    >
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>More options</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" data-preserve-selection="true">
+                <DropdownMenuItem
+                  onClick={emptyAboveConfig.onClick}
+                  disabled={emptyAboveConfig.disabled || anySubActionPending}
+                >
+                  {emptyAboveConfig.icon}{" "}
+                  <span className="ml-2">{emptyAboveConfig.label}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={emptyBelowConfig.onClick}
+                  disabled={emptyBelowConfig.disabled || anySubActionPending}
+                >
+                  {emptyBelowConfig.icon}{" "}
+                  <span className="ml-2">{emptyBelowConfig.label}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ButtonGroup>
+        );
+      }
+    }
+
     const config = buttonConfigs[buttonId as keyof typeof buttonConfigs];
     if (!config) {
       if (
         !isInDropdown &&
         (buttonId === BUTTON_TYPES.ADD_COL_LEFT ||
-          buttonId === BUTTON_TYPES.ADD_COL_RIGHT)
+          buttonId === BUTTON_TYPES.ADD_COL_RIGHT ||
+          buttonId === BUTTON_TYPES.ADD_ROW_ABOVE ||
+          buttonId === BUTTON_TYPES.ADD_ROW_BELOW)
       ) {
         return null;
       }
