@@ -16,7 +16,6 @@ import {
   ColumnId,
   RowId,
 } from "@/components/live-table/LiveTableDoc";
-import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 import {
   useEditingCell,
   useHeaders,
@@ -29,7 +28,7 @@ import {
   useSelectionStart,
 } from "@/stores/selectionStore";
 
-import { TestDataStoreWrapper } from "./liveTableTestUtils";
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -46,16 +45,6 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   useSelectionEnd: vi.fn(),
   useIsSelecting: useIsSelectingMock,
 }));
-
-vi.mock(
-  "@/components/live-table/LiveTableProvider",
-  async (importOriginal) => ({
-    ...(await importOriginal<
-      typeof import("@/components/live-table/LiveTableProvider")
-    >()),
-    useLiveTable: vi.fn(),
-  })
-);
 
 describe("LiveTableDisplay - Drag Selection", () => {
   const initialHeaders = ["Name", "Age", "City"];
@@ -81,15 +70,6 @@ describe("LiveTableDisplay - Drag Selection", () => {
     vi.mocked(useTableData).mockImplementation(() =>
       Object.values(initialRowData)
     );
-
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
-      tableId: "test-table",
-      documentTitle: "Test Document",
-      documentDescription: "Test Description",
-      awarenessStates: new Map(),
-      cursorsData: [],
-      getCursorsForCell: vi.fn().mockReturnValue(undefined),
-    });
   });
 
   afterEach(() => {

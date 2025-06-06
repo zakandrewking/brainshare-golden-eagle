@@ -30,9 +30,6 @@ const TableCell: React.FC<TableCellProps> = ({
   header,
   value,
 }) => {
-  // bring this back later
-  // const { getCursorsForCell } = useLiveTable();
-
   const isCellLocked = useIsCellLocked(rowIndex, colIndex);
 
   const editingCell = useEditingCell();
@@ -51,6 +48,8 @@ const TableCell: React.FC<TableCellProps> = ({
   const isEditing =
     editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
 
+  // bring this back later
+  // const { getCursorsForCell } = useLiveTable();
   // // Get cursors for this cell (other users' selections)
   // const cursorsForCell = getCursorsForCell(rowIndex, colIndex);
   // const hasOtherUserCursors =

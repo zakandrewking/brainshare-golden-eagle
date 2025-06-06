@@ -5,7 +5,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import {
   useHeaders,
   useIsTableLoaded,
@@ -13,18 +12,7 @@ import {
   useTableData,
 } from "@/stores/dataStore";
 
-import {
-  getLiveTableMockValues,
-  TestDataStoreWrapper,
-} from "./liveTableTestUtils";
-
-vi.mock(
-  "@/components/live-table/LiveTableProvider",
-  async (importOriginal) => ({
-    ...(await importOriginal()),
-    useLiveTable: vi.fn(),
-  })
-);
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -120,12 +108,6 @@ describe("LiveTableDisplay - Column Reordering", () => {
     yDoc = new Y.Doc();
     liveTableDocInstance = new LiveTableDoc(yDoc);
 
-    const mockContext = getLiveTableMockValues({
-      liveTableDocInstance,
-      initialV1Headers: mockHeadersData,
-      initialV1TableData: mockTableRowsData,
-    });
-    vi.mocked(useLiveTable).mockReturnValue(mockContext);
     vi.mocked(useReorderColumn).mockReturnValue(mockReorderColumnFn);
     vi.mocked(useHeaders).mockReturnValue(mockHeadersData);
     vi.mocked(useTableData).mockReturnValue(mockTableRowsData);

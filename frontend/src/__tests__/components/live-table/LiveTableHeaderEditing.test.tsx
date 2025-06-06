@@ -19,7 +19,6 @@ import {
   type ColumnId,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import {
   useHandleHeaderBlur,
   useHandleHeaderChange,
@@ -30,15 +29,7 @@ import {
   useTableData,
 } from "@/stores/dataStore";
 
-import { TestDataStoreWrapper } from "./liveTableTestUtils";
-
-vi.mock(
-  "@/components/live-table/LiveTableProvider",
-  async (importOriginal) => ({
-    ...(await importOriginal()),
-    useLiveTable: vi.fn(),
-  })
-);
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -76,15 +67,6 @@ describe("LiveTableDisplay Header Editing", () => {
 
     useEditingHeaderValuePush("");
     useEditingHeaderIndexPush(null);
-
-    vi.mocked(useLiveTable).mockReturnValue({
-      tableId: "test-table-id",
-      documentTitle: "Test Doc Title",
-      documentDescription: "Test Doc Desc",
-      awarenessStates: new Map([[0, {}]]),
-      cursorsData: [],
-      getCursorsForCell: vi.fn(),
-    });
   });
 
   it("should enter edit mode on header double-click and display input", async () => {

@@ -11,7 +11,6 @@ import {
   type ColumnId,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
-import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 import {
   useEditingCell,
   useHandleCellBlur,
@@ -31,15 +30,7 @@ import {
   useSelectionStart,
 } from "@/stores/selectionStore";
 
-import { TestDataStoreWrapper } from "./liveTableTestUtils";
-
-vi.mock(
-  "@/components/live-table/LiveTableProvider",
-  async (importOriginal) => ({
-    ...(await importOriginal()),
-    useLiveTable: vi.fn(),
-  })
-);
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -81,15 +72,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useIsCellLockedFn).mockImplementation(() => () => false);
     vi.mocked(useHeaders).mockReturnValue(initialHeaders);
     vi.mocked(useTableData).mockReturnValue(Object.values(initialRowData));
-
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
-      documentDescription: "",
-      documentTitle: "",
-      tableId: "",
-      awarenessStates: new Map(),
-      cursorsData: [],
-      getCursorsForCell: vi.fn(),
-    });
 
     // Reset specific hook implementations for dataStore if they were changed in tests
     // This ensures a clean state for dataStore hooks that are commonly mocked per test.

@@ -5,6 +5,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
+  useDocumentDescription,
+  useDocumentTitle,
   useHandleCellChange,
   useHeaders,
   useTableData,
@@ -12,11 +14,11 @@ import {
 import { useSelectedCells } from "@/stores/selectionStore";
 
 import generateSelectedCellsSuggestions from "./actions/generateSelectedCellsSuggestions";
-import { useLiveTable } from "./LiveTableProvider";
 
 export function AiFillSelectionButton() {
   const [isLoading, setIsLoading] = useState(false);
-  const { documentTitle, documentDescription } = useLiveTable();
+  const documentTitle = useDocumentTitle();
+  const documentDescription = useDocumentDescription();
   const tableData = useTableData();
   const headers = useHeaders();
   const handleCellChange = useHandleCellChange();

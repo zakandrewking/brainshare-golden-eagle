@@ -7,18 +7,10 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import * as generateSelectedCellsSuggestionsModule from "@/components/live-table/actions/generateSelectedCellsSuggestions";
 import { AiFillSelectionButton } from "@/components/live-table/AiFillSelectionButton";
 import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
-import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 import * as DataStoreModule from "@/stores/dataStore";
 import * as SelectionStoreModule from "@/stores/selectionStore";
 
-import {
-  getLiveTableMockValues,
-  TestDataStoreWrapper,
-} from "./liveTableTestUtils";
-
-vi.mock("@/components/live-table/LiveTableProvider", () => ({
-  useLiveTable: vi.fn(),
-}));
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -26,6 +18,8 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
   useHandleCellChange: vi.fn(),
   useHeaders: vi.fn(),
   useTableData: vi.fn(),
+  useDocumentTitle: vi.fn(),
+  useDocumentDescription: vi.fn(),
 }));
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
@@ -89,23 +83,15 @@ describe("AiFillSelectionButton", () => {
 
     // table loaded
     vi.mocked(DataStoreModule.useIsTableLoaded).mockReturnValue(true);
+    vi.mocked(DataStoreModule.useDocumentTitle).mockReturnValue(
+      mockDocumentTitle
+    );
+    vi.mocked(DataStoreModule.useDocumentDescription).mockReturnValue(
+      mockDocumentDescription
+    );
 
     yDoc = new Y.Doc();
     liveTableDoc = new LiveTableDoc(yDoc);
-
-    const mockContext = getLiveTableMockValues({
-      liveTableDocInstance: liveTableDoc,
-      initialV1Headers: mockHeaders,
-      initialV1TableData: mockTableData,
-      documentTitle: mockDocumentTitle,
-      documentDescription: mockDocumentDescription,
-    });
-
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
-      ...mockContext,
-      documentTitle: mockDocumentTitle,
-      documentDescription: mockDocumentDescription,
-    } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
 
     vi.mocked(DataStoreModule.useHandleCellChange).mockReturnValue(
       mockHandleCellChange

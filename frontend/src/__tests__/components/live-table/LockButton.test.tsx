@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LockButton from "@/components/live-table/LockButton";
 import {
   useIsTableLoaded,
@@ -13,11 +12,6 @@ import {
   useUnlockAll,
 } from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
-
-// Mock the dependencies
-vi.mock("@/components/live-table/LiveTableProvider", () => ({
-  useLiveTable: vi.fn(),
-}));
 
 vi.mock("@/stores/selectionStore", () => ({
   useSelectedCells: vi.fn(),
@@ -41,11 +35,6 @@ describe("LockButton", () => {
 
     // table loaded
     vi.mocked(useIsTableLoaded).mockReturnValue(true);
-
-    // Mock useLiveTable with default values
-    vi.mocked(useLiveTable).mockReturnValue({
-      unlockAll: mockUnlockAll,
-    } as Partial<ReturnType<typeof useLiveTable>> as ReturnType<typeof useLiveTable>);
 
     // Mock useLockedCells with default empty set
     vi.mocked(useLockedCells).mockReturnValue(new Set());

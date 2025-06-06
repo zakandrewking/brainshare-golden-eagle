@@ -21,7 +21,6 @@ import {
   LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -32,7 +31,7 @@ import {
 } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
-import { TestDataStoreWrapper } from "./liveTableTestUtils";
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 vi.mock("react", async () => {
   const actualReact = await vi.importActual<typeof import("react")>("react");
@@ -69,14 +68,6 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
   useIsCellLockedFn: vi.fn(),
   useHeaders: vi.fn(),
 }));
-
-vi.mock(
-  "@/components/live-table/LiveTableProvider",
-  async (importOriginal) => ({
-    ...(await importOriginal()),
-    useLiveTable: vi.fn(),
-  })
-);
 
 vi.mock("lucide-react", async () => {
   const actual = await vi.importActual("lucide-react");
@@ -156,15 +147,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
     vi.mocked(useIsTableLoaded).mockReturnValue(true);
     vi.mocked(useHeaders).mockReturnValue(initialHeaders);
     vi.mocked(useIsCellLockedFn).mockReturnValue(() => false);
-
-    vi.mocked(useLiveTable).mockReturnValue({
-      documentTitle: "Test Doc Title",
-      documentDescription: "Test Doc Desc",
-      tableId: "test-table-id",
-      awarenessStates: new Map([[0, {}]]),
-      cursorsData: [],
-      getCursorsForCell: vi.fn(),
-    });
 
     const mockStartTransition = vi.fn((callback) => {
       if (callback) callback();

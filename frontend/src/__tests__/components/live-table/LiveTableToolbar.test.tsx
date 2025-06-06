@@ -5,7 +5,6 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import generateNewColumns from "@/components/live-table/actions/generateNewColumns";
 import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import {
   useHeaders,
@@ -15,18 +14,7 @@ import {
 } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
-import {
-  getLiveTableMockValues,
-  TestDataStoreWrapper,
-} from "./liveTableTestUtils";
-
-vi.mock(
-  "@/components/live-table/LiveTableProvider",
-  async (importOriginal) => ({
-    ...(await importOriginal<typeof importOriginal>()),
-    useLiveTable: vi.fn(),
-  })
-);
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 vi.mock("@/components/live-table/actions/generateNewColumns", () => ({
   default: vi.fn(),
@@ -75,9 +63,6 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     vi.useFakeTimers();
 
     vi.mocked(useIsTableLoaded).mockReturnValue(true);
-
-    const mockData = getLiveTableMockValues({});
-    vi.mocked(useLiveTable).mockReturnValue(mockData);
     vi.mocked(useIsCellLockedFn).mockReturnValue(() => false);
   });
 
@@ -190,10 +175,6 @@ describe("LiveTableToolbar - Add Column Buttons", () => {
     const testYDoc = new Y.Doc();
     const liveTableDoc = new LiveTableDoc(testYDoc);
 
-    const mockData = getLiveTableMockValues({
-      isTableLoaded: true,
-    });
-    vi.mocked(useLiveTable).mockReturnValue(mockData);
     vi.mocked(useSelectedCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
     vi.mocked(useSelectedCells).mockReturnValue([
       { rowIndex: 0, colIndex: 0 },
@@ -238,8 +219,6 @@ describe("LiveTableToolbar - Add Row Buttons", () => {
       { headerName: "Age", columnData: ["30"] },
     ]);
 
-    const mockData = getLiveTableMockValues({});
-    vi.mocked(useLiveTable).mockReturnValue(mockData);
     vi.mocked(useSelectedCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
     vi.mocked(useHeaders).mockReturnValue(["Name", "Age"]);

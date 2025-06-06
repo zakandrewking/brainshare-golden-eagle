@@ -20,7 +20,6 @@ import {
   LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -32,7 +31,7 @@ import {
 } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
-import { TestDataStoreWrapper } from "./liveTableTestUtils";
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 vi.mock("react", async () => {
   const actualReact = await vi.importActual<typeof import("react")>("react");
@@ -47,14 +46,6 @@ vi.mock("react", async () => {
     ]),
   };
 });
-
-vi.mock(
-  "@/components/live-table/LiveTableProvider",
-  async (importOriginal) => ({
-    ...(await importOriginal()),
-    useLiveTable: vi.fn(),
-  })
-);
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -214,15 +205,6 @@ describe("LiveTableToolbar - Delete Column", () => {
 
     mockDeleteColumns = vi.fn().mockResolvedValue({ deletedCount: 0 });
     vi.mocked(useDeleteColumns).mockReturnValue(mockDeleteColumns);
-
-    vi.mocked(useLiveTable).mockReturnValue({
-      documentTitle: "Test Doc Title",
-      documentDescription: "Test Doc Desc",
-      tableId: "test-table-id",
-      awarenessStates: new Map([[0, {}]]),
-      cursorsData: [],
-      getCursorsForCell: vi.fn(),
-    });
   });
 
   afterEach(() => {
@@ -233,8 +215,6 @@ describe("LiveTableToolbar - Delete Column", () => {
     const colIndexToDelete = 1; // Corresponds to "Header2" (colId2)
     const selectedCellForTest = { rowIndex: 0, colIndex: colIndexToDelete };
 
-    const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue(currentMockData);
     vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
     vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
 
@@ -278,10 +258,6 @@ describe("LiveTableToolbar - Delete Column", () => {
       colIndex,
     }));
 
-    const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue({
-      ...currentMockData,
-    });
     vi.mocked(useSelectedCell).mockReturnValue(selectedCellsForTest[0]);
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
 
@@ -317,10 +293,6 @@ describe("LiveTableToolbar - Delete Column", () => {
   });
 
   it("should not delete any column if no cell is selected and button should be disabled, with default aria-label", () => {
-    const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue({
-      ...currentMockData,
-    });
     vi.mocked(useSelectedCell).mockReturnValue(null);
     vi.mocked(useSelectedCells).mockReturnValue([]);
 
@@ -382,8 +354,6 @@ describe("LiveTableToolbar - Delete Column", () => {
     const mockIsCellLocked = (r: number, c: number) =>
       r === lockedCellPosition.rowIndex && c === lockedCellPosition.colIndex;
 
-    const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue(currentMockData);
     vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
     vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
     vi.mocked(useIsCellLockedFn).mockReturnValue(mockIsCellLocked);

@@ -5,15 +5,11 @@ import { UndoManager } from "yjs";
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsTableLoaded, useUndoManager } from "@/stores/dataStore";
 
-import {
-  getLiveTableMockValues,
-  TestDataStoreWrapper,
-} from "./liveTableTestUtils";
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 // Define a type for the mock UndoManager
 type MockUndoManagerType = {
@@ -25,10 +21,6 @@ type MockUndoManagerType = {
   redoStack: unknown[];
   stopCapturing: Mocked<() => void>;
 };
-
-vi.mock("@/components/live-table/LiveTableProvider", () => ({
-  useLiveTable: vi.fn(),
-}));
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -79,9 +71,6 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
     vi.mocked(useUndoManager).mockImplementation(
       () => mockUndoManagerInstance as UndoManager
     );
-
-    const mockData = getLiveTableMockValues({});
-    vi.mocked(useLiveTable).mockReturnValue(mockData);
   });
 
   const triggerUndoManagerEvent = (

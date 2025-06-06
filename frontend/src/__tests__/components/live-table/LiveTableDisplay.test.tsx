@@ -12,7 +12,6 @@ import {
   type ColumnId,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
-import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import {
   useHeaders,
   useIsCellLocked,
@@ -28,11 +27,7 @@ import {
   useSelectionStart,
 } from "@/stores/selectionStore";
 
-import { TestDataStoreWrapper } from "./liveTableTestUtils";
-
-vi.mock("@/components/live-table/LiveTableProvider", () => ({
-  useLiveTable: vi.fn(),
-}));
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 // Mock the dataStore
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
@@ -55,8 +50,6 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   useSelectionEnd: vi.fn(),
 }));
 
-const mockedUseLiveTable = vi.mocked(useLiveTable);
-
 describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
   const initialHeaders = ["Column 1"];
   const rowId1 = crypto.randomUUID() as RowId;
@@ -75,15 +68,6 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
     vi.mocked(useHeaders).mockReturnValue(initialHeaders);
     vi.mocked(useTableData).mockReturnValue(Object.values(initialRowData));
     vi.mocked(useSelectionStart).mockImplementation(() => vi.fn());
-
-    mockedUseLiveTable.mockReturnValue({
-      documentTitle: "",
-      documentDescription: "",
-      tableId: "",
-      awarenessStates: new Map(),
-      cursorsData: [],
-      getCursorsForCell: vi.fn(),
-    });
   });
 
   afterEach(() => {

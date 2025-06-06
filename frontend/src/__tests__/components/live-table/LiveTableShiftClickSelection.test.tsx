@@ -21,7 +21,6 @@ import {
   LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
-import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 import {
   useHeaders,
   useIsCellLocked,
@@ -35,15 +34,7 @@ import {
   useSelectionStart,
 } from "@/stores/selectionStore";
 
-import { TestDataStoreWrapper } from "./liveTableTestUtils";
-
-vi.mock(
-  "@/components/live-table/LiveTableProvider",
-  async (importOriginal) => ({
-    ...(await importOriginal()),
-    useLiveTable: vi.fn(),
-  })
-);
+import { TestDataStoreWrapper } from "./data-store-test-utils";
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -117,15 +108,6 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
       });
       liveTableDocInstance.yRowOrder.push(initialRowOrder);
       liveTableDocInstance.yMeta.set("schemaVersion", 2);
-    });
-
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
-      tableId: "test-table-id",
-      documentTitle: "Test Doc Title",
-      documentDescription: "Test Doc Desc",
-      awarenessStates: new Map([[0, {}]]),
-      cursorsData: [],
-      getCursorsForCell: vi.fn(),
     });
   });
 

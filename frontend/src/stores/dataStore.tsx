@@ -32,6 +32,10 @@ enableMapSet();
 // -----
 
 interface DataState {
+  // document info
+  documentTitle: string;
+  documentDescription: string;
+
   // editing
   editingHeaderIndex: number | null;
   editingHeaderValue: string;
@@ -103,6 +107,8 @@ export type DataStore = DataState & DataActions;
 const DataStoreContext = createContext<StoreApi<DataStore> | null>(null);
 
 const initialState: DataState = {
+  documentTitle: "",
+  documentDescription: "",
   lockedCells: new Set<string>(),
   editingHeaderIndex: null,
   editingHeaderValue: "",
@@ -365,6 +371,14 @@ export const DataStoreProvider = ({
     };
   }, [liveTableDoc, yProvider, store]);
 
+  // TODO sync these with SWR instead of doing it like this
+  useEffect(() => {
+    store.setState({
+      documentTitle,
+      documentDescription,
+    });
+  }, [documentTitle, documentDescription, store]);
+
   return (
     <DataStoreContext.Provider value={store}>
       {children}
@@ -385,6 +399,12 @@ function useDataStore<T>(selector?: (state: DataStore) => T) {
   }
   return useStore(store, selector!);
 }
+
+// document info
+export const useDocumentTitle = () =>
+  useDataStore((state) => state.documentTitle);
+export const useDocumentDescription = () =>
+  useDataStore((state) => state.documentDescription);
 
 export const useHandleCellFocus = () =>
   useDataStore((state) => state.handleCellFocus);
