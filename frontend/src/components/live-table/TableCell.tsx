@@ -17,8 +17,6 @@ import {
   useSelectIsCellSelected,
 } from "@/stores/selectionStore";
 
-import { useLiveTable } from "./LiveTableProvider";
-
 interface TableCellProps {
   rowIndex: number;
   colIndex: number;
@@ -32,7 +30,8 @@ const TableCell: React.FC<TableCellProps> = ({
   header,
   value,
 }) => {
-  const { getCursorsForCell } = useLiveTable();
+  // bring this back later
+  // const { getCursorsForCell } = useLiveTable();
 
   const isCellLocked = useIsCellLocked(rowIndex, colIndex);
 
@@ -52,10 +51,10 @@ const TableCell: React.FC<TableCellProps> = ({
   const isEditing =
     editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
 
-  // Get cursors for this cell (other users' selections)
-  const cursorsForCell = getCursorsForCell(rowIndex, colIndex);
-  const hasOtherUserCursors =
-    cursorsForCell && cursorsForCell.cursors.length > 0;
+  // // Get cursors for this cell (other users' selections)
+  // const cursorsForCell = getCursorsForCell(rowIndex, colIndex);
+  // const hasOtherUserCursors =
+  //   cursorsForCell && cursorsForCell.cursors.length > 0;
 
   // Determine border color based on selection/cursors
   let borderColor = "transparent";
@@ -67,11 +66,11 @@ const TableCell: React.FC<TableCellProps> = ({
   } else if (isInSelection) {
     borderColor = "rgba(59, 130, 246, 0.5)";
     borderWidth = "1px";
-  } else if (hasOtherUserCursors) {
-    // Use the first user's color for the border
-    const firstUserColor = cursorsForCell.cursors[0]?.user?.color ?? "gray";
-    borderColor = firstUserColor;
-    borderWidth = "2px";
+    // } else if (hasOtherUserCursors) {
+    //   // Use the first user's color for the border
+    //   const firstUserColor = cursorsForCell.cursors[0]?.user?.color ?? "gray";
+    //   borderColor = firstUserColor;
+    //   borderWidth = "2px";
   }
 
   const handleCellMouseDown = useCallback(
@@ -154,9 +153,9 @@ const TableCell: React.FC<TableCellProps> = ({
           ? "rgba(255, 255, 200, 0.2)"
           : isInSelection
           ? "rgba(59, 130, 246, 0.1)"
-          : hasOtherUserCursors
-          ? `${cursorsForCell.cursors[0]?.user?.color}20` // 20 for low opacity
-          : undefined,
+          : // : hasOtherUserCursors
+            // ? `${cursorsForCell.cursors[0]?.user?.color}20` // 20 for low opacity
+            undefined,
       }}
       onMouseDown={handleCellMouseDown}
       onDoubleClick={handleCellDoubleClick}
