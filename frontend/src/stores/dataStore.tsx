@@ -32,22 +32,23 @@ enableMapSet();
 // -----
 
 interface DataState {
-  lockedCells: Set<string>;
   editingHeaderIndex: number | null;
   editingHeaderValue: string;
   editingCell: { rowIndex: number; colIndex: number } | null;
+
+  // column widths
+  columnWidths: Record<string, number> | undefined;
+
+  // locked cells
+  lockedCells: Set<string>;
 }
 
 interface DataActions {
-  lockSelectedRange: (selectedCells: CellPosition[]) => string | null;
-  unlockRange: (lockId: string) => boolean;
-  unlockAll: () => void;
   handleCellFocus: (rowIndex: number, colIndex: number) => void;
   handleCellBlur: () => void;
   handleHeaderDoubleClick: (colIndex: number, currentHeaders: string[]) => void;
   handleHeaderChange: (value: string) => void;
   handleHeaderBlur: () => void;
-  handleColumnResize: (header: string, newWidth: number) => void;
   handleCellChange: (
     rowIndex: number,
     header: string,
@@ -77,6 +78,14 @@ interface DataActions {
   ) => Promise<{ count: number }>;
   reorderColumn: (fromIndex: number, toIndex: number) => void;
   deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
+
+  // column widths
+  handleColumnResize: (header: string, newWidth: number) => void;
+
+  // locked cells
+  lockSelectedRange: (selectedCells: CellPosition[]) => string | null;
+  unlockRange: (lockId: string) => boolean;
+  unlockAll: () => void;
 }
 
 export type DataStore = DataState & DataActions;
@@ -92,6 +101,7 @@ const initialState: DataState = {
   editingHeaderIndex: null,
   editingHeaderValue: "",
   editingCell: null,
+  columnWidths: undefined,
 };
 
 /**
@@ -222,9 +232,6 @@ export const DataStoreProvider = ({
           set((state) => {
             state.editingHeaderIndex = null;
           });
-        },
-        handleColumnResize: (header: string, newWidth: number) => {
-          liveTableDoc.updateColumnWidth(header, newWidth);
         },
         handleCellChange: (
           rowIndex: number,
@@ -373,15 +380,38 @@ export const DataStoreProvider = ({
           }
           return deleteColumns(colIndices, liveTableDoc);
         },
+
+        handleColumnResize: (header: string, newWidth: number) => {
+          liveTableDoc.updateColumnWidth(header, newWidth);
+        },
       }))
     )
   );
 
   useEffect(() => {
-    // wire up callbacks
-    liveTableDoc.lockedCellsUpdateCallback = (lockedCells: Set<string>) =>
+    const handleLockedCellsUpdate = (lockedCells: Set<string>) => {
       store.setState({ lockedCells });
+    };
+
+    liveTableDoc.lockedCellsUpdateCallback = handleLockedCellsUpdate;
     liveTableDoc.updateLockedCellsState();
+
+    return () => {
+      liveTableDoc.lockedCellsUpdateCallback = undefined;
+    };
+  }, [liveTableDoc, store]);
+
+  useEffect(() => {
+    const handleColumnWidthsUpdate = (widths: Record<string, number>) => {
+      store.setState({ columnWidths: widths });
+    };
+
+    liveTableDoc.columnWidthsUpdateCallback = handleColumnWidthsUpdate;
+    liveTableDoc.updateColWidthsState();
+
+    return () => {
+      liveTableDoc.columnWidthsUpdateCallback = undefined;
+    };
   }, [liveTableDoc, store]);
 
   return (
@@ -391,7 +421,10 @@ export const DataStoreProvider = ({
   );
 };
 
-// hooks
+// -----
+// Hooks
+// -----
+
 function useDataStore(): DataStore;
 function useDataStore<T>(selector: (state: DataStore) => T): T;
 function useDataStore<T>(selector?: (state: DataStore) => T) {
@@ -414,8 +447,6 @@ export const useHandleHeaderChange = () =>
   useDataStore((state) => state.handleHeaderChange);
 export const useHandleHeaderBlur = () =>
   useDataStore((state) => state.handleHeaderBlur);
-export const useHandleColumnResize = () =>
-  useDataStore((state) => state.handleColumnResize);
 export const useEditingHeaderIndex = () =>
   useDataStore((state) => state.editingHeaderIndex);
 export const useEditingHeaderValue = () =>
@@ -442,6 +473,12 @@ export const useInsertEmptyColumns = () =>
   useDataStore((state) => state.insertEmptyColumns);
 export const useReorderColumn = () =>
   useDataStore((state) => state.reorderColumn);
+
+// column widths
+export const useColumnWidths = () =>
+  useDataStore((state) => state.columnWidths);
+export const useHandleColumnResize = () =>
+  useDataStore((state) => state.handleColumnResize);
 
 // locked cells
 export const useLockedCells = () => useDataStore((state) => state.lockedCells);

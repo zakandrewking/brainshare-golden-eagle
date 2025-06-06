@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
+  useColumnWidths,
   useEditingCell,
   useEditingHeaderIndex,
   useEditingHeaderValue,
@@ -55,7 +56,8 @@ const MIN_COL_WIDTH = 50;
 const ROW_NUMBER_COL_WIDTH = 50;
 
 const LiveTable: React.FC = () => {
-  const { isTableLoaded, tableData, headers, columnWidths } = useLiveTable();
+  const { isTableLoaded, tableData, headers } = useLiveTable();
+  const columnWidths = useColumnWidths();
 
   const handleCellFocus = useHandleCellFocus();
   const handleCellChange = useHandleCellChange();

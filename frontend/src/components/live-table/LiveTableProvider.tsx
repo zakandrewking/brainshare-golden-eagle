@@ -40,7 +40,6 @@ export interface LiveTableContextType {
   documentDescription: string;
   tableData: Record<string, unknown>[] | undefined;
   headers: string[] | undefined;
-  columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
   // awareness
   awarenessStates: Map<number, AwarenessState | null> | undefined;
@@ -84,9 +83,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     Record<string, unknown>[] | undefined
   >(undefined);
   const [headers, setHeaders] = useState<string[] | undefined>(undefined);
-  const [columnWidths, setColumnWidths] = useState<
-    Record<string, number> | undefined
-  >(undefined);
   const [isTableLoaded, setIsTableLoaded] = useState<boolean>(false);
 
   // Awareness state
@@ -105,7 +101,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   );
   liveTableDoc.tableDataUpdateCallback = setTableData;
   liveTableDoc.headersUpdateCallback = setHeaders;
-  liveTableDoc.columnWidthsUpdateCallback = setColumnWidths;
   liveTableDoc.awarenessStatesUpdateCallback = setAwarenessStates;
   liveTableDoc.cursorsDataUpdateCallback = setCursorsData;
 
@@ -188,7 +183,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         documentDescription,
         tableData,
         headers,
-        columnWidths,
         isTableLoaded,
         awarenessStates,
         cursorsData,
