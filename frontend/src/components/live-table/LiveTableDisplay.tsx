@@ -25,6 +25,7 @@ import {
   useHandleHeaderDoubleClick,
   useHeaders,
   useIsCellLockedFn,
+  useIsTableLoaded,
   useReorderColumn,
   useSetEditingCell,
   useSetEditingHeaderIndex,
@@ -40,7 +41,6 @@ import {
 } from "@/stores/selectionStore";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
-import { useLiveTable } from "./LiveTableProvider";
 import TableCell from "./TableCell";
 
 export interface CursorInfo {
@@ -58,7 +58,7 @@ const MIN_COL_WIDTH = 50;
 const ROW_NUMBER_COL_WIDTH = 50;
 
 const LiveTable: React.FC = () => {
-  const { isTableLoaded } = useLiveTable();
+  const isTableLoaded = useIsTableLoaded();
   const tableData = useTableData();
   const headers = useHeaders();
   const columnWidths = useColumnWidths();

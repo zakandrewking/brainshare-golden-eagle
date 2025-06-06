@@ -125,7 +125,6 @@ export const getLiveTableMockValues = (
     ReturnType<typeof LiveTableProvider.useLiveTable>,
     "headers" | "tableData"
   > = {
-    isTableLoaded: true,
     tableId: "test-table",
     documentTitle: "Test Document",
     documentDescription: "Test Description",
@@ -168,6 +167,7 @@ export const TestDataStoreWrapper: React.FC<{
         off: vi.fn(),
       },
       getYDoc: vi.fn(() => defaultDoc.yDoc),
+      once: vi.fn(),
     }),
     [defaultDoc]
   );

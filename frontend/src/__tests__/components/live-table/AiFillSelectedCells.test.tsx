@@ -20,15 +20,13 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
 }));
 
-vi.mock("@/stores/dataStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/stores/dataStore")>();
-  return {
-    ...actual,
-    useHandleCellChange: vi.fn(),
-    useHeaders: vi.fn(),
-    useTableData: vi.fn(),
-  };
-});
+vi.mock("@/stores/dataStore", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useIsTableLoaded: vi.fn(),
+  useHandleCellChange: vi.fn(),
+  useHeaders: vi.fn(),
+  useTableData: vi.fn(),
+}));
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
@@ -87,7 +85,10 @@ describe("AiFillSelectionButton", () => {
   let liveTableDoc: LiveTableDoc;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+
+    // table loaded
+    vi.mocked(DataStoreModule.useIsTableLoaded).mockReturnValue(true);
 
     yDoc = new Y.Doc();
     liveTableDoc = new LiveTableDoc(yDoc);

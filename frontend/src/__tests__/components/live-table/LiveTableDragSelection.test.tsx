@@ -2,22 +2,9 @@
  * Example of a simple test setup, including manual push for a hook.
  */
 
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
-import * as Y from "yjs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import {
   useIsSelectingMock,
@@ -26,28 +13,30 @@ import {
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import {
   CellValue,
-  ColumnDefinition,
   ColumnId,
-  LiveTableDoc,
   RowId,
 } from "@/components/live-table/LiveTableDoc";
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
-import { useEditingCell } from "@/stores/dataStore";
+import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
+import {
+  useEditingCell,
+  useHeaders,
+  useIsTableLoaded,
+  useTableData,
+} from "@/stores/dataStore";
 import {
   useSelectionEnd,
   useSelectionMove,
   useSelectionStart,
 } from "@/stores/selectionStore";
 
-import {
-  getLiveTableMockValues,
-  TestDataStoreWrapper,
-} from "./liveTableTestUtils";
+import { TestDataStoreWrapper } from "./liveTableTestUtils";
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/stores/dataStore")>()),
-  useEditingCell: vi.fn(() => null),
+  ...(await importOriginal()),
+  useIsTableLoaded: vi.fn(),
+  useEditingCell: vi.fn(),
+  useHeaders: vi.fn(),
+  useTableData: vi.fn(),
 }));
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
@@ -69,81 +58,49 @@ vi.mock(
 );
 
 describe("LiveTableDisplay - Drag Selection", () => {
-  const colId1 = crypto.randomUUID() as ColumnId;
-  const colId2 = crypto.randomUUID() as ColumnId;
-  const colId3 = crypto.randomUUID() as ColumnId;
-
-  const initialColumnDefinitions: ColumnDefinition[] = [
-    { id: colId1, name: "Column1", width: 150 },
-    { id: colId2, name: "Column2", width: 150 },
-    { id: colId3, name: "Column3", width: 150 },
-  ];
-  const initialColumnOrder: ColumnId[] = [colId1, colId2, colId3];
+  const initialHeaders = ["Name", "Age", "City"];
 
   const rowId1 = crypto.randomUUID() as RowId;
   const rowId2 = crypto.randomUUID() as RowId;
   const rowId3 = crypto.randomUUID() as RowId;
-  const initialRowOrder: RowId[] = [rowId1, rowId2, rowId3];
 
   const initialRowData: Record<RowId, Record<ColumnId, CellValue>> = {
-    [rowId1]: { [colId1]: "A1", [colId2]: "B1", [colId3]: "C1" },
-    [rowId2]: { [colId1]: "A2", [colId2]: "B2", [colId3]: "C2" },
-    [rowId3]: { [colId1]: "A3", [colId2]: "B3", [colId3]: "C3" },
+    [rowId1]: { Name: "Alice", Age: "30", City: "New York" },
+    [rowId2]: { Name: "Bob", Age: "24", City: "Los Angeles" },
+    [rowId3]: { Name: "Charlie", Age: "35", City: "Chicago" },
   };
-
-  let yDoc: Y.Doc;
-  let liveTableDocInstance: LiveTableDoc;
 
   beforeEach(() => {
     vi.resetAllMocks();
     vi.useFakeTimers();
 
-    yDoc = new Y.Doc();
-    liveTableDocInstance = new LiveTableDoc(yDoc);
+    // table loaded
+    vi.mocked(useIsTableLoaded).mockImplementation(() => true);
+    vi.mocked(useEditingCell).mockImplementation(() => null);
+    vi.mocked(useHeaders).mockImplementation(() => initialHeaders);
+    vi.mocked(useTableData).mockImplementation(() =>
+      Object.values(initialRowData)
+    );
 
-    // Manually populate V2 data
-    yDoc.transact(() => {
-      initialColumnDefinitions.forEach((def) =>
-        liveTableDocInstance.yColumnDefinitions.set(def.id, def)
-      );
-      liveTableDocInstance.yColumnOrder.push(initialColumnOrder);
-      initialRowOrder.forEach((rId) => {
-        const rData = initialRowData[rId];
-        const yRowMap = new Y.Map<CellValue>();
-        initialColumnOrder.forEach((cId) => {
-          if (rData[cId] !== undefined) yRowMap.set(cId, rData[cId]);
-        });
-        liveTableDocInstance.yRowData.set(rId, yRowMap);
-      });
-      liveTableDocInstance.yRowOrder.push(initialRowOrder);
-      liveTableDocInstance.yMeta.set("schemaVersion", 2);
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
+      tableId: "test-table",
+      documentTitle: "Test Document",
+      documentDescription: "Test Description",
+      awarenessStates: new Map(),
+      cursorsData: [],
+      getCursorsForCell: vi.fn().mockReturnValue(undefined),
     });
-
-    const baseLiveTableContext = getLiveTableMockValues({
-      liveTableDocInstance,
-      initialColumnDefinitions,
-      initialColumnOrder,
-      initialRowOrder,
-      initialRowData,
-    });
-
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockImplementation(() => ({
-      ...(baseLiveTableContext as ReturnType<
-        typeof LiveTableProviderModule.useLiveTable
-      >),
-    }));
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    yDoc.destroy();
   });
 
   it("should start selection when mousedown on a cell (not in edit mode)", () => {
     const mockSelectionStart = vi.fn();
     vi.mocked(useSelectionStart).mockImplementation(() => mockSelectionStart);
     render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -160,7 +117,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     const mockSelectionStart = vi.fn();
     vi.mocked(useSelectionStart).mockImplementation(() => mockSelectionStart);
     render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -177,7 +134,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
       () => mockHandleSelectionMove
     );
     const { rerender } = render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -194,7 +151,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     // Explicitly rerender after mousedown state change
     act(() => {
       rerender(
-        <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <TestDataStoreWrapper>
           <LiveTableDisplay />
         </TestDataStoreWrapper>
       );
@@ -229,7 +186,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     vi.mocked(useSelectionEnd).mockImplementation(() => mockSelectionEnd);
 
     render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );

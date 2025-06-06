@@ -1,21 +1,9 @@
 import React from "react";
 
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import {
   useIsSelectingMock,
@@ -33,8 +21,13 @@ import {
   LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
+import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
+import {
+  useHeaders,
+  useIsCellLocked,
+  useIsTableLoaded,
+  useTableData,
+} from "@/stores/dataStore";
 import {
   useSelectedCells,
   useSelectionEnd,
@@ -42,10 +35,7 @@ import {
   useSelectionStart,
 } from "@/stores/selectionStore";
 
-import {
-  getLiveTableMockValues,
-  TestDataStoreWrapper,
-} from "./liveTableTestUtils";
+import { TestDataStoreWrapper } from "./liveTableTestUtils";
 
 vi.mock(
   "@/components/live-table/LiveTableProvider",
@@ -57,7 +47,10 @@ vi.mock(
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
-  useIsCellLocked: () => vi.fn(() => false),
+  useIsTableLoaded: vi.fn(),
+  useIsCellLocked: vi.fn(),
+  useHeaders: vi.fn(),
+  useTableData: vi.fn(),
 }));
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
@@ -79,6 +72,7 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     { id: colId1, name: "Col1", width: 150 },
     { id: colId2, name: "Col2", width: 150 },
   ];
+  const initialHeaders = [colId1, colId2];
   const initialColumnOrder: ColumnId[] = [colId1, colId2];
 
   const rowId1 = crypto.randomUUID() as RowId;
@@ -94,6 +88,11 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+
+    vi.mocked(useIsTableLoaded).mockReturnValue(true);
+    vi.mocked(useIsCellLocked).mockReturnValue(false);
+    vi.mocked(useHeaders).mockReturnValue(initialHeaders);
+    vi.mocked(useTableData).mockReturnValue(Object.values(initialRowData));
 
     // reset the selected cell
     await act(async () => {
@@ -120,15 +119,14 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
       liveTableDocInstance.yMeta.set("schemaVersion", 2);
     });
 
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue(
-      getLiveTableMockValues({
-        liveTableDocInstance,
-        initialColumnDefinitions,
-        initialColumnOrder,
-        initialRowOrder,
-        initialRowData,
-      })
-    );
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
+      tableId: "test-table-id",
+      documentTitle: "Test Doc Title",
+      documentDescription: "Test Doc Desc",
+      awarenessStates: new Map([[0, {}]]),
+      cursorsData: [],
+      getCursorsForCell: vi.fn(),
+    });
   });
 
   afterEach(() => {

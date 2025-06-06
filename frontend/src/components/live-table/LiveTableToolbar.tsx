@@ -49,13 +49,13 @@ import {
   useInsertEmptyColumns,
   useInsertEmptyRows,
   useIsCellLockedFn,
+  useIsTableLoaded,
   useTableData,
   useUndoManager,
 } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
-import { useLiveTable } from "./LiveTableProvider";
 import LockButton from "./LockButton";
 
 // Define the possible pending operations
@@ -129,7 +129,7 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
 };
 
 const LiveTableToolbar: React.FC = () => {
-  const { isTableLoaded } = useLiveTable();
+  const isTableLoaded = useIsTableLoaded();
   const headers = useHeaders();
   const tableData = useTableData();
 
@@ -868,41 +868,41 @@ const LiveTableToolbar: React.FC = () => {
       },
     }),
     [
+      handleUndo,
       canUndo,
-      canRedo,
       isAnyOperationPending,
-      isPending,
-      pendingOperation,
+      handleRedo,
+      canRedo,
+      isAddRowAbovePending,
       addRowAboveButtonLabel,
+      canAddRows,
+      isAddRowBelowPending,
+      isAddEmptyRowBelowPending,
+      isAddEmptyRowAbovePending,
+      addEmptyRowAboveButtonLabel,
       addRowBelowButtonLabel,
+      addEmptyRowBelowButtonLabel,
       deleteRowsButtonLabel,
+      handleDeleteRows,
+      canDeleteRow,
+      isAddColumnLeftPending,
       addColLeftButtonLabel,
+      canAddColumns,
+      isAddColumnRightPending,
+      isAddEmptyColumnRightPending,
+      isAddEmptyColumnLeftPending,
       addEmptyColLeftButtonLabel,
       addColRightButtonLabel,
       addEmptyColRightButtonLabel,
       deleteColButtonLabel,
-      canAddRows,
-      canAddColumns,
-      canDeleteRow,
+      handleDeleteColumns,
       canDeleteColumn,
+      handleDownloadCsv,
       canDownload,
-      isAddColumnLeftPending,
-      isAddEmptyColumnLeftPending,
-      isAddColumnRightPending,
-      isAddEmptyColumnRightPending,
-      isAddRowAbovePending,
-      isAddEmptyRowAbovePending,
-      isAddRowBelowPending,
-      isAddEmptyRowBelowPending,
-      handleUndo,
-      handleRedo,
       handleAddRowRelative,
       handleAddEmptyRowRelative,
-      handleDeleteRows,
       handleAddColumnRelative,
       handleAddEmptyColumn,
-      handleDeleteColumns,
-      handleDownloadCsv,
     ]
   );
 

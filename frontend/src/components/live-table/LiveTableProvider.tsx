@@ -38,7 +38,6 @@ export interface LiveTableContextType {
   tableId: string;
   documentTitle: string;
   documentDescription: string;
-  isTableLoaded: boolean;
   // awareness
   awarenessStates: Map<number, AwarenessState | null> | undefined;
   cursorsData: CursorDataForCell[] | undefined;
@@ -67,18 +66,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   documentTitle,
   documentDescription,
 }) => {
-  // yTable & friends are not going to reactively update, so we need to observe
-  // changes to them and create react state that will reactively update UI.
-  // Downstream components should read table, headers, and colWidths for most
-  // uses cases.
-
-  // TODO table/setTable is keyed by Column ID, a unique, non-meaningful identifier for each
-  // column.
-  // TODO headers/setHeaders is a map of Column ID to human-readable header name.
-  // TODO colWidths/setColumnWidths is keyed by Column ID
-
-  const [isTableLoaded, setIsTableLoaded] = useState<boolean>(false);
-
   // Awareness state
   const [awarenessStates, setAwarenessStates] = useState<
     Map<number, AwarenessState | null> | undefined
@@ -152,21 +139,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     [cursorsData]
   );
 
-  // wire up yjs observers
-  useEffect(() => {
-    let synced = false;
-    yProvider.once("synced", () => {
-      liveTableDoc.initializeObservers();
-      setIsTableLoaded(true);
-      synced = true;
-    });
-    return () => {
-      if (synced) {
-        liveTableDoc.cleanupObservers();
-      }
-    };
-  }, [liveTableDoc, yProvider]);
-
   return (
     <DataStoreProvider
       liveTableDoc={liveTableDoc}
@@ -179,7 +151,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
           tableId,
           documentTitle,
           documentDescription,
-          isTableLoaded,
           awarenessStates,
           cursorsData,
           getCursorsForCell,

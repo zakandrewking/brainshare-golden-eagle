@@ -10,6 +10,7 @@ import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import {
   useHeaders,
   useIsCellLockedFn,
+  useIsTableLoaded,
   useTableData,
 } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
@@ -53,27 +54,27 @@ const mockUndoManager = {
   stopCapturing: vi.fn(),
 };
 
-vi.mock("@/stores/dataStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof importOriginal>();
-  return {
-    ...actual,
-    useHeaders: vi.fn(),
-    useTableData: vi.fn(),
-    useIsCellLockedFn: vi.fn(),
-    useGenerateAndInsertRows: vi.fn(() => mockGenerateAndInsertRows),
-    useGenerateAndInsertColumns: vi.fn(() => mockGenerateAndInsertColumns),
-    useInsertEmptyColumns: vi.fn(() => mockInsertEmptyColumns),
-    useInsertEmptyRows: vi.fn(() => mockInsertEmptyRows),
-    useDeleteRows: vi.fn(() => mockDeleteRows),
-    useDeleteColumns: vi.fn(() => mockDeleteColumns),
-    useUndoManager: vi.fn(() => mockUndoManager),
-  };
-});
+vi.mock("@/stores/dataStore", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useIsTableLoaded: vi.fn(),
+  useHeaders: vi.fn(),
+  useTableData: vi.fn(),
+  useIsCellLockedFn: vi.fn(),
+  useGenerateAndInsertRows: vi.fn(() => mockGenerateAndInsertRows),
+  useGenerateAndInsertColumns: vi.fn(() => mockGenerateAndInsertColumns),
+  useInsertEmptyColumns: vi.fn(() => mockInsertEmptyColumns),
+  useInsertEmptyRows: vi.fn(() => mockInsertEmptyRows),
+  useDeleteRows: vi.fn(() => mockDeleteRows),
+  useDeleteColumns: vi.fn(() => mockDeleteColumns),
+  useUndoManager: vi.fn(() => mockUndoManager),
+}));
 
 describe("LiveTableToolbar - Add Column Buttons", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.useFakeTimers();
+
+    vi.mocked(useIsTableLoaded).mockReturnValue(true);
 
     const mockData = getLiveTableMockValues({});
     vi.mocked(useLiveTable).mockReturnValue(mockData);

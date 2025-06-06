@@ -1,26 +1,14 @@
 import React from "react";
 
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  type Mocked,
-  vi,
-} from "vitest";
+import { beforeEach, describe, expect, it, type Mocked, vi } from "vitest";
 import { UndoManager } from "yjs";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useUndoManager } from "@/stores/dataStore";
+import { useIsTableLoaded, useUndoManager } from "@/stores/dataStore";
 
 import {
   getLiveTableMockValues,
@@ -44,6 +32,7 @@ vi.mock("@/components/live-table/LiveTableProvider", () => ({
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
+  useIsTableLoaded: vi.fn(),
   useLockedCells: () => new Set(),
   useLockSelectedRange: () => vi.fn(),
   useUnlockAll: () => vi.fn(),
@@ -63,6 +52,9 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+
+    // table loaded
+    vi.mocked(useIsTableLoaded).mockReturnValue(true);
 
     // Mock ResizeObserver properly
     Object.defineProperty(global, "ResizeObserver", {
@@ -88,9 +80,7 @@ describe("LiveTableToolbar - Undo/Redo Functionality", () => {
       () => mockUndoManagerInstance as UndoManager
     );
 
-    const mockData = getLiveTableMockValues({
-      isTableLoaded: true,
-    });
+    const mockData = getLiveTableMockValues({});
     vi.mocked(useLiveTable).mockReturnValue(mockData);
   });
 

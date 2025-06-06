@@ -32,17 +32,21 @@ enableMapSet();
 // -----
 
 interface DataState {
+  // editing
   editingHeaderIndex: number | null;
   editingHeaderValue: string;
   editingCell: { rowIndex: number; colIndex: number } | null;
-  headers: string[];
-  tableData: Record<string, unknown>[];
 
   // column widths
   columnWidths: Record<string, number> | undefined;
 
   // locked cells
   lockedCells: Set<string>;
+
+  // table data
+  tableData: Record<string, unknown>[];
+  headers: string[];
+  isTableLoaded: boolean;
 }
 
 interface DataActions {
@@ -105,6 +109,7 @@ const initialState: DataState = {
   editingCell: null,
   headers: [],
   tableData: [],
+  isTableLoaded: false,
   columnWidths: undefined,
 };
 
@@ -317,10 +322,14 @@ export const DataStoreProvider = ({
     )
   );
 
+  // wire up yjs
   useEffect(() => {
+    let synced = false;
     const handleHeadersUpdate = (newHeaders: string[]) => {
       store.setState({ headers: newHeaders });
     };
+
+    // wire up callbacks
     liveTableDoc.headersUpdateCallback = handleHeadersUpdate;
 
     const handleTableDataUpdate = (newData: Record<string, unknown>[]) => {
@@ -338,19 +347,23 @@ export const DataStoreProvider = ({
     };
     liveTableDoc.columnWidthsUpdateCallback = handleColumnWidthsUpdate;
 
-    // Initial state propagation
-    liveTableDoc.updateTableState();
-    liveTableDoc.updateHeadersState();
-    liveTableDoc.updateColWidthsState();
-    liveTableDoc.updateLockedCellsState();
-
+    yProvider.once("synced", () => {
+      // this will also trigger the initial state propagation
+      liveTableDoc.initializeObservers();
+      store.setState({ isTableLoaded: true });
+      synced = true;
+    });
     return () => {
       liveTableDoc.headersUpdateCallback = undefined;
       liveTableDoc.tableDataUpdateCallback = undefined;
       liveTableDoc.lockedCellsUpdateCallback = undefined;
       liveTableDoc.columnWidthsUpdateCallback = undefined;
+
+      if (synced) {
+        liveTableDoc.cleanupObservers();
+      }
     };
-  }, [store, liveTableDoc]);
+  }, [liveTableDoc, yProvider, store]);
 
   return (
     <DataStoreContext.Provider value={store}>
@@ -373,8 +386,6 @@ function useDataStore<T>(selector?: (state: DataStore) => T) {
   return useStore(store, selector!);
 }
 
-export const useUnlockRange = () => useDataStore((state) => state.unlockRange);
-export const useUnlockAll = () => useDataStore((state) => state.unlockAll);
 export const useHandleCellFocus = () =>
   useDataStore((state) => state.handleCellFocus);
 export const useHandleCellBlur = () =>
@@ -385,6 +396,12 @@ export const useHandleHeaderChange = () =>
   useDataStore((state) => state.handleHeaderChange);
 export const useHandleHeaderBlur = () =>
   useDataStore((state) => state.handleHeaderBlur);
+
+// undo
+export const useUndoManager = () =>
+  useDataStore((state) => state.getUndoManager());
+
+// editing
 export const useEditingHeaderIndex = () =>
   useDataStore((state) => state.editingHeaderIndex);
 export const useEditingHeaderValue = () =>
@@ -394,8 +411,6 @@ export const useHandleCellChange = () =>
 export const useSetEditingCell = () =>
   useDataStore((state) => state.setEditingCell);
 export const useEditingCell = () => useDataStore((state) => state.editingCell);
-export const useUndoManager = () =>
-  useDataStore((state) => state.getUndoManager());
 export const useSetEditingHeaderIndex = () =>
   useDataStore((state) => state.setEditingHeaderIndex);
 export const useGenerateAndInsertRows = () =>
@@ -422,6 +437,8 @@ export const useHandleColumnResize = () =>
 export const useLockedCells = () => useDataStore((state) => state.lockedCells);
 export const useLockSelectedRange = () =>
   useDataStore((state) => state.lockSelectedRange);
+export const useUnlockRange = () => useDataStore((state) => state.unlockRange);
+export const useUnlockAll = () => useDataStore((state) => state.unlockAll);
 
 export const useIsCellLocked = (rowIndex: number, colIndex: number) =>
   useDataStore((state) => state.lockedCells.has(`${rowIndex}-${colIndex}`));
@@ -432,9 +449,14 @@ export const useIsCellLockedFn = () => {
   if (!store) {
     throw new Error("DataStoreContext not found");
   }
-  return (rowIndex: number, colIndex: number) =>
-    store.getState().lockedCells.has(`${rowIndex}-${colIndex}`);
+  return (rowIndex: number, colIndex: number) => {
+    const lockedCells = store.getState().lockedCells;
+    return lockedCells.has(`${rowIndex}-${colIndex}`);
+  };
 };
 
+// table data
 export const useHeaders = () => useDataStore((state) => state.headers);
 export const useTableData = () => useDataStore((state) => state.tableData);
+export const useIsTableLoaded = () =>
+  useDataStore((state) => state.isTableLoaded);

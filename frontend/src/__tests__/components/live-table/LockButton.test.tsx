@@ -1,22 +1,13 @@
 import React from "react";
 
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LockButton from "@/components/live-table/LockButton";
 import {
+  useIsTableLoaded,
   useLockedCells,
   useLockSelectedRange,
   useUnlockAll,
@@ -33,6 +24,7 @@ vi.mock("@/stores/selectionStore", () => ({
 }));
 
 vi.mock("@/stores/dataStore", () => ({
+  useIsTableLoaded: vi.fn(),
   useLockedCells: vi.fn(),
   useLockSelectedRange: vi.fn(),
   useUnlockAll: vi.fn(),
@@ -45,7 +37,10 @@ describe("LockButton", () => {
   const mockUnlockAll = vi.fn();
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+
+    // table loaded
+    vi.mocked(useIsTableLoaded).mockReturnValue(true);
 
     // Mock useLiveTable with default values
     vi.mocked(useLiveTable).mockReturnValue({

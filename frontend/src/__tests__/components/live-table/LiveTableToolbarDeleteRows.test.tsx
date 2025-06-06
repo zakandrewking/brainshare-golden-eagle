@@ -24,13 +24,15 @@ import {
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useDeleteRows } from "@/stores/dataStore";
+import {
+  useDeleteRows,
+  useHeaders,
+  useIsCellLockedFn,
+  useIsTableLoaded,
+} from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
-import {
-  getLiveTableMockValues,
-  TestDataStoreWrapper,
-} from "./liveTableTestUtils";
+import { TestDataStoreWrapper } from "./liveTableTestUtils";
 
 vi.mock("react", async () => {
   const actualReact = await vi.importActual<typeof import("react")>("react");
@@ -46,24 +48,15 @@ vi.mock("react", async () => {
   };
 });
 
-vi.mock(
-  "@/components/live-table/LiveTableProvider",
-  async (importOriginal) => ({
-    ...(await importOriginal<
-      typeof import("@/components/live-table/LiveTableProvider")
-    >()),
-    useLiveTable: vi.fn(),
-  })
-);
-
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
+  ...(await importOriginal()),
   useSelectedCell: vi.fn(),
   useSelectedCells: vi.fn(),
 }));
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/stores/dataStore")>()),
+  ...(await importOriginal()),
+  useIsTableLoaded: vi.fn(),
   useDeleteRows: vi.fn(),
   useUndoManager: () => ({
     undo: vi.fn(),
@@ -73,7 +66,17 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
     on: vi.fn(),
     off: vi.fn(),
   }),
+  useIsCellLockedFn: vi.fn(),
+  useHeaders: vi.fn(),
 }));
+
+vi.mock(
+  "@/components/live-table/LiveTableProvider",
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    useLiveTable: vi.fn(),
+  })
+);
 
 vi.mock("lucide-react", async () => {
   const actual = await vi.importActual("lucide-react");
@@ -118,6 +121,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
     { id: colId1, name: "Header1", width: DEFAULT_COL_WIDTH },
     { id: colId2, name: "Header2", width: DEFAULT_COL_WIDTH },
   ];
+  const initialHeaders = [colId1, colId2];
   const initialColumnOrder: ColumnId[] = [colId1, colId2];
 
   const rowId0 = crypto.randomUUID() as RowId;
@@ -146,7 +150,22 @@ describe("LiveTableToolbar - Delete Rows", () => {
   }
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+
+    // table loaded
+    vi.mocked(useIsTableLoaded).mockReturnValue(true);
+    vi.mocked(useHeaders).mockReturnValue(initialHeaders);
+    vi.mocked(useIsCellLockedFn).mockReturnValue(() => false);
+
+    vi.mocked(useLiveTable).mockReturnValue({
+      documentTitle: "Test Doc Title",
+      documentDescription: "Test Doc Desc",
+      tableId: "test-table-id",
+      awarenessStates: new Map([[0, {}]]),
+      cursorsData: [],
+      getCursorsForCell: vi.fn(),
+    });
+
     const mockStartTransition = vi.fn((callback) => {
       if (callback) callback();
     });
@@ -174,11 +193,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
 
     mockDeleteRows = vi.fn().mockResolvedValue({ deletedCount: 0 });
     vi.mocked(useDeleteRows).mockReturnValue(mockDeleteRows);
-
-    const mockData = getLiveTableMockValues({
-      liveTableDocInstance,
-    });
-    vi.mocked(useLiveTable).mockReturnValue(mockData);
   });
 
   afterEach(() => {
@@ -189,8 +203,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
     const selectedRowIndex = 1;
     const selectedCellForTest = { rowIndex: selectedRowIndex, colIndex: 0 };
 
-    const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue(currentMockData);
     vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
     vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
 
@@ -225,10 +237,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
       colIndex: 0,
     }));
 
-    const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue({
-      ...currentMockData,
-    });
     vi.mocked(useSelectedCell).mockReturnValue(selectedCellsForTest[0]);
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
 
@@ -257,8 +265,6 @@ describe("LiveTableToolbar - Delete Rows", () => {
   });
 
   it("should not delete any row if no cells are selected and button should be disabled", () => {
-    const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue(currentMockData);
     vi.mocked(useSelectedCell).mockReturnValue(null);
     vi.mocked(useSelectedCells).mockReturnValue([]);
 
@@ -283,21 +289,21 @@ describe("LiveTableToolbar - Delete Rows", () => {
   });
 
   it("should not delete any row if cells are locked", () => {
-    const rowIndicesToDelete = [0, 2];
-    const selectedCellsForTest = rowIndicesToDelete.map((rowIndex) => ({
-      rowIndex,
-      colIndex: 0,
-    }));
-    const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue({
-      ...currentMockData,
-    });
+    const lockedCellPositions = [
+      { rowIndex: 0, colIndex: 1 },
+      { rowIndex: 2, colIndex: 1 },
+    ];
+    const selectedCellsForTest = [{ rowIndex: 0, colIndex: 0 }];
     vi.mocked(useSelectedCell).mockReturnValue(selectedCellsForTest[0]);
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
-
-    // Lock the ranges for the selected rows
-    liveTableDocInstance.lockCellRange(0, 0, 0, 1);
-    liveTableDocInstance.lockCellRange(2, 2, 0, 1);
+    vi.mocked(useIsCellLockedFn).mockReturnValue(
+      (rowIndex: number, colIndex: number) => {
+        return lockedCellPositions.some(
+          (position) =>
+            position.rowIndex === rowIndex && position.colIndex === colIndex
+        );
+      }
+    );
 
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
@@ -311,7 +317,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
 
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).toBeDisabled();
-    expect(deleteButton).toHaveAttribute("aria-label", "Delete 2 Rows");
+    expect(deleteButton).toHaveAttribute("aria-label", "Delete Row");
 
     fireEvent.mouseDown(deleteButton!);
 
@@ -324,18 +330,16 @@ describe("LiveTableToolbar - Delete Rows", () => {
     const selectedCellForTest = { rowIndex: 0, colIndex: 0 }; // Selecting unlocked cell
     const lockedCellPosition = { rowIndex: 0, colIndex: 1 }; // Another cell in same row is locked
 
-    // Lock the specific cell
-    liveTableDocInstance.lockCellRange(
-      lockedCellPosition.rowIndex,
-      lockedCellPosition.rowIndex,
-      lockedCellPosition.colIndex,
-      lockedCellPosition.colIndex
-    );
-
-    const currentMockData = useLiveTable();
-    vi.mocked(useLiveTable).mockReturnValue(currentMockData);
     vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
     vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
+    vi.mocked(useIsCellLockedFn).mockReturnValue(
+      (rowIndex: number, colIndex: number) => {
+        return (
+          rowIndex === lockedCellPosition.rowIndex &&
+          colIndex === lockedCellPosition.colIndex
+        );
+      }
+    );
 
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>

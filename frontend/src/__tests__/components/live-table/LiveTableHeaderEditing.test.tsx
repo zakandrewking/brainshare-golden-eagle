@@ -1,7 +1,6 @@
 import React from "react";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as Y from "yjs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -14,13 +13,10 @@ import {
   useEditingHeaderValueMock,
   useEditingHeaderValuePush,
 } from "@/__tests__/test-utils/useEditingHeaderValue";
-import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import {
   type CellValue,
-  type ColumnDefinition,
   type ColumnId,
-  LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
@@ -28,13 +24,13 @@ import {
   useHandleHeaderBlur,
   useHandleHeaderChange,
   useHandleHeaderDoubleClick,
+  useHeaders,
   useIsCellLocked,
+  useIsTableLoaded,
+  useTableData,
 } from "@/stores/dataStore";
 
-import {
-  getLiveTableMockValues,
-  TestDataStoreWrapper,
-} from "./liveTableTestUtils";
+import { TestDataStoreWrapper } from "./liveTableTestUtils";
 
 vi.mock(
   "@/components/live-table/LiveTableProvider",
@@ -46,6 +42,9 @@ vi.mock(
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
+  useIsTableLoaded: vi.fn(),
+  useHeaders: vi.fn(),
+  useTableData: vi.fn(),
   useIsCellLocked: vi.fn(),
   useHandleHeaderDoubleClick: vi.fn(),
   useHandleHeaderChange: vi.fn(),
@@ -55,64 +54,37 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
 }));
 
 describe("LiveTableDisplay Header Editing", () => {
-  const colIdN = crypto.randomUUID() as ColumnId;
-  const colIdA = crypto.randomUUID() as ColumnId;
-  const initialColumnDefinitions: ColumnDefinition[] = [
-    { id: colIdN, name: "Name", width: DEFAULT_COL_WIDTH },
-    { id: colIdA, name: "Age", width: DEFAULT_COL_WIDTH },
-  ];
-  const initialColumnOrder: ColumnId[] = [colIdN, colIdA];
+  const initialHeaders = ["Name", "Age"];
 
   const rowId1 = crypto.randomUUID() as RowId;
   const rowId2 = crypto.randomUUID() as RowId;
-  const initialRowOrder: RowId[] = [rowId1, rowId2];
   const initialRowData: Record<RowId, Record<ColumnId, CellValue>> = {
-    [rowId1]: { [colIdN]: "Alice", [colIdA]: "30" },
-    [rowId2]: { [colIdN]: "Bob", [colIdA]: "24" },
+    [rowId1]: { Name: "Alice", Age: "30" },
+    [rowId2]: { Name: "Bob", Age: "24" },
   };
-
-  let yDoc: Y.Doc;
-  let liveTableDocInstance: LiveTableDoc;
 
   beforeEach(() => {
     vi.resetAllMocks();
 
+    vi.mocked(useHeaders).mockReturnValue(initialHeaders);
+    vi.mocked(useTableData).mockReturnValue(Object.values(initialRowData));
+    vi.mocked(useIsTableLoaded).mockReturnValue(true);
     vi.mocked(useIsCellLocked).mockReturnValue(false);
-    vi.mocked(useHandleHeaderDoubleClick).mockImplementation(() => vi.fn());
+    vi.mocked(useHandleHeaderDoubleClick).mockImplementation(() => () => {});
     vi.mocked(useHandleHeaderChange).mockImplementation(() => () => {});
     vi.mocked(useHandleHeaderBlur).mockImplementation(() => () => {});
 
     useEditingHeaderValuePush("");
     useEditingHeaderIndexPush(null);
 
-    yDoc = new Y.Doc();
-    liveTableDocInstance = new LiveTableDoc(yDoc);
-    yDoc.transact(() => {
-      initialColumnDefinitions.forEach((def) =>
-        liveTableDocInstance.yColumnDefinitions.set(def.id, def)
-      );
-      liveTableDocInstance.yColumnOrder.push(initialColumnOrder);
-      initialRowOrder.forEach((rId) => {
-        const rData = initialRowData[rId];
-        const yRowMap = new Y.Map<CellValue>();
-        initialColumnOrder.forEach((cId) => {
-          if (rData[cId] !== undefined) yRowMap.set(cId, rData[cId]);
-        });
-        liveTableDocInstance.yRowData.set(rId, yRowMap);
-      });
-      liveTableDocInstance.yRowOrder.push(initialRowOrder);
-      liveTableDocInstance.yMeta.set("schemaVersion", 2);
+    vi.mocked(useLiveTable).mockReturnValue({
+      tableId: "test-table-id",
+      documentTitle: "Test Doc Title",
+      documentDescription: "Test Doc Desc",
+      awarenessStates: new Map([[0, {}]]),
+      cursorsData: [],
+      getCursorsForCell: vi.fn(),
     });
-
-    vi.mocked(useLiveTable).mockImplementation(() => ({
-      ...getLiveTableMockValues({
-        liveTableDocInstance,
-      }),
-    }));
-  });
-
-  afterEach(() => {
-    yDoc.destroy();
   });
 
   it("should enter edit mode on header double-click and display input", async () => {
@@ -132,12 +104,12 @@ describe("LiveTableDisplay Header Editing", () => {
     );
 
     render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
 
-    const headerNameForTest = initialColumnDefinitions[0].name;
+    const headerNameForTest = initialHeaders[0];
 
     const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
     expect(headerCellDiv).toBeInTheDocument();
@@ -170,11 +142,11 @@ describe("LiveTableDisplay Header Editing", () => {
     );
 
     render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
-    const headerNameForTest = initialColumnDefinitions[0].name; // "Name"
+    const headerNameForTest = initialHeaders[0];
 
     const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
     expect(headerCellDiv).toBeInTheDocument();
@@ -218,12 +190,12 @@ describe("LiveTableDisplay Header Editing", () => {
     );
 
     render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
     const headerIndexToEdit = 0;
-    const headerNameForTest = initialColumnDefinitions[headerIndexToEdit].name;
+    const headerNameForTest = initialHeaders[headerIndexToEdit];
     const newHeaderText = "Updated Name";
 
     const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
@@ -268,12 +240,12 @@ describe("LiveTableDisplay Header Editing", () => {
     );
 
     render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
     const headerIndexToEdit = 0;
-    const headerNameForTest = initialColumnDefinitions[headerIndexToEdit].name;
+    const headerNameForTest = initialHeaders[headerIndexToEdit];
     const newHeaderText = "Confirmed Name";
 
     const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
@@ -317,13 +289,13 @@ describe("LiveTableDisplay Header Editing", () => {
     );
 
     render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
 
     const headerIndexToEdit = 0;
-    const headerNameForTest = initialColumnDefinitions[headerIndexToEdit].name;
+    const headerNameForTest = initialHeaders[headerIndexToEdit];
 
     const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
     expect(headerCellDiv).toBeInTheDocument();
@@ -356,12 +328,12 @@ describe("LiveTableDisplay Header Editing", () => {
     );
 
     render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
 
-    const headerNameForTest = initialColumnDefinitions[0].name;
+    const headerNameForTest = initialHeaders[0];
     const headerCellDiv = screen.getByText(headerNameForTest).closest("div");
     expect(headerCellDiv).toBeInTheDocument();
 

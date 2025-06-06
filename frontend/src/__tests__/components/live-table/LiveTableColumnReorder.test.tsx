@@ -6,7 +6,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
-import { useHeaders, useReorderColumn, useTableData } from "@/stores/dataStore";
+import {
+  useHeaders,
+  useIsTableLoaded,
+  useReorderColumn,
+  useTableData,
+} from "@/stores/dataStore";
 
 import {
   getLiveTableMockValues,
@@ -32,6 +37,7 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
 // Mock the data store
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
+  useIsTableLoaded: vi.fn(),
   useLockedCells: () => new Set(),
   useLockSelectedRange: () => vi.fn(),
   useUnlockAll: () => vi.fn(),
@@ -107,6 +113,9 @@ describe("LiveTableDisplay - Column Reordering", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+
+    // table loaded
+    vi.mocked(useIsTableLoaded).mockReturnValue(true);
 
     yDoc = new Y.Doc();
     liveTableDocInstance = new LiveTableDoc(yDoc);

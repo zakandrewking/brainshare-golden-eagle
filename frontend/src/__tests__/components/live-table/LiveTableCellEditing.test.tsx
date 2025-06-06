@@ -1,18 +1,14 @@
 import React from "react";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as Y from "yjs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import {
   type CellValue,
-  type ColumnDefinition,
   type ColumnId,
-  LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
 import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
@@ -21,7 +17,11 @@ import {
   useHandleCellBlur,
   useHandleCellChange,
   useHandleCellFocus,
+  useHeaders,
+  useIsCellLockedFn,
+  useIsTableLoaded,
   useSetEditingCell,
+  useTableData,
 } from "@/stores/dataStore";
 import {
   useIsSelecting,
@@ -31,10 +31,7 @@ import {
   useSelectionStart,
 } from "@/stores/selectionStore";
 
-import {
-  getLiveTableMockValues,
-  TestDataStoreWrapper,
-} from "./liveTableTestUtils";
+import { TestDataStoreWrapper } from "./liveTableTestUtils";
 
 vi.mock(
   "@/components/live-table/LiveTableProvider",
@@ -55,7 +52,10 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
-  useIsCellLockedFn: vi.fn(() => () => false),
+  useIsTableLoaded: vi.fn(),
+  useHeaders: vi.fn(),
+  useTableData: vi.fn(),
+  useIsCellLockedFn: vi.fn(),
   useHandleCellFocus: vi.fn(),
   useHandleCellBlur: vi.fn(),
   useHandleCellChange: vi.fn(),
@@ -66,63 +66,30 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
 }));
 
 describe("LiveTableDisplay Cell Editing", () => {
-  let yDoc: Y.Doc;
-  let liveTableDocInstance: LiveTableDoc;
-
-  // V2 data structures
-  const colIdN = crypto.randomUUID() as ColumnId;
-  const colIdA = crypto.randomUUID() as ColumnId;
-  const initialColumnDefinitions: ColumnDefinition[] = [
-    { id: colIdN, name: "name", width: DEFAULT_COL_WIDTH },
-    { id: colIdA, name: "age", width: DEFAULT_COL_WIDTH },
-  ];
-  const initialColumnOrder: ColumnId[] = [colIdN, colIdA];
-
+  const initialHeaders = ["name", "age"];
   const rowIdJD = crypto.randomUUID() as RowId;
   const rowIdJS = crypto.randomUUID() as RowId;
-  const initialRowOrder: RowId[] = [rowIdJD, rowIdJS];
   const initialRowData: Record<RowId, Record<ColumnId, CellValue>> = {
-    [rowIdJD]: { [colIdN]: "John Doe", [colIdA]: "30" },
-    [rowIdJS]: { [colIdN]: "Jane Smith", [colIdA]: "25" },
+    [rowIdJD]: { name: "John Doe", age: "30" },
+    [rowIdJS]: { name: "Jane Smith", age: "25" },
   };
 
   beforeEach(() => {
     vi.resetAllMocks();
 
-    yDoc = new Y.Doc();
-    liveTableDocInstance = new LiveTableDoc(yDoc);
+    vi.mocked(useIsTableLoaded).mockReturnValue(true);
+    vi.mocked(useIsCellLockedFn).mockImplementation(() => () => false);
+    vi.mocked(useHeaders).mockReturnValue(initialHeaders);
+    vi.mocked(useTableData).mockReturnValue(Object.values(initialRowData));
 
-    // Manually populate V2 data
-    yDoc.transact(() => {
-      initialColumnDefinitions.forEach((def) =>
-        liveTableDocInstance.yColumnDefinitions.set(def.id, def)
-      );
-      liveTableDocInstance.yColumnOrder.push(initialColumnOrder);
-      initialRowOrder.forEach((rId) => {
-        const rData = initialRowData[rId];
-        const yRowMap = new Y.Map<CellValue>();
-        initialColumnOrder.forEach((cId) => {
-          if (rData[cId] !== undefined) yRowMap.set(cId, rData[cId]);
-        });
-        liveTableDocInstance.yRowData.set(rId, yRowMap);
-      });
-      liveTableDocInstance.yRowOrder.push(initialRowOrder);
-      liveTableDocInstance.yMeta.set("schemaVersion", 2);
+    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
+      documentDescription: "",
+      documentTitle: "",
+      tableId: "",
+      awarenessStates: new Map(),
+      cursorsData: [],
+      getCursorsForCell: vi.fn(),
     });
-
-    const baseLiveTableContext = getLiveTableMockValues({
-      liveTableDocInstance,
-      initialColumnDefinitions,
-      initialColumnOrder,
-      initialRowOrder,
-      initialRowData,
-    });
-
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockImplementation(() => ({
-      ...(baseLiveTableContext as ReturnType<
-        typeof LiveTableProviderModule.useLiveTable
-      >),
-    }));
 
     // Reset specific hook implementations for dataStore if they were changed in tests
     // This ensures a clean state for dataStore hooks that are commonly mocked per test.
@@ -133,10 +100,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useHandleCellChange).mockReturnValue(vi.fn());
     vi.mocked(useSelectionStart).mockReturnValue(vi.fn());
     vi.mocked(useSelectedCells).mockReturnValue([]);
-  });
-
-  afterEach(() => {
-    yDoc.destroy();
   });
 
   it("handles cell interactions correctly - click behavior and edit mode", async () => {
@@ -161,7 +124,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     // useHandleCellChange and useHandleCellBlur use global mocks or are re-mocked if specific behavior is needed
 
     const { container, rerender } = render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -192,7 +155,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     });
 
     rerender(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -210,7 +173,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     // vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChangeScoped);
 
     fireEvent.change(editingInput!, { target: { value: "New Name" } });
-    const headerNameForFirstCol = initialColumnDefinitions[0].name;
+    const headerNameForFirstCol = initialHeaders[0];
     expect(mockHandleCellChange).toHaveBeenCalledWith(
       // Assert the test-scoped mock
       0,
@@ -244,7 +207,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useEditingCell).mockReturnValue(null); // Initially not editing
 
     const { rerender, container } = render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -281,7 +244,7 @@ describe("LiveTableDisplay Cell Editing", () => {
 
     rerender(
       // Rerender for useSelectedCells mock to take effect if needed by internal logic
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -295,7 +258,7 @@ describe("LiveTableDisplay Cell Editing", () => {
       colIndex: 0,
     });
     expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
-    const headerNameForFirstCol = initialColumnDefinitions[0].name; // "name"
+    const headerNameForFirstCol = initialHeaders[0]; // "name"
     expect(mockHandleCellChange).toHaveBeenCalledWith(
       0,
       headerNameForFirstCol,
@@ -305,7 +268,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Verify UI changes to editing mode
     vi.mocked(useEditingCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
     rerender(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -328,7 +291,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useEditingCell).mockReturnValue(null); // Initially not editing
 
     const { rerender, container } = render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -364,7 +327,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Mock the selection state
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
     rerender(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -378,7 +341,7 @@ describe("LiveTableDisplay Cell Editing", () => {
       colIndex: 0,
     });
     expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
-    const headerNameForFirstCol = initialColumnDefinitions[0].name; // "name"
+    const headerNameForFirstCol = initialHeaders[0]; // "name"
     expect(mockHandleCellChange).toHaveBeenCalledWith(
       0,
       headerNameForFirstCol,
@@ -388,7 +351,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Verify UI changes to editing mode
     vi.mocked(useEditingCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
     rerender(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -415,7 +378,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     ]);
 
     const { container } = render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -449,32 +412,11 @@ describe("LiveTableDisplay Cell Editing", () => {
 
     // Create specific data for this test
     const localInitialRowData = JSON.parse(JSON.stringify(initialRowData));
-    localInitialRowData[rowIdJD][colIdN] = ""; // Set John Doe's name to empty
-
-    // Update yDoc to reflect this change for TestDataStoreWrapper
-    const yRowMapForJD = liveTableDocInstance.yRowData.get(rowIdJD);
-    if (yRowMapForJD) {
-      yRowMapForJD.set(colIdN, "");
-    }
-
-    const localLiveTableContext = getLiveTableMockValues({
-      liveTableDocInstance, // yDoc is implicitly used by this instance
-      initialColumnDefinitions,
-      initialColumnOrder,
-      initialRowOrder,
-      initialRowData: localInitialRowData,
-    });
-
-    // Temporarily override the useLiveTable mock for this test
-    const originalUseLiveTableMock = LiveTableProviderModule.useLiveTable;
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
-      ...(localLiveTableContext as ReturnType<
-        typeof LiveTableProviderModule.useLiveTable
-      >),
-    });
+    localInitialRowData[rowIdJD][initialHeaders[0]] = ""; // Set John Doe's name to empty
+    vi.mocked(useTableData).mockReturnValue(Object.values(localInitialRowData));
 
     const { rerender, container } = render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -511,7 +453,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
     rerender(
       // Rerender for useSelectedCells mock to take effect
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -525,7 +467,7 @@ describe("LiveTableDisplay Cell Editing", () => {
       colIndex: 0,
     });
     expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
-    const headerNameForFirstCol = initialColumnDefinitions[0].name; // "name"
+    const headerNameForFirstCol = initialHeaders[0]; // "name"
     expect(mockHandleCellChange).toHaveBeenCalledWith(
       0,
       headerNameForFirstCol,
@@ -535,16 +477,11 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Verify UI changes to editing mode
     vi.mocked(useEditingCell).mockReturnValue({ rowIndex: 0, colIndex: 0 });
     rerender(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
     const editingTd = container.querySelector('td[data-editing="true"]');
     expect(editingTd).toBeInTheDocument();
-
-    // Restore original useLiveTable mock if it was changed for this test
-    vi.mocked(LiveTableProviderModule.useLiveTable).mockImplementation(
-      originalUseLiveTableMock
-    );
   });
 });
