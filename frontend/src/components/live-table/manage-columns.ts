@@ -178,3 +178,35 @@ export async function generateAndInsertColumns(
     throw error instanceof Error ? error : new Error(String(error));
   }
 }
+
+export async function deleteColumns(
+  colIndices: number[],
+  liveTableDoc: LiveTableDoc
+): Promise<{ deletedCount: number }> {
+  if (colIndices.length === 0) {
+    toast.info("No columns selected for deletion.");
+    return { deletedCount: 0 };
+  }
+  let deletedCount = 0;
+  try {
+    deletedCount = liveTableDoc.deleteColumns(colIndices);
+    if (deletedCount > 0) {
+      toast.success(`Successfully deleted ${deletedCount} column(s).`);
+      if (colIndices.length > deletedCount) {
+        toast.info(
+          `${
+            colIndices.length - deletedCount
+          } column(s) could not be deleted (possibly out of bounds). Check console for details.`
+        );
+      }
+    } else if (colIndices.length > 0 && deletedCount === 0) {
+      toast.info(
+        "No columns were deleted. They might have been out of bounds. Check console for details."
+      );
+    }
+  } catch (error) {
+    toast.error("An error occurred while deleting columns.");
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+  return { deletedCount };
+}

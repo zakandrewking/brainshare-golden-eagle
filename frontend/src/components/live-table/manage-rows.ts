@@ -161,3 +161,36 @@ export async function insertEmptyRows(
     throw error;
   }
 }
+
+export async function deleteRows(
+  rowIndices: number[],
+  liveTableDoc: LiveTableDoc
+): Promise<{ deletedCount: number }> {
+  if (rowIndices.length === 0) {
+    toast.info("No rows selected for deletion.");
+    return { deletedCount: 0 };
+  }
+
+  try {
+    const deletedCount = liveTableDoc.deleteRows(rowIndices);
+
+    if (deletedCount > 0) {
+      toast.success(`Successfully deleted ${deletedCount} row(s).`);
+      if (rowIndices.length > deletedCount) {
+        toast.info(
+          `${
+            rowIndices.length - deletedCount
+          } row(s) could not be deleted (possibly out of bounds). Check console for details.`
+        );
+      }
+    } else if (rowIndices.length > 0 && deletedCount === 0) {
+      toast.info(
+        "No rows were deleted. They might have been out of bounds. Check console for details."
+      );
+    }
+    return { deletedCount };
+  } catch (error) {
+    toast.error("An error occurred while deleting rows.");
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+}

@@ -41,6 +41,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  useDeleteColumns,
+  useDeleteRows,
   useGenerateAndInsertColumns,
   useGenerateAndInsertRows,
   useInsertEmptyColumns,
@@ -125,8 +127,7 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
 };
 
 const LiveTableToolbar: React.FC = () => {
-  const { isTableLoaded, deleteRows, deleteColumns, headers, tableData } =
-    useLiveTable();
+  const { isTableLoaded, headers, tableData } = useLiveTable();
 
   const isCellLockedFn = useIsCellLockedFn();
   const undoManager = useUndoManager();
@@ -134,8 +135,10 @@ const LiveTableToolbar: React.FC = () => {
   const selectedCells = useSelectedCells();
   const generateAndInsertRows = useGenerateAndInsertRows();
   const insertEmptyRows = useInsertEmptyRows();
+  const deleteRows = useDeleteRows();
   const generateAndInsertColumns = useGenerateAndInsertColumns();
   const insertEmptyColumns = useInsertEmptyColumns();
+  const deleteColumns = useDeleteColumns();
 
   const [isPending, startTransition] = useTransition();
   const [pendingOperation, setPendingOperation] =

@@ -16,8 +16,6 @@ import React, {
   useState,
 } from "react";
 
-import { toast } from "sonner";
-
 import { useRoom } from "@liveblocks/react/suspense";
 
 import { DataStoreProvider } from "@/stores/dataStore";
@@ -44,11 +42,6 @@ export interface LiveTableContextType {
   headers: string[] | undefined;
   columnWidths: Record<string, number> | undefined;
   isTableLoaded: boolean;
-  deleteRows: (rowIndices: number[]) => Promise<{
-    deletedCount: number;
-  }>;
-  // column operations
-  deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
   // awareness
   awarenessStates: Map<number, AwarenessState | null> | undefined;
   cursorsData: CursorDataForCell[] | undefined;
@@ -187,77 +180,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     };
   }, [liveTableDoc, yProvider]);
 
-  const deleteRows = useCallback(
-    async (rowIndices: number[]) => {
-      if (!liveTableDoc) {
-        throw new Error("Table document not available. Cannot delete rows.");
-      }
-      if (rowIndices.length === 0) {
-        toast.info("No rows selected for deletion.");
-        return { deletedCount: 0 };
-      }
-
-      let deletedCount = 0;
-
-      try {
-        deletedCount = liveTableDoc.deleteRows(rowIndices);
-
-        if (deletedCount > 0) {
-          toast.success(`Successfully deleted ${deletedCount} row(s).`);
-          if (rowIndices.length > deletedCount) {
-            toast.info(
-              `${
-                rowIndices.length - deletedCount
-              } row(s) could not be deleted (possibly out of bounds). Check console for details.`
-            );
-          }
-        } else if (rowIndices.length > 0 && deletedCount === 0) {
-          toast.info(
-            "No rows were deleted. They might have been out of bounds. Check console for details."
-          );
-        }
-      } catch (error) {
-        throw error instanceof Error ? error : new Error(String(error));
-      }
-      return { deletedCount };
-    },
-    [liveTableDoc]
-  );
-
-  const deleteColumns = useCallback(
-    async (colIndices: number[]) => {
-      if (!liveTableDoc) {
-        throw new Error("Table document not available. Cannot delete columns.");
-      }
-      if (colIndices.length === 0) {
-        toast.info("No columns selected for deletion.");
-        return { deletedCount: 0 };
-      }
-      let deletedCount = 0;
-      try {
-        deletedCount = liveTableDoc.deleteColumns(colIndices);
-        if (deletedCount > 0) {
-          toast.success(`Successfully deleted ${deletedCount} column(s).`);
-          if (colIndices.length > deletedCount) {
-            toast.info(
-              `${
-                colIndices.length - deletedCount
-              } column(s) could not be deleted (possibly out of bounds). Check console for details.`
-            );
-          }
-        } else if (colIndices.length > 0 && deletedCount === 0) {
-          toast.info(
-            "No columns were deleted. They might have been out of bounds. Check console for details."
-          );
-        }
-      } catch (error) {
-        throw error instanceof Error ? error : new Error(String(error));
-      }
-      return { deletedCount };
-    },
-    [liveTableDoc]
-  );
-
   return (
     <LiveTableContext.Provider
       value={{
@@ -268,8 +190,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
         headers,
         columnWidths,
         isTableLoaded,
-        deleteRows,
-        deleteColumns,
         awarenessStates,
         cursorsData,
         getCursorsForCell,

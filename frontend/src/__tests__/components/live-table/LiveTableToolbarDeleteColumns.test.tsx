@@ -23,7 +23,7 @@ import {
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useIsCellLockedFn } from "@/stores/dataStore";
+import { useDeleteColumns, useIsCellLockedFn } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
 import {
@@ -70,6 +70,7 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
   useUnlockAll: vi.fn(),
   useUnlockRange: vi.fn(),
   useIsCellLockedFn: vi.fn(() => () => false),
+  useDeleteColumns: vi.fn(),
   useUndoManager: () => ({
     undo: vi.fn(),
     redo: vi.fn(),
@@ -200,10 +201,10 @@ describe("LiveTableToolbar - Delete Column", () => {
     });
 
     mockDeleteColumns = vi.fn().mockResolvedValue({ deletedCount: 0 });
+    vi.mocked(useDeleteColumns).mockReturnValue(mockDeleteColumns);
 
     const mockData = getLiveTableMockValues({
       liveTableDocInstance,
-      deleteColumns: mockDeleteColumns,
     });
 
     vi.mocked(useLiveTable).mockReturnValue(mockData);

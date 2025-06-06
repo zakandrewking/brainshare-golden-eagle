@@ -14,10 +14,12 @@ import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
 import type { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import {
+  deleteColumns,
   generateAndInsertColumns,
   generateUniqueDefaultHeader,
 } from "@/components/live-table/manage-columns";
 import {
+  deleteRows,
   generateAndInsertRows,
   insertEmptyRows,
 } from "@/components/live-table/manage-rows";
@@ -63,6 +65,7 @@ interface DataActions {
     initialInsertIndex: number,
     numRowsToAdd: number
   ) => Promise<{ defaultRowsAdded: number }>;
+  deleteRows: (rowIndices: number[]) => Promise<{ deletedCount: number }>;
   // columns
   generateAndInsertColumns: (
     initialInsertIndex: number,
@@ -73,6 +76,7 @@ interface DataActions {
     numColsToAdd: number
   ) => Promise<{ count: number }>;
   reorderColumn: (fromIndex: number, toIndex: number) => void;
+  deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
 }
 
 export type DataStore = DataState & DataActions;
@@ -273,6 +277,14 @@ export const DataStoreProvider = ({
           );
         },
 
+        deleteRows: async (rowIndices: number[]) => {
+          if (!liveTableDoc) {
+            toast.error("Table document not available.");
+            throw new Error("Table document not available.");
+          }
+          return deleteRows(rowIndices, liveTableDoc);
+        },
+
         generateAndInsertColumns: async (
           initialInsertIndex: number,
           numColsToAdd: number
@@ -353,6 +365,14 @@ export const DataStoreProvider = ({
         reorderColumn: (fromIndex: number, toIndex: number) => {
           liveTableDoc.reorderColumn(fromIndex, toIndex);
         },
+
+        deleteColumns: async (colIndices: number[]) => {
+          if (!liveTableDoc) {
+            toast.error("Table document not available.");
+            throw new Error("Table document not available.");
+          }
+          return deleteColumns(colIndices, liveTableDoc);
+        },
       }))
     )
   );
@@ -413,6 +433,9 @@ export const useGenerateAndInsertRows = () =>
   useDataStore((state) => state.generateAndInsertRows);
 export const useInsertEmptyRows = () =>
   useDataStore((state) => state.insertEmptyRows);
+export const useDeleteRows = () => useDataStore((state) => state.deleteRows);
+export const useDeleteColumns = () =>
+  useDataStore((state) => state.deleteColumns);
 export const useGenerateAndInsertColumns = () =>
   useDataStore((state) => state.generateAndInsertColumns);
 export const useInsertEmptyColumns = () =>
