@@ -1,20 +1,9 @@
 import React from "react";
 
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
@@ -26,8 +15,7 @@ import {
   LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
+import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 import {
   useEditingCell,
   useHandleCellBlur,
@@ -67,7 +55,7 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
-  useIsCellLocked: vi.fn(() => () => false),
+  useIsCellLockedFn: vi.fn(() => () => false),
   useHandleCellFocus: vi.fn(),
   useHandleCellBlur: vi.fn(),
   useHandleCellChange: vi.fn(),

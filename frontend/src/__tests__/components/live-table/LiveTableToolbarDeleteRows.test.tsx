@@ -11,11 +11,7 @@ import {
 } from "vitest";
 import * as Y from "yjs";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
 import {
@@ -28,7 +24,7 @@ import {
 import { useLiveTable } from "@/components/live-table/LiveTableProvider";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useIsCellLocked } from "@/stores/dataStore";
+import { useIsCellLockedFn } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
 import {
@@ -72,7 +68,7 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
   useLockSelectedRange: vi.fn(),
   useUnlockAll: vi.fn(),
   useUnlockRange: vi.fn(),
-  useIsCellLocked: vi.fn(() => () => false),
+  useIsCellLockedFn: vi.fn(() => () => false),
   useUndoManager: () => ({
     undo: vi.fn(),
     redo: vi.fn(),
@@ -301,7 +297,7 @@ describe("LiveTableToolbar - Delete Rows", () => {
     });
     vi.mocked(useSelectedCell).mockReturnValue(selectedCellsForTest[0]);
     vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
-    vi.mocked(useIsCellLocked).mockReturnValue(() => true);
+    vi.mocked(useIsCellLockedFn).mockReturnValue(() => true);
 
     render(
       <TestDataStoreWrapper>

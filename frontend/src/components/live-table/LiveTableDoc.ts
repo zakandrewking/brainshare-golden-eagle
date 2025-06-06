@@ -784,32 +784,6 @@ export class LiveTableDoc {
   }
 
   /**
-   * Checks if a specific cell (by display indices) is locked.
-   * @param rowIndex - Row index in display order
-   * @param colIndex - Column index in display order
-   * @returns True if the cell is locked
-   */
-  isCellLocked(rowIndex: number, colIndex: number): boolean {
-    const rowId = this.yRowOrder.get(rowIndex);
-    const columnId = this.yColumnOrder.get(colIndex);
-
-    if (!rowId || !columnId) {
-      return false;
-    }
-
-    for (const lockRange of this.yActiveLocks.values()) {
-      const isLocked = lockRange.cells.some(
-        (cell) => cell.rowId === rowId && cell.columnId === columnId
-      );
-      if (isLocked) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /**
    * Gets all active locks.
    * @returns Array of all lock ranges
    */

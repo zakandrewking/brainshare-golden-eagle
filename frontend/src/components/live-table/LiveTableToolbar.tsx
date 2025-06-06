@@ -44,7 +44,7 @@ import {
   useGenerateAndInsertColumns,
   useGenerateAndInsertRows,
   useInsertEmptyColumns,
-  useIsCellLocked,
+  useIsCellLockedFn,
   useUndoManager,
 } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
@@ -122,7 +122,7 @@ const LiveTableToolbar: React.FC = () => {
   const { isTableLoaded, deleteRows, deleteColumns, headers, tableData } =
     useLiveTable();
 
-  const isCellLocked = useIsCellLocked();
+  const isCellLockedFn = useIsCellLockedFn();
   const undoManager = useUndoManager();
   const selectedCell = useSelectedCell();
   const selectedCells = useSelectedCells();
@@ -173,14 +173,14 @@ const LiveTableToolbar: React.FC = () => {
   const hasAnySelectedCellLocked = useCallback((): boolean => {
     if (!selectedCells || selectedCells.length === 0) {
       if (selectedCell) {
-        return isCellLocked(selectedCell.rowIndex, selectedCell.colIndex);
+        return isCellLockedFn(selectedCell.rowIndex, selectedCell.colIndex);
       }
       return false;
     }
     return selectedCells.some((cell) =>
-      isCellLocked(cell.rowIndex, cell.colIndex)
+      isCellLockedFn(cell.rowIndex, cell.colIndex)
     );
-  }, [selectedCells, selectedCell, isCellLocked]);
+  }, [selectedCells, selectedCell, isCellLockedFn]);
 
   const handleAddRowRelative = useCallback(
     (direction: "above" | "below") => {

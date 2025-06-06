@@ -34,7 +34,8 @@ const TableCell: React.FC<TableCellProps> = ({
 }) => {
   const { getCursorsForCell } = useLiveTable();
 
-  const isCellLocked = useIsCellLocked();
+  const isCellLocked = useIsCellLocked(rowIndex, colIndex);
+
   const editingCell = useEditingCell();
   const handleCellChange = useHandleCellChange();
   const handleCellBlur = useHandleCellBlur();
@@ -50,7 +51,6 @@ const TableCell: React.FC<TableCellProps> = ({
     selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;
   const isEditing =
     editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
-  const isLocked = isCellLocked(rowIndex, colIndex);
 
   // Get cursors for this cell (other users' selections)
   const cursorsForCell = getCursorsForCell(rowIndex, colIndex);
@@ -115,7 +115,7 @@ const TableCell: React.FC<TableCellProps> = ({
   const handleCellDoubleClick = useCallback(
     (event: React.MouseEvent) => {
       // Don't allow editing locked cells
-      if (isLocked) {
+      if (isCellLocked) {
         return;
       }
 
@@ -134,7 +134,7 @@ const TableCell: React.FC<TableCellProps> = ({
         }
       }
     },
-    [rowIndex, colIndex, setEditingCell, handleCellFocus, isLocked]
+    [rowIndex, colIndex, setEditingCell, handleCellFocus, isCellLocked]
   );
 
   return (
@@ -144,11 +144,11 @@ const TableCell: React.FC<TableCellProps> = ({
       data-col-index={colIndex}
       data-selected={isInSelection ? "true" : "false"}
       data-editing={isEditing ? "true" : "false"}
-      data-locked={isLocked ? "true" : "false"}
+      data-locked={isCellLocked ? "true" : "false"}
       data-testid="table-cell"
       style={{
         boxShadow: `inset 0 0 0 ${borderWidth} ${borderColor}`,
-        backgroundColor: isLocked
+        backgroundColor: isCellLocked
           ? "rgba(128, 128, 128, 0.2)"
           : isEditing
           ? "rgba(255, 255, 200, 0.2)"
@@ -166,7 +166,7 @@ const TableCell: React.FC<TableCellProps> = ({
         value={String(value ?? "")}
         onChange={(e) => {
           // Don't allow changes to locked cells
-          if (!isLocked) {
+          if (!isCellLocked) {
             handleCellChange(rowIndex, header, e.target.value);
           }
         }}
@@ -177,7 +177,7 @@ const TableCell: React.FC<TableCellProps> = ({
           }
         }}
         className={`w-full h-full p-2 border-none focus:outline-none ${
-          isLocked
+          isCellLocked
             ? "bg-gray-300 dark:bg-gray-700"
             : isEditing
             ? "focus:ring-2 focus:ring-yellow-400"

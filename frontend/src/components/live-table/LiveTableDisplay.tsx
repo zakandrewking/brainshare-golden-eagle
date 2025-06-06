@@ -1,11 +1,6 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { MoreHorizontal } from "lucide-react";
 
@@ -27,7 +22,7 @@ import {
   useHandleHeaderBlur,
   useHandleHeaderChange,
   useHandleHeaderDoubleClick,
-  useIsCellLocked,
+  useIsCellLockedFn,
   useReorderColumn,
   useSetEditingCell,
   useSetEditingHeaderIndex,
@@ -62,7 +57,6 @@ const ROW_NUMBER_COL_WIDTH = 50;
 const LiveTable: React.FC = () => {
   const { isTableLoaded, tableData, headers, columnWidths } = useLiveTable();
 
-  const isCellLocked = useIsCellLocked();
   const handleCellFocus = useHandleCellFocus();
   const handleCellChange = useHandleCellChange();
   const editingCell = useEditingCell();
@@ -74,6 +68,7 @@ const LiveTable: React.FC = () => {
   const handleHeaderDoubleClick = useHandleHeaderDoubleClick();
   const setEditingHeaderIndex = useSetEditingHeaderIndex();
   const handleColumnResize = useHandleColumnResize();
+  const isCellLockedFn = useIsCellLockedFn();
 
   const reorderColumn = useReorderColumn();
 
@@ -364,7 +359,7 @@ const LiveTable: React.FC = () => {
       }
 
       // Don't handle if the cell is locked
-      if (isCellLocked(selectedCell.rowIndex, selectedCell.colIndex)) {
+      if (isCellLockedFn(selectedCell.rowIndex, selectedCell.colIndex)) {
         return;
       }
 
@@ -460,7 +455,7 @@ const LiveTable: React.FC = () => {
     headers,
     tableData,
     selectedCells,
-    isCellLocked,
+    isCellLockedFn,
     setEditingCell,
     handleCellFocus,
     handleCellChange,
