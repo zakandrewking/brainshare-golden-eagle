@@ -323,19 +323,23 @@ const LiveTable: React.FC = () => {
 
   // Effect to handle clicks outside the table
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        tableRef.current &&
-        !tableRef.current.contains(event.target as Node) &&
-        selectedCell
-      ) {
+    const handleInteractionOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      const isInsideTable =
+        tableRef.current && tableRef.current.contains(target);
+      const shouldPreserveSelection = !!target.closest(
+        '[data-preserve-selection="true"]'
+      );
+
+      if (!isInsideTable && selectedCell && !shouldPreserveSelection) {
         clearSelection();
       }
     };
 
-    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("mousedown", handleInteractionOutside);
     return () => {
-      document.removeEventListener("click", handleClickOutside);
+      document.removeEventListener("mousedown", handleInteractionOutside);
     };
   }, [selectedCell, clearSelection, tableRef]);
 

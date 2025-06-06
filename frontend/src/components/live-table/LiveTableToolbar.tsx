@@ -1075,7 +1075,7 @@ const LiveTableToolbar: React.FC = () => {
                 </TooltipTrigger>
                 <TooltipContent>More options</TooltipContent>
               </Tooltip>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" data-preserve-selection="true">
                 <DropdownMenuItem
                   onClick={emptyLeftConfig.onClick}
                   disabled={emptyLeftConfig.disabled || anySubActionPending}
@@ -1148,6 +1148,7 @@ const LiveTableToolbar: React.FC = () => {
     <TooltipProvider delayDuration={0}>
       <div
         ref={toolbarRef}
+        data-preserve-selection="true"
         className="relative flex overflow-hidden items-center gap-1 rounded-md border border-input bg-transparent p-1 mb-2"
       >
         <div className="flex items-center gap-1 flex-1">
@@ -1167,7 +1168,7 @@ const LiveTableToolbar: React.FC = () => {
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" data-preserve-selection="true">
                 {BUTTON_ORDER.filter(
                   (buttonId) => !visibleButtonIds.includes(buttonId)
                 ).map((buttonId) => renderButton(buttonId, true))}

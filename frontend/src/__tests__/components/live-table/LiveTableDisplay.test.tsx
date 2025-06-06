@@ -2,21 +2,10 @@ import "@testing-library/jest-dom";
 
 import React from "react";
 
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
@@ -137,24 +126,17 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
     });
     vi.mocked(useIsSelecting).mockReturnValue(false);
 
-    const captureClick = vi.fn();
-
     render(
       <div>
-        <button data-testid="outside-element" onClick={captureClick}>
-          Click Outside Here
-        </button>
         <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
           <LiveTableDisplay />
         </TestDataStoreWrapper>
       </div>
     );
 
-    const outsideElement = screen.getByTestId("outside-element");
-    fireEvent.click(outsideElement);
-    await vi.runAllTimersAsync();
+    fireEvent.mouseDown(document.body);
+
     expect(mockClearSelection).toHaveBeenCalledTimes(1);
-    expect(captureClick).toHaveBeenCalledTimes(1);
   });
 
   it("should not clear selection when clicking inside the table", () => {
