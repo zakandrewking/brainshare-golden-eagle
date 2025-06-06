@@ -11,9 +11,7 @@ import type {
   ColumnId,
   RowId,
 } from "@/components/live-table/LiveTableDoc";
-import {
-  LiveTableDoc,
-} from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
+import { LiveTableDoc } from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
 import * as LiveTableProvider from "@/components/live-table/LiveTableProvider";
 import { DataStoreProvider } from "@/stores/dataStore";
 
@@ -123,34 +121,14 @@ export const getLiveTableMockValues = (
     }
   }
 
-  let currentTableData: Record<string, unknown>[] = [];
-  let currentHeaders: string[] = [];
-  let currentColWidths: Record<string, number> = {};
-
-  liveTableDoc.tableDataUpdateCallback = (data) => {
-    currentTableData = data;
-  };
-  liveTableDoc.headersUpdateCallback = (h) => {
-    currentHeaders = h;
-  };
-  liveTableDoc.columnWidthsUpdateCallback = (w) => {
-    currentColWidths = w;
-  };
-
-  liveTableDoc.updateTableState();
-  liveTableDoc.updateHeadersState();
-  liveTableDoc.updateColWidthsState();
-
-  const defaultMockValue: ReturnType<typeof LiveTableProvider.useLiveTable> = {
+  const defaultMockValue: Omit<
+    ReturnType<typeof LiveTableProvider.useLiveTable>,
+    "headers" | "tableData"
+  > = {
     isTableLoaded: true,
     tableId: "test-table",
     documentTitle: "Test Document",
     documentDescription: "Test Description",
-    tableData: currentTableData,
-    headers: currentHeaders,
-    columnWidths: currentColWidths,
-    deleteRows: vi.fn().mockResolvedValue({ deletedCount: 0 }),
-    deleteColumns: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     // awareness
     awarenessStates: new Map(),
     cursorsData: [],
@@ -165,15 +143,11 @@ export const getLiveTableMockValues = (
 export const TestDataStoreWrapper: React.FC<{
   children: React.ReactNode;
   liveTableDoc?: LiveTableDoc;
-  headers?: string[];
-  tableData?: Record<string, unknown>[];
   documentTitle?: string;
   documentDescription?: string;
 }> = ({
   children,
   liveTableDoc,
-  headers = [],
-  tableData = [],
   documentTitle = "Test Doc Title",
   documentDescription = "Test Doc Desc",
 }) => {
@@ -202,8 +176,6 @@ export const TestDataStoreWrapper: React.FC<{
     <DataStoreProvider
       liveTableDoc={defaultDoc}
       yProvider={mockYProvider as unknown as LiveblocksYjsProvider}
-      headers={headers}
-      tableData={tableData}
       documentTitle={documentTitle}
       documentDescription={documentDescription}
     >

@@ -1,21 +1,9 @@
 import React from "react";
 
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
@@ -89,7 +77,7 @@ describe("LiveTableDisplay Header Editing", () => {
   beforeEach(() => {
     vi.resetAllMocks();
 
-    vi.mocked(useIsCellLocked).mockImplementation(() => () => false);
+    vi.mocked(useIsCellLocked).mockReturnValue(false);
     vi.mocked(useHandleHeaderDoubleClick).mockImplementation(() => vi.fn());
     vi.mocked(useHandleHeaderChange).mockImplementation(() => () => {});
     vi.mocked(useHandleHeaderBlur).mockImplementation(() => () => {});
@@ -155,10 +143,7 @@ describe("LiveTableDisplay Header Editing", () => {
     expect(headerCellDiv).toBeInTheDocument();
     await user.dblClick(headerCellDiv!);
 
-    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0, [
-      "Name",
-      "Age",
-    ]);
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0);
 
     act(() => {
       useEditingHeaderValuePush(headerNameForTest);
@@ -246,10 +231,7 @@ describe("LiveTableDisplay Header Editing", () => {
 
     await user.dblClick(headerCellDiv!);
 
-    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(
-      headerIndexToEdit,
-      ["Name", "Age"]
-    );
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(headerIndexToEdit);
 
     act(() => {
       useEditingHeaderValuePush(headerNameForTest);
@@ -299,10 +281,7 @@ describe("LiveTableDisplay Header Editing", () => {
 
     await user.dblClick(headerCellDiv!);
 
-    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(
-      headerIndexToEdit,
-      ["Name", "Age"]
-    );
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(headerIndexToEdit);
 
     act(() => {
       useEditingHeaderValuePush(headerNameForTest);
@@ -391,9 +370,6 @@ describe("LiveTableDisplay Header Editing", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     fireEvent.touchEnd(headerCellDiv!);
 
-    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0, [
-      "Name",
-      "Age",
-    ]);
+    expect(mockHandleHeaderDoubleClick).toHaveBeenCalledWith(0);
   });
 });

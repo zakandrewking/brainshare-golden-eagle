@@ -45,9 +45,11 @@ import {
   useDeleteRows,
   useGenerateAndInsertColumns,
   useGenerateAndInsertRows,
+  useHeaders,
   useInsertEmptyColumns,
   useInsertEmptyRows,
   useIsCellLockedFn,
+  useTableData,
   useUndoManager,
 } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
@@ -127,7 +129,9 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
 };
 
 const LiveTableToolbar: React.FC = () => {
-  const { isTableLoaded, headers, tableData } = useLiveTable();
+  const { isTableLoaded } = useLiveTable();
+  const headers = useHeaders();
+  const tableData = useTableData();
 
   const isCellLockedFn = useIsCellLockedFn();
   const undoManager = useUndoManager();

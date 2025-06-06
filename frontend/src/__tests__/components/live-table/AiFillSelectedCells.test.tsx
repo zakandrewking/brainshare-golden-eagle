@@ -1,31 +1,20 @@
 import { toast } from "sonner";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as Y from "yjs";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
-import * as generateSelectedCellsSuggestionsModule
-  from "@/components/live-table/actions/generateSelectedCellsSuggestions";
-import {
-  AiFillSelectionButton,
-} from "@/components/live-table/AiFillSelectionButton";
-import * as LiveTableProviderModule
-  from "@/components/live-table/LiveTableProvider";
+import * as generateSelectedCellsSuggestionsModule from "@/components/live-table/actions/generateSelectedCellsSuggestions";
+import { AiFillSelectionButton } from "@/components/live-table/AiFillSelectionButton";
+import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
+import * as LiveTableProviderModule from "@/components/live-table/LiveTableProvider";
 import * as DataStoreModule from "@/stores/dataStore";
 import * as SelectionStoreModule from "@/stores/selectionStore";
 
-import { TestDataStoreWrapper } from "./liveTableTestUtils";
+import {
+  getLiveTableMockValues,
+  TestDataStoreWrapper,
+} from "./liveTableTestUtils";
 
 vi.mock("@/components/live-table/LiveTableProvider", () => ({
   useLiveTable: vi.fn(),
@@ -36,6 +25,8 @@ vi.mock("@/stores/dataStore", async (importOriginal) => {
   return {
     ...actual,
     useHandleCellChange: vi.fn(),
+    useHeaders: vi.fn(),
+    useTableData: vi.fn(),
   };
 });
 
@@ -92,13 +83,25 @@ describe("AiFillSelectionButton", () => {
   ];
 
   const mockHandleCellChange = vi.fn();
+  let yDoc: Y.Doc;
+  let liveTableDoc: LiveTableDoc;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
+    yDoc = new Y.Doc();
+    liveTableDoc = new LiveTableDoc(yDoc);
+
+    const mockContext = getLiveTableMockValues({
+      liveTableDocInstance: liveTableDoc,
+      initialV1Headers: mockHeaders,
+      initialV1TableData: mockTableData,
+      documentTitle: mockDocumentTitle,
+      documentDescription: mockDocumentDescription,
+    });
+
     vi.mocked(LiveTableProviderModule.useLiveTable).mockReturnValue({
-      tableData: mockTableData,
-      headers: mockHeaders,
+      ...mockContext,
       documentTitle: mockDocumentTitle,
       documentDescription: mockDocumentDescription,
     } as unknown as ReturnType<typeof LiveTableProviderModule.useLiveTable>);
@@ -106,6 +109,8 @@ describe("AiFillSelectionButton", () => {
     vi.mocked(DataStoreModule.useHandleCellChange).mockReturnValue(
       mockHandleCellChange
     );
+    vi.mocked(DataStoreModule.useHeaders).mockReturnValue(mockHeaders);
+    vi.mocked(DataStoreModule.useTableData).mockReturnValue(mockTableData);
 
     vi.mocked(SelectionStoreModule.useSelectedCells).mockReturnValue(
       mockSelectedCells
@@ -129,7 +134,7 @@ describe("AiFillSelectionButton", () => {
   });
 
   afterEach(() => {
-    // vi.useRealTimers();
+    yDoc.destroy();
   });
 
   it("should be disabled when no cells are selected", () => {
@@ -137,7 +142,7 @@ describe("AiFillSelectionButton", () => {
     vi.mocked(SelectionStoreModule.useSelectedCells).mockReturnValueOnce([]);
 
     render(
-      <TestDataStoreWrapper headers={mockHeaders}>
+      <TestDataStoreWrapper liveTableDoc={liveTableDoc}>
         <AiFillSelectionButton />
       </TestDataStoreWrapper>
     );
@@ -148,7 +153,7 @@ describe("AiFillSelectionButton", () => {
 
   it("should call generateSelectedCellsSuggestions when clicked", async () => {
     render(
-      <TestDataStoreWrapper headers={mockHeaders}>
+      <TestDataStoreWrapper liveTableDoc={liveTableDoc}>
         <AiFillSelectionButton />
       </TestDataStoreWrapper>
     );
@@ -173,7 +178,7 @@ describe("AiFillSelectionButton", () => {
 
   it("should update cells with suggestions when action succeeds", async () => {
     render(
-      <TestDataStoreWrapper headers={mockHeaders}>
+      <TestDataStoreWrapper liveTableDoc={liveTableDoc}>
         <AiFillSelectionButton />
       </TestDataStoreWrapper>
     );
@@ -182,8 +187,6 @@ describe("AiFillSelectionButton", () => {
 
     await act(async () => {
       fireEvent.click(button);
-      // Wait for promises to resolve
-      await Promise.resolve();
     });
 
     // Check that handleCellChange was called for each suggested cell with the right parameters
@@ -212,7 +215,7 @@ describe("AiFillSelectionButton", () => {
     );
 
     render(
-      <TestDataStoreWrapper headers={mockHeaders}>
+      <TestDataStoreWrapper liveTableDoc={liveTableDoc}>
         <AiFillSelectionButton />
       </TestDataStoreWrapper>
     );

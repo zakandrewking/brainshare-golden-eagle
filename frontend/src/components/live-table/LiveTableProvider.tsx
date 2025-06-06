@@ -38,8 +38,6 @@ export interface LiveTableContextType {
   tableId: string;
   documentTitle: string;
   documentDescription: string;
-  tableData: Record<string, unknown>[] | undefined;
-  headers: string[] | undefined;
   isTableLoaded: boolean;
   // awareness
   awarenessStates: Map<number, AwarenessState | null> | undefined;
@@ -79,10 +77,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   // TODO headers/setHeaders is a map of Column ID to human-readable header name.
   // TODO colWidths/setColumnWidths is keyed by Column ID
 
-  const [tableData, setTableData] = useState<
-    Record<string, unknown>[] | undefined
-  >(undefined);
-  const [headers, setHeaders] = useState<string[] | undefined>(undefined);
   const [isTableLoaded, setIsTableLoaded] = useState<boolean>(false);
 
   // Awareness state
@@ -99,8 +93,6 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
     () => initializeLiveblocksRoom(room),
     [room]
   );
-  liveTableDoc.tableDataUpdateCallback = setTableData;
-  liveTableDoc.headersUpdateCallback = setHeaders;
   liveTableDoc.awarenessStatesUpdateCallback = setAwarenessStates;
   liveTableDoc.cursorsDataUpdateCallback = setCursorsData;
 
@@ -176,33 +168,26 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   }, [liveTableDoc, yProvider]);
 
   return (
-    <LiveTableContext.Provider
-      value={{
-        tableId,
-        documentTitle,
-        documentDescription,
-        tableData,
-        headers,
-        isTableLoaded,
-        awarenessStates,
-        cursorsData,
-        getCursorsForCell,
-      }}
+    <DataStoreProvider
+      liveTableDoc={liveTableDoc}
+      yProvider={yProvider}
+      documentTitle={documentTitle}
+      documentDescription={documentDescription}
     >
-      {/* temp fix for headers & tableData not being set */}
-      {headers && tableData && (
-        <DataStoreProvider
-          liveTableDoc={liveTableDoc}
-          yProvider={yProvider}
-          headers={headers}
-          tableData={tableData}
-          documentTitle={documentTitle}
-          documentDescription={documentDescription}
-        >
-          {children}
-        </DataStoreProvider>
-      )}
-    </LiveTableContext.Provider>
+      <LiveTableContext.Provider
+        value={{
+          tableId,
+          documentTitle,
+          documentDescription,
+          isTableLoaded,
+          awarenessStates,
+          cursorsData,
+          getCursorsForCell,
+        }}
+      >
+        {children}
+      </LiveTableContext.Provider>
+    </DataStoreProvider>
   );
 };
 

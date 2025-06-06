@@ -35,6 +35,8 @@ interface DataState {
   editingHeaderIndex: number | null;
   editingHeaderValue: string;
   editingCell: { rowIndex: number; colIndex: number } | null;
+  headers: string[];
+  tableData: Record<string, unknown>[];
 
   // column widths
   columnWidths: Record<string, number> | undefined;
@@ -46,7 +48,7 @@ interface DataState {
 interface DataActions {
   handleCellFocus: (rowIndex: number, colIndex: number) => void;
   handleCellBlur: () => void;
-  handleHeaderDoubleClick: (colIndex: number, currentHeaders: string[]) => void;
+  handleHeaderDoubleClick: (colIndex: number) => void;
   handleHeaderChange: (value: string) => void;
   handleHeaderBlur: () => void;
   handleCellChange: (
@@ -101,6 +103,8 @@ const initialState: DataState = {
   editingHeaderIndex: null,
   editingHeaderValue: "",
   editingCell: null,
+  headers: [],
+  tableData: [],
   columnWidths: undefined,
 };
 
@@ -173,16 +177,12 @@ export const DataStoreProvider = ({
   children,
   liveTableDoc,
   yProvider,
-  headers,
-  tableData,
   documentTitle,
   documentDescription,
 }: {
   children: React.ReactNode;
   liveTableDoc: LiveTableDoc;
   yProvider: LiveblocksYjsProvider;
-  headers: string[] | undefined;
-  tableData: Record<string, unknown>[] | undefined;
   documentTitle: string;
   documentDescription: string;
 }) => {
@@ -203,14 +203,12 @@ export const DataStoreProvider = ({
         handleCellBlur: () => {
           yProvider.awareness.setLocalStateField("selectedCell", null);
         },
-        handleHeaderDoubleClick: (
-          colIndex: number,
-          currentHeaders: string[]
-        ) => {
-          if (!currentHeaders) return;
+        handleHeaderDoubleClick: (colIndex: number) => {
+          const headers = get().headers;
+          if (!headers) return;
           set((state) => {
             state.editingHeaderIndex = colIndex;
-            state.editingHeaderValue = currentHeaders[colIndex];
+            state.editingHeaderValue = headers[colIndex];
           });
         },
         handleHeaderChange: (value: string) => {
@@ -220,7 +218,8 @@ export const DataStoreProvider = ({
         },
         handleHeaderBlur: () => {
           const state = get();
-          if (state.editingHeaderIndex === null || !headers) return;
+          if (state.editingHeaderIndex === null) return;
+          const headers = state.headers;
 
           const oldHeader = headers[state.editingHeaderIndex];
           const newHeader = state.editingHeaderValue.trim();
@@ -249,15 +248,11 @@ export const DataStoreProvider = ({
         setEditingHeaderIndex: (index: number | null) => {
           set({ editingHeaderIndex: index });
         },
-
-        generateAndInsertRows: async (
+        generateAndInsertRows: (
           initialInsertIndex: number,
           numRowsToAdd: number
         ) => {
-          if (!liveTableDoc || !headers || !tableData) {
-            toast.error("Table data not fully loaded.");
-            throw new Error("Table data not fully loaded.");
-          }
+          const { headers, tableData } = get();
           return generateAndInsertRows(
             initialInsertIndex,
             numRowsToAdd,
@@ -268,38 +263,15 @@ export const DataStoreProvider = ({
             liveTableDoc
           );
         },
-
-        insertEmptyRows: async (
-          initialInsertIndex: number,
-          numRowsToAdd: number
-        ) => {
-          if (!liveTableDoc) {
-            toast.error("Table data not fully loaded.");
-            throw new Error("Table data not fully loaded.");
-          }
-          return insertEmptyRows(
-            initialInsertIndex,
-            numRowsToAdd,
-            liveTableDoc
-          );
-        },
-
-        deleteRows: async (rowIndices: number[]) => {
-          if (!liveTableDoc) {
-            toast.error("Table document not available.");
-            throw new Error("Table document not available.");
-          }
-          return deleteRows(rowIndices, liveTableDoc);
-        },
-
-        generateAndInsertColumns: async (
+        insertEmptyRows: (initialInsertIndex: number, numRowsToAdd: number) =>
+          insertEmptyRows(initialInsertIndex, numRowsToAdd, liveTableDoc),
+        deleteRows: (rowIndices: number[]) =>
+          deleteRows(rowIndices, liveTableDoc),
+        generateAndInsertColumns: (
           initialInsertIndex: number,
           numColsToAdd: number
         ) => {
-          if (!liveTableDoc || !headers || !tableData) {
-            toast.error("Table data not fully loaded.");
-            throw new Error("Table data not fully loaded.");
-          }
+          const { headers, tableData } = get();
           return generateAndInsertColumns(
             initialInsertIndex,
             numColsToAdd,
@@ -310,77 +282,34 @@ export const DataStoreProvider = ({
             liveTableDoc
           );
         },
-
-        insertEmptyColumns: async (
+        insertEmptyColumns: (
           initialInsertIndex: number,
           numColsToAdd: number
         ) => {
-          if (!liveTableDoc) {
-            toast.error("Table document not available.");
-            throw new Error("Table document not available.");
-          }
           if (numColsToAdd <= 0) {
-            toast.info("Number of columns to add must be positive.");
-            return { count: 0 };
+            return Promise.resolve({ count: 0 });
           }
-
-          const currentHeaders = headers || [];
-
-          const columnsToInsert: {
-            headerName: string;
-            columnData: null;
-          }[] = [];
-
-          for (let i = 0; i < numColsToAdd; i++) {
-            const headerName = generateUniqueDefaultHeader(
-              "Column",
-              currentHeaders,
-              columnsToInsert
-            );
-            columnsToInsert.push({
-              headerName,
+          const columnsToInsert = Array.from({ length: numColsToAdd }).map(
+            () => ({
+              headerName: generateUniqueDefaultHeader(
+                "New Column",
+                get().headers,
+                []
+              ),
               columnData: null,
-            });
-          }
-
-          try {
-            const insertedCount = liveTableDoc.insertColumns(
-              initialInsertIndex,
-              columnsToInsert
-            );
-            if (insertedCount > 0) {
-              toast.success(
-                `Successfully added ${insertedCount} empty column(s).`
-              );
-            } else if (numColsToAdd > 0 && insertedCount === 0) {
-              toast.info(
-                "No empty columns were added. This might be an internal issue."
-              );
-            }
-            return { count: insertedCount };
-          } catch (error) {
-            console.error("Error inserting empty columns:", error);
-            const errorMessage =
-              error instanceof Error
-                ? error.message
-                : "An unknown error occurred.";
-            toast.error(`Failed to add empty columns: ${errorMessage}`);
-            throw error;
-          }
+            })
+          );
+          const insertedCount = liveTableDoc.insertColumns(
+            initialInsertIndex,
+            columnsToInsert
+          );
+          return Promise.resolve({ count: insertedCount });
         },
-
         reorderColumn: (fromIndex: number, toIndex: number) => {
           liveTableDoc.reorderColumn(fromIndex, toIndex);
         },
-
-        deleteColumns: async (colIndices: number[]) => {
-          if (!liveTableDoc) {
-            toast.error("Table document not available.");
-            throw new Error("Table document not available.");
-          }
-          return deleteColumns(colIndices, liveTableDoc);
-        },
-
+        deleteColumns: (colIndices: number[]) =>
+          deleteColumns(colIndices, liveTableDoc),
         handleColumnResize: (header: string, newWidth: number) => {
           liveTableDoc.updateColumnWidth(header, newWidth);
         },
@@ -389,30 +318,39 @@ export const DataStoreProvider = ({
   );
 
   useEffect(() => {
+    const handleHeadersUpdate = (newHeaders: string[]) => {
+      store.setState({ headers: newHeaders });
+    };
+    liveTableDoc.headersUpdateCallback = handleHeadersUpdate;
+
+    const handleTableDataUpdate = (newData: Record<string, unknown>[]) => {
+      store.setState({ tableData: newData });
+    };
+    liveTableDoc.tableDataUpdateCallback = handleTableDataUpdate;
+
     const handleLockedCellsUpdate = (lockedCells: Set<string>) => {
       store.setState({ lockedCells });
     };
-
     liveTableDoc.lockedCellsUpdateCallback = handleLockedCellsUpdate;
-    liveTableDoc.updateLockedCellsState();
 
-    return () => {
-      liveTableDoc.lockedCellsUpdateCallback = undefined;
-    };
-  }, [liveTableDoc, store]);
-
-  useEffect(() => {
     const handleColumnWidthsUpdate = (widths: Record<string, number>) => {
       store.setState({ columnWidths: widths });
     };
-
     liveTableDoc.columnWidthsUpdateCallback = handleColumnWidthsUpdate;
+
+    // Initial state propagation
+    liveTableDoc.updateTableState();
+    liveTableDoc.updateHeadersState();
     liveTableDoc.updateColWidthsState();
+    liveTableDoc.updateLockedCellsState();
 
     return () => {
+      liveTableDoc.headersUpdateCallback = undefined;
+      liveTableDoc.tableDataUpdateCallback = undefined;
+      liveTableDoc.lockedCellsUpdateCallback = undefined;
       liveTableDoc.columnWidthsUpdateCallback = undefined;
     };
-  }, [liveTableDoc, store]);
+  }, [store, liveTableDoc]);
 
   return (
     <DataStoreContext.Provider value={store}>
@@ -497,3 +435,6 @@ export const useIsCellLockedFn = () => {
   return (rowIndex: number, colIndex: number) =>
     store.getState().lockedCells.has(`${rowIndex}-${colIndex}`);
 };
+
+export const useHeaders = () => useDataStore((state) => state.headers);
+export const useTableData = () => useDataStore((state) => state.tableData);

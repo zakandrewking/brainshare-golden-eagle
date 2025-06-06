@@ -1,65 +1,17 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
+import { useLiveTable } from "@/components/live-table/LiveTableProvider";
+import { useHeaders, useReorderColumn, useTableData } from "@/stores/dataStore";
+
 import {
-  type LiveTableContextType,
-  useLiveTable,
-} from "@/components/live-table/LiveTableProvider";
-import { useReorderColumn } from "@/stores/dataStore";
-
-import { TestDataStoreWrapper } from "./liveTableTestUtils";
-
-// Mock the LiveTableProvider context
-const mockLiveTableContext: LiveTableContextType = {
-  tableId: "test-table",
-  documentTitle: "Test Document",
-  documentDescription: "Test Description",
-  tableData: [
-    {
-      "Column A": "A1",
-      "Column B": "B1",
-      "Column C": "C1",
-      "Column D": "D1",
-      "Column E": "E1",
-    },
-    {
-      "Column A": "A2",
-      "Column B": "B2",
-      "Column C": "C2",
-      "Column D": "D2",
-      "Column E": "E2",
-    },
-  ],
-  headers: ["Column A", "Column B", "Column C", "Column D", "Column E"],
-  columnWidths: {
-    "Column A": 150,
-    "Column B": 150,
-    "Column C": 150,
-    "Column D": 150,
-    "Column E": 150,
-  },
-  isTableLoaded: true,
-  deleteRows: vi.fn(),
-  deleteColumns: vi.fn(),
-  awarenessStates: new Map(),
-  cursorsData: [],
-  getCursorsForCell: vi.fn(() => undefined),
-};
+  getLiveTableMockValues,
+  TestDataStoreWrapper,
+} from "./liveTableTestUtils";
 
 vi.mock(
   "@/components/live-table/LiveTableProvider",
@@ -105,6 +57,8 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
     off: vi.fn(),
   }),
   useReorderColumn: vi.fn(),
+  useHeaders: vi.fn(),
+  useTableData: vi.fn(),
 }));
 
 // Mock TableCell component
@@ -123,6 +77,30 @@ vi.mock("@/components/live-table/TableCell", () => ({
 
 const mockReorderColumnFn = vi.fn();
 
+const mockHeadersData = [
+  "Column A",
+  "Column B",
+  "Column C",
+  "Column D",
+  "Column E",
+];
+const mockTableRowsData = [
+  {
+    "Column A": "A1",
+    "Column B": "B1",
+    "Column C": "C1",
+    "Column D": "D1",
+    "Column E": "E1",
+  },
+  {
+    "Column A": "A2",
+    "Column B": "B2",
+    "Column C": "C2",
+    "Column D": "D2",
+    "Column E": "E2",
+  },
+];
+
 describe("LiveTableDisplay - Column Reordering", () => {
   let yDoc: Y.Doc;
   let liveTableDocInstance: LiveTableDoc;
@@ -133,10 +111,15 @@ describe("LiveTableDisplay - Column Reordering", () => {
     yDoc = new Y.Doc();
     liveTableDocInstance = new LiveTableDoc(yDoc);
 
-    vi.mocked(useLiveTable).mockImplementation(() => ({
-      ...mockLiveTableContext,
-    }));
+    const mockContext = getLiveTableMockValues({
+      liveTableDocInstance,
+      initialV1Headers: mockHeadersData,
+      initialV1TableData: mockTableRowsData,
+    });
+    vi.mocked(useLiveTable).mockReturnValue(mockContext);
     vi.mocked(useReorderColumn).mockReturnValue(mockReorderColumnFn);
+    vi.mocked(useHeaders).mockReturnValue(mockHeadersData);
+    vi.mocked(useTableData).mockReturnValue(mockTableRowsData);
   });
 
   afterEach(() => {

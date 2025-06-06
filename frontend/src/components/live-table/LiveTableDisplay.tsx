@@ -23,10 +23,12 @@ import {
   useHandleHeaderBlur,
   useHandleHeaderChange,
   useHandleHeaderDoubleClick,
+  useHeaders,
   useIsCellLockedFn,
   useReorderColumn,
   useSetEditingCell,
   useSetEditingHeaderIndex,
+  useTableData,
 } from "@/stores/dataStore";
 import {
   useClearSelection,
@@ -56,7 +58,9 @@ const MIN_COL_WIDTH = 50;
 const ROW_NUMBER_COL_WIDTH = 50;
 
 const LiveTable: React.FC = () => {
-  const { isTableLoaded, tableData, headers } = useLiveTable();
+  const { isTableLoaded } = useLiveTable();
+  const tableData = useTableData();
+  const headers = useHeaders();
   const columnWidths = useColumnWidths();
 
   const handleCellFocus = useHandleCellFocus();
@@ -586,9 +590,7 @@ const LiveTable: React.FC = () => {
                         <div
                           className="p-2 cursor-text flex-grow break-words flex items-center"
                           onDoubleClick={() => {
-                            if (headers) {
-                              handleHeaderDoubleClick(index, headers);
-                            }
+                            handleHeaderDoubleClick(index);
                           }}
                           onTouchEnd={(e) => {
                             const currentTime = new Date().getTime();
@@ -597,10 +599,9 @@ const LiveTable: React.FC = () => {
                             if (
                               tapLength < 300 && // Double tap threshold (300ms)
                               tapLength > 0 &&
-                              lastTapTargetRef.current === e.currentTarget && // Ensure taps are on the same element
-                              headers
+                              lastTapTargetRef.current === e.currentTarget // Ensure taps are on the same element
                             ) {
-                              handleHeaderDoubleClick(index, headers);
+                              handleHeaderDoubleClick(index);
                               // Prevent zoom on double tap
                               e.preventDefault();
                             }
