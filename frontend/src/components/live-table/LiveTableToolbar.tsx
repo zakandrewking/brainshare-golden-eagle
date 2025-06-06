@@ -170,17 +170,37 @@ const LiveTableToolbar: React.FC = () => {
     return uniqueIndices.sort((a, b) => a - b);
   }, [selectedCells, selectedCell]);
 
-  const hasAnySelectedCellLocked = useCallback((): boolean => {
-    if (!selectedCells || selectedCells.length === 0) {
-      if (selectedCell) {
-        return isCellLockedFn(selectedCell.rowIndex, selectedCell.colIndex);
-      }
+  const hasLockedCellsInSelectedRows = useCallback((): boolean => {
+    const rows = getSelectedRowIndices();
+    if (rows.length === 0 || !headers) {
       return false;
     }
-    return selectedCells.some((cell) =>
-      isCellLockedFn(cell.rowIndex, cell.colIndex)
-    );
-  }, [selectedCells, selectedCell, isCellLockedFn]);
+    const numCols = headers.length;
+    for (const rowIndex of rows) {
+      for (let colIndex = 0; colIndex < numCols; colIndex++) {
+        if (isCellLockedFn(rowIndex, colIndex)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }, [getSelectedRowIndices, headers, isCellLockedFn]);
+
+  const hasLockedCellsInSelectedColumns = useCallback((): boolean => {
+    const cols = getUniqueSelectedColumnIndices();
+    if (cols.length === 0 || !tableData) {
+      return false;
+    }
+    const numRows = tableData.length;
+    for (const colIndex of cols) {
+      for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+        if (isCellLockedFn(rowIndex, colIndex)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }, [getUniqueSelectedColumnIndices, tableData, isCellLockedFn]);
 
   const handleAddRowRelative = useCallback(
     (direction: "above" | "below") => {
@@ -565,12 +585,12 @@ const LiveTableToolbar: React.FC = () => {
     isTableLoaded &&
     !isAnyOperationPending &&
     selectedRowIndices.length > 0 &&
-    !hasAnySelectedCellLocked();
+    !hasLockedCellsInSelectedRows();
   const canDeleteColumn =
     isTableLoaded &&
     !isAnyOperationPending &&
     uniqueSelectedColIndices.length > 0 &&
-    !hasAnySelectedCellLocked();
+    !hasLockedCellsInSelectedColumns();
   const canDownload =
     isTableLoaded &&
     headers &&

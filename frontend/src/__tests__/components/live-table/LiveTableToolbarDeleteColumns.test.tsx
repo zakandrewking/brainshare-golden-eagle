@@ -360,4 +360,33 @@ describe("LiveTableToolbar - Delete Column", () => {
     expect(liveTableDocInstance.yColumnOrder.length).toBe(initialColCount);
     expect(mockDeleteColumns).not.toHaveBeenCalled();
   });
+
+  it("should not delete column if any cell in the column is locked, even if not selected", () => {
+    const selectedCellForTest = { rowIndex: 0, colIndex: 0 }; // Selecting unlocked cell
+    const lockedCellPosition = { rowIndex: 1, colIndex: 0 }; // Another cell in same column is locked
+
+    const mockIsCellLocked = (r: number, c: number) =>
+      r === lockedCellPosition.rowIndex && c === lockedCellPosition.colIndex;
+
+    const currentMockData = useLiveTable();
+    vi.mocked(useLiveTable).mockReturnValue(currentMockData);
+    vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
+    vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
+    vi.mocked(useIsCellLockedFn).mockReturnValue(mockIsCellLocked);
+
+    render(
+      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
+    );
+
+    const deleteButton = findDeleteColumnButton();
+    expect(deleteButton).toBeInTheDocument();
+    expect(deleteButton).toBeDisabled();
+
+    fireEvent.mouseDown(deleteButton!);
+    expect(mockDeleteColumns).not.toHaveBeenCalled();
+  });
 });

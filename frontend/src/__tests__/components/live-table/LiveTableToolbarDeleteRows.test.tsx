@@ -318,4 +318,33 @@ describe("LiveTableToolbar - Delete Rows", () => {
     expect(liveTableDocInstance.yRowOrder.length).toBe(initialRowCount);
     expect(mockDeleteRows).not.toHaveBeenCalled();
   });
+
+  it("should not delete row if any cell in the row is locked, even if not selected", () => {
+    const selectedCellForTest = { rowIndex: 0, colIndex: 0 }; // Selecting unlocked cell
+    const lockedCellPosition = { rowIndex: 0, colIndex: 1 }; // Another cell in same row is locked
+
+    const mockIsCellLocked = (r: number, c: number) =>
+      r === lockedCellPosition.rowIndex && c === lockedCellPosition.colIndex;
+
+    const currentMockData = useLiveTable();
+    vi.mocked(useLiveTable).mockReturnValue(currentMockData);
+    vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
+    vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
+    vi.mocked(useIsCellLockedFn).mockReturnValue(mockIsCellLocked);
+
+    render(
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
+    );
+
+    const deleteButton = findDeleteRowButton();
+    expect(deleteButton).toBeInTheDocument();
+    expect(deleteButton).toBeDisabled();
+
+    fireEvent.mouseDown(deleteButton!);
+    expect(mockDeleteRows).not.toHaveBeenCalled();
+  });
 });
