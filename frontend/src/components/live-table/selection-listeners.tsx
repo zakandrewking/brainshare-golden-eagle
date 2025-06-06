@@ -16,12 +16,12 @@ import {
   useSelectedCell,
   useSelectedCells,
   useSelectionEnd,
-  useSelectionMove,
+  useSelectionStartOrMove,
 } from "@/stores/selectionStore";
 
 export default function SelectionListeners() {
   const selectedCell = useSelectedCell();
-  const moveSelection = useSelectionMove();
+  const selectionStartOrMove = useSelectionStartOrMove();
   const endSelection = useSelectionEnd();
   const clearSelection = useClearSelection();
   const isSelecting = useIsSelecting();
@@ -64,7 +64,7 @@ export default function SelectionListeners() {
       );
 
       if (rowIndex >= 0 && colIndex >= 0) {
-        moveSelection(rowIndex, colIndex);
+        selectionStartOrMove(rowIndex, colIndex, true);
       }
     };
 
@@ -79,7 +79,7 @@ export default function SelectionListeners() {
       document.removeEventListener("mousemove", handleGlobalMouseMove);
       document.removeEventListener("mouseup", handleGlobalMouseUp);
     };
-  }, [isSelecting, moveSelection, endSelection, tableRef]);
+  }, [isSelecting, selectionStartOrMove, endSelection, tableRef]);
 
   // Effect to handle clicks outside the table
   useEffect(() => {

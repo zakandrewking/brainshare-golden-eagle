@@ -15,10 +15,14 @@ export interface SelectionArea {
 export interface SelectionState {
   selectedCell: CellPosition | null;
   selectionArea: SelectionArea;
+  // true if the user is currently dragging to select cells
   isSelecting: boolean;
   setSelectedCell: (cell: CellPosition | null) => void;
-  startSelection: (rowIndex: number, colIndex: number) => void;
-  moveSelection: (rowIndex: number, colIndex: number) => void;
+  startOrMoveSelection: (
+    rowIndex: number,
+    colIndex: number,
+    shiftKey: boolean
+  ) => void;
   endSelection: () => void;
   clearSelection: () => void;
 }
@@ -32,39 +36,44 @@ const initialState: Pick<
   isSelecting: false,
 };
 
-export const selectionStore = createStore<SelectionState>((set) => ({
+export const selectionStore = createStore<SelectionState>((set, get) => ({
   ...initialState,
   setSelectedCell: (cell) => set({ selectedCell: cell }),
-  startSelection: (rowIndex, colIndex) =>
-    set({
-      selectedCell: { rowIndex, colIndex },
-      selectionArea: {
-        startCell: { rowIndex, colIndex },
-        endCell: { rowIndex, colIndex },
-      },
-      isSelecting: true,
-    }),
-  moveSelection: (rowIndex, colIndex) =>
-    set((state) => {
-      if (!state.selectionArea.startCell) {
+  startOrMoveSelection: (rowIndex, colIndex, shiftKeyOrDrag) => {
+    const { selectionArea } = get();
+    if (shiftKeyOrDrag && selectionArea !== null) {
+      // move selection
+      if (!selectionArea.startCell) {
         // If move is called without a start, initiate selection from this point.
         // This can happen if a drag starts outside a designated "start" area but still within a selectable zone.
-        return {
+        set({
           selectedCell: { rowIndex, colIndex },
           selectionArea: {
             startCell: { rowIndex, colIndex },
             endCell: { rowIndex, colIndex },
           },
           isSelecting: true,
-        };
+        });
+        return;
       }
-      return {
+      set({
         selectionArea: {
-          ...state.selectionArea,
+          ...selectionArea,
           endCell: { rowIndex, colIndex },
         },
-      };
-    }),
+      });
+    } else {
+      // start
+      set({
+        selectedCell: { rowIndex, colIndex },
+        selectionArea: {
+          startCell: { rowIndex, colIndex },
+          endCell: { rowIndex, colIndex },
+        },
+        isSelecting: true,
+      });
+    }
+  },
   endSelection: () => set({ isSelecting: false }),
   clearSelection: () => set({ ...initialState }),
 }));
@@ -77,11 +86,8 @@ function useSelectionStore<T>(selector?: (state: SelectionState) => T) {
 
 // Selectors
 
-export const useSelectionStart = () =>
-  useSelectionStore((state) => state.startSelection);
-
-export const useSelectionMove = () =>
-  useSelectionStore((state) => state.moveSelection);
+export const useSelectionStartOrMove = () =>
+  useSelectionStore((state) => state.startOrMoveSelection);
 
 export const useSelectionEnd = () =>
   useSelectionStore((state) => state.endSelection);
@@ -142,22 +148,45 @@ export const useSelectedCells = () =>
     return shallow(makeSet(a), makeSet(b));
   });
 
-const selectIsCellSelected = (
-  state: SelectionState,
-  rowIndex: number,
-  colIndex: number
-): boolean => {
-  const selectedCells = selectSelectedCells(state);
-  return selectedCells.some(
-    (cell) => cell.rowIndex === rowIndex && cell.colIndex === colIndex
-  );
-};
-
 export const useSelectIsCellSelected = (
   rowIndex: number,
   colIndex: number
 ): boolean => {
-  return useSelectionStore((state) =>
-    selectIsCellSelected(state, rowIndex, colIndex)
-  );
+  return useSelectionStore((state) => {
+    const cell = state.selectedCell;
+    if (!cell) return false;
+    return cell.rowIndex === rowIndex && cell.colIndex === colIndex;
+  });
+};
+
+export const useSelectIsCellInSelection = (
+  rowIndex: number,
+  colIndex: number
+): boolean => {
+  return useSelectionStore((state) => {
+    const { selectionArea } = state;
+    if (!selectionArea.startCell || !selectionArea.endCell) return false;
+    const startRow = Math.min(
+      selectionArea.startCell.rowIndex,
+      selectionArea.endCell.rowIndex
+    );
+    const endRow = Math.max(
+      selectionArea.startCell.rowIndex,
+      selectionArea.endCell.rowIndex
+    );
+    const startCol = Math.min(
+      selectionArea.startCell.colIndex,
+      selectionArea.endCell.colIndex
+    );
+    const endCol = Math.max(
+      selectionArea.startCell.colIndex,
+      selectionArea.endCell.colIndex
+    );
+    return (
+      rowIndex >= startRow &&
+      rowIndex <= endRow &&
+      colIndex >= startCol &&
+      colIndex <= endCol
+    );
+  });
 };

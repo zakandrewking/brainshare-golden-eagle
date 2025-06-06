@@ -2,11 +2,20 @@
  * TODO move data, locks, editing, etc. to this store from LiveTableProvider
  */
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 import { toast } from "sonner";
 import { UndoManager } from "yjs";
-import { createStore, StoreApi, useStore } from "zustand";
+import {
+  createStore,
+  StoreApi,
+  useStore,
+} from "zustand";
 
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
@@ -37,7 +46,7 @@ interface DataState {
   editingHeaderValue: string;
   editingCell: { rowIndex: number; colIndex: number } | null;
 
-  // column widths
+  // columns
   columnWidths: Record<string, number> | undefined;
 
   // locked cells
@@ -53,19 +62,25 @@ interface DataState {
 }
 
 interface DataActions {
+  // interactions
   handleCellFocus: (rowIndex: number, colIndex: number) => void;
   handleCellBlur: () => void;
   handleHeaderDoubleClick: (colIndex: number) => void;
   handleHeaderChange: (value: string) => void;
   handleHeaderBlur: () => void;
+
+  // editing
   handleCellChange: (
     rowIndex: number,
     header: string,
     newValue: string
   ) => void;
   setEditingCell: (cell: { rowIndex: number; colIndex: number } | null) => void;
-  getUndoManager: () => UndoManager;
   setEditingHeaderIndex: (index: number | null) => void;
+
+  // undo
+  getUndoManager: () => UndoManager;
+
   // rows
   generateAndInsertRows: (
     initialInsertIndex: number,
@@ -76,6 +91,7 @@ interface DataActions {
     numRowsToAdd: number
   ) => Promise<{ defaultRowsAdded: number }>;
   deleteRows: (rowIndices: number[]) => Promise<{ deletedCount: number }>;
+
   // columns
   generateAndInsertColumns: (
     initialInsertIndex: number,
@@ -87,8 +103,6 @@ interface DataActions {
   ) => Promise<{ count: number }>;
   reorderColumn: (fromIndex: number, toIndex: number) => void;
   deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
-
-  // column widths
   handleColumnResize: (header: string, newWidth: number) => void;
 
   // locked cells

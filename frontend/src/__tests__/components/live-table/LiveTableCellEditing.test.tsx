@@ -1,8 +1,18 @@
 import React from "react";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
@@ -27,7 +37,7 @@ import {
   useSelectedCell,
   useSelectedCells,
   useSelectionArea,
-  useSelectionStart,
+  useSelectionStartOrMove,
 } from "@/stores/selectionStore";
 
 import { TestDataStoreWrapper } from "./data-store-test-utils";
@@ -36,7 +46,7 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal()),
   useSelectedCell: vi.fn(),
   useSelectedCells: vi.fn(),
-  useSelectionStart: vi.fn(),
+  useSelectionStartOrMove: vi.fn(),
   useSelectionArea: vi.fn(),
   useIsSelecting: vi.fn(),
 }));
@@ -80,7 +90,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useHandleCellFocus).mockReturnValue(vi.fn());
     vi.mocked(useHandleCellBlur).mockReturnValue(vi.fn());
     vi.mocked(useHandleCellChange).mockReturnValue(vi.fn());
-    vi.mocked(useSelectionStart).mockReturnValue(vi.fn());
+    vi.mocked(useSelectionStartOrMove).mockReturnValue(vi.fn());
     vi.mocked(useSelectedCells).mockReturnValue([]);
   });
 
@@ -88,8 +98,10 @@ describe("LiveTableDisplay Cell Editing", () => {
     const user = userEvent.setup();
 
     // Mocks specific to this test
-    const mockSelectionStart = vi.fn();
-    vi.mocked(useSelectionStart).mockReturnValue(mockSelectionStart);
+    const mockSelectionStartOrMove = vi.fn();
+    vi.mocked(useSelectionStartOrMove).mockReturnValue(
+      mockSelectionStartOrMove
+    );
 
     const mockSetEditingCell = vi.fn();
     vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
@@ -116,7 +128,7 @@ describe("LiveTableDisplay Cell Editing", () => {
 
     await user.click(cellInputJohnDoe); // Click the INPUT itself
 
-    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
     expect(cellInputJohnDoe).not.toHaveFocus(); // Original assertion
 
     const tdJohnDoe = cellInputJohnDoe.closest("td");
@@ -171,7 +183,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     await user.click(cellInputJaneSmith.closest("td")!); // Click another cell's TD
 
     expect(mockHandleCellBlur).toHaveBeenCalled(); // Assert the test-scoped mock
-    expect(mockSelectionStart).toHaveBeenCalledWith(1, 0); // New selection should start
+    expect(mockSelectionStartOrMove).toHaveBeenCalledWith(1, 0, false); // New selection should start
   });
 
   it("enters edit mode immediately when typing a character on selected cell", async () => {
@@ -183,8 +195,10 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
     const mockHandleCellFocus = vi.fn();
     vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
-    const mockSelectionStart = vi.fn();
-    vi.mocked(useSelectionStart).mockReturnValue(mockSelectionStart);
+    const mockSelectionStartOrMove = vi.fn();
+    vi.mocked(useSelectionStartOrMove).mockReturnValue(
+      mockSelectionStartOrMove
+    );
 
     vi.mocked(useEditingCell).mockReturnValue(null); // Initially not editing
 
@@ -197,7 +211,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     // First select a cell by clicking on it
     const cellToClick = screen.getByDisplayValue("John Doe");
     await user.click(cellToClick);
-    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
 
     // Explicitly mock the direct dependencies of handleKeyDown for this state
     vi.mocked(useEditingCell).mockReturnValue(null); // Ensure not editing
@@ -267,8 +281,10 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
     const mockHandleCellFocus = vi.fn();
     vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
-    const mockSelectionStart = vi.fn();
-    vi.mocked(useSelectionStart).mockReturnValue(mockSelectionStart);
+    const mockSelectionStartOrMove = vi.fn();
+    vi.mocked(useSelectionStartOrMove).mockReturnValue(
+      mockSelectionStartOrMove
+    );
 
     vi.mocked(useEditingCell).mockReturnValue(null); // Initially not editing
 
@@ -281,7 +297,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     // First select a cell by clicking on it
     const cellToClickBackspace = screen.getByDisplayValue("John Doe");
     await user.click(cellToClickBackspace);
-    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
 
     // Explicitly mock the direct dependencies of handleKeyDown for this state
     vi.mocked(useEditingCell).mockReturnValue(null); // Ensure not editing
@@ -387,8 +403,10 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
     const mockHandleCellFocus = vi.fn();
     vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
-    const mockSelectionStart = vi.fn();
-    vi.mocked(useSelectionStart).mockReturnValue(mockSelectionStart);
+    const mockSelectionStartOrMove = vi.fn();
+    vi.mocked(useSelectionStartOrMove).mockReturnValue(
+      mockSelectionStartOrMove
+    );
 
     vi.mocked(useEditingCell).mockReturnValue(null); // Initially not editing
 
@@ -406,7 +424,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Select the (now empty) cell (0,0)
     const cellToClickEmpty = screen.getByDisplayValue("");
     await user.click(cellToClickEmpty);
-    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
 
     // Explicitly mock the direct dependencies of handleKeyDown for this state
     vi.mocked(useEditingCell).mockReturnValue(null); // Ensure not editing

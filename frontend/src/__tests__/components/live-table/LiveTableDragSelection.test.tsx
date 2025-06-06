@@ -2,9 +2,21 @@
  * Example of a simple test setup, including manual push for a hook.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import {
   useIsSelectingMock,
@@ -24,8 +36,7 @@ import {
 } from "@/stores/dataStore";
 import {
   useSelectionEnd,
-  useSelectionMove,
-  useSelectionStart,
+  useSelectionStartOrMove,
 } from "@/stores/selectionStore";
 
 import { TestDataStoreWrapper } from "./data-store-test-utils";
@@ -40,8 +51,7 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
-  useSelectionStart: vi.fn(),
-  useSelectionMove: vi.fn(),
+  useSelectionStartOrMove: vi.fn(),
   useSelectionEnd: vi.fn(),
   useIsSelecting: useIsSelectingMock,
 }));
@@ -77,8 +87,10 @@ describe("LiveTableDisplay - Drag Selection", () => {
   });
 
   it("should start selection when mousedown on a cell (not in edit mode)", () => {
-    const mockSelectionStart = vi.fn();
-    vi.mocked(useSelectionStart).mockImplementation(() => mockSelectionStart);
+    const mockSelectionStartOrMove = vi.fn();
+    vi.mocked(useSelectionStartOrMove).mockImplementation(
+      () => mockSelectionStartOrMove
+    );
     render(
       <TestDataStoreWrapper>
         <LiveTableDisplay />
@@ -86,7 +98,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
     );
     const cell = screen.getAllByTestId("table-cell")[0];
     fireEvent.mouseDown(cell);
-    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
   });
 
   it("should not start selection when mousedown on a cell in edit mode", () => {
@@ -94,8 +106,10 @@ describe("LiveTableDisplay - Drag Selection", () => {
       rowIndex: 0,
       colIndex: 0,
     }));
-    const mockSelectionStart = vi.fn();
-    vi.mocked(useSelectionStart).mockImplementation(() => mockSelectionStart);
+    const mockSelectionStartOrMove = vi.fn();
+    vi.mocked(useSelectionStartOrMove).mockImplementation(
+      () => mockSelectionStartOrMove
+    );
     render(
       <TestDataStoreWrapper>
         <LiveTableDisplay />
@@ -103,16 +117,15 @@ describe("LiveTableDisplay - Drag Selection", () => {
     );
     const cell = screen.getAllByTestId("table-cell")[0];
     fireEvent.mouseDown(cell);
-    expect(mockSelectionStart).not.toHaveBeenCalled();
+    expect(mockSelectionStartOrMove).not.toHaveBeenCalled();
   });
 
   it("should update selection when mousemove over cells during selection", async () => {
-    const mockSelectionStart = vi.fn();
-    vi.mocked(useSelectionStart).mockImplementation(() => mockSelectionStart);
-    const mockHandleSelectionMove = vi.fn();
-    vi.mocked(useSelectionMove).mockImplementation(
-      () => mockHandleSelectionMove
+    const mockSelectionStartOrMove = vi.fn();
+    vi.mocked(useSelectionStartOrMove).mockImplementation(
+      () => mockSelectionStartOrMove
     );
+
     const { rerender } = render(
       <TestDataStoreWrapper>
         <LiveTableDisplay />
@@ -137,7 +150,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
       );
     });
 
-    expect(mockSelectionStart).toHaveBeenCalledWith(0, 0);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
 
     await act(async () => {
       useIsSelectingPush(true);
@@ -157,7 +170,7 @@ describe("LiveTableDisplay - Drag Selection", () => {
       fireEvent.mouseMove(document, { clientX: 123, clientY: 456 });
     });
 
-    expect(mockHandleSelectionMove).toHaveBeenCalledWith(1, 1);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledWith(1, 1, true);
   });
 
   it("should end selection when mouseup", async () => {

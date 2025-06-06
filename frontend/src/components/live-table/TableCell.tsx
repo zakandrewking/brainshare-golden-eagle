@@ -11,9 +11,8 @@ import {
   useSetEditingCell,
 } from "@/stores/dataStore";
 import {
-  useSelectedCell,
-  useSelectionMove,
-  useSelectionStart,
+  useSelectionStartOrMove,
+  useSelectIsCellInSelection,
   useSelectIsCellSelected,
 } from "@/stores/selectionStore";
 
@@ -38,13 +37,10 @@ const TableCell: React.FC<TableCellProps> = ({
   const setEditingCell = useSetEditingCell();
   const handleCellFocus = useHandleCellFocus();
 
-  const selectedCell = useSelectedCell();
-  const startSelection = useSelectionStart();
-  const moveSelection = useSelectionMove();
-  const isInSelection = useSelectIsCellSelected(rowIndex, colIndex);
+  const startOrMoveSelection = useSelectionStartOrMove();
+  const isSelected = useSelectIsCellSelected(rowIndex, colIndex);
+  const isInSelection = useSelectIsCellInSelection(rowIndex, colIndex);
 
-  const isSelected =
-    selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;
   const isEditing =
     editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
 
@@ -93,21 +89,9 @@ const TableCell: React.FC<TableCellProps> = ({
         document.activeElement.blur();
       }
 
-      if (event.shiftKey && selectedCell) {
-        moveSelection(rowIndex, colIndex);
-      } else {
-        startSelection(rowIndex, colIndex);
-      }
+      startOrMoveSelection(rowIndex, colIndex, event.shiftKey);
     },
-    [
-      editingCell,
-      rowIndex,
-      colIndex,
-      selectedCell,
-      setEditingCell,
-      moveSelection,
-      startSelection,
-    ]
+    [editingCell, rowIndex, colIndex, setEditingCell, startOrMoveSelection]
   );
 
   const handleCellDoubleClick = useCallback(

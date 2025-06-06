@@ -1,9 +1,19 @@
 import React from "react";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as Y from "yjs";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import {
   useIsSelectingMock,
@@ -16,9 +26,7 @@ import {
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import {
   type CellValue,
-  type ColumnDefinition,
   type ColumnId,
-  LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
 import {
@@ -30,8 +38,7 @@ import {
 import {
   useSelectedCells,
   useSelectionEnd,
-  useSelectionMove,
-  useSelectionStart,
+  useSelectionStartOrMove,
 } from "@/stores/selectionStore";
 
 import { TestDataStoreWrapper } from "./data-store-test-utils";
@@ -50,86 +57,41 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   selectSelectedCells: vi.fn(),
   useSelectedCells: vi.fn(),
   useSelectionStart: vi.fn(),
-  useSelectionMove: vi.fn(),
+  useSelectionStartOrMove: vi.fn(),
   useSelectionEnd: vi.fn(),
   useIsSelecting: useIsSelectingMock,
   useSelectedCell: useSelectedCellMock,
 }));
 
 describe("LiveTableDisplay - Shift-Click Selection", () => {
-  const colId1 = crypto.randomUUID() as ColumnId;
-  const colId2 = crypto.randomUUID() as ColumnId;
-  const initialColumnDefinitions: ColumnDefinition[] = [
-    { id: colId1, name: "Col1", width: 150 },
-    { id: colId2, name: "Col2", width: 150 },
-  ];
-  const initialHeaders = [colId1, colId2];
-  const initialColumnOrder: ColumnId[] = [colId1, colId2];
-
+  const initialHeaders = ["Col1", "Col2"];
   const rowId1 = crypto.randomUUID() as RowId;
   const rowId2 = crypto.randomUUID() as RowId;
-  const initialRowOrder: RowId[] = [rowId1, rowId2];
   const initialRowData: Record<RowId, Record<ColumnId, CellValue>> = {
-    [rowId1]: { [colId1]: "R1C1", [colId2]: "R1C2" },
-    [rowId2]: { [colId1]: "R2C1", [colId2]: "R2C2" },
+    [rowId1]: { Col1: "R1C1", Col2: "R1C2" },
+    [rowId2]: { Col1: "R2C1", Col2: "R2C2" },
   };
 
-  let yDoc: Y.Doc;
-  let liveTableDocInstance: LiveTableDoc;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.resetAllMocks();
 
     vi.mocked(useIsTableLoaded).mockReturnValue(true);
     vi.mocked(useIsCellLocked).mockReturnValue(false);
     vi.mocked(useHeaders).mockReturnValue(initialHeaders);
     vi.mocked(useTableData).mockReturnValue(Object.values(initialRowData));
-
-    // reset the selected cell
-    await act(async () => {
-      useSelectedCellPush(null);
-    });
-
-    yDoc = new Y.Doc();
-    liveTableDocInstance = new LiveTableDoc(yDoc);
-
-    yDoc.transact(() => {
-      initialColumnDefinitions.forEach((def) =>
-        liveTableDocInstance.yColumnDefinitions.set(def.id, def)
-      );
-      liveTableDocInstance.yColumnOrder.push(initialColumnOrder);
-      initialRowOrder.forEach((rId) => {
-        const rData = initialRowData[rId];
-        const yRowMap = new Y.Map<CellValue>();
-        initialColumnOrder.forEach((cId) => {
-          if (rData[cId] !== undefined) yRowMap.set(cId, rData[cId]);
-        });
-        liveTableDocInstance.yRowData.set(rId, yRowMap);
-      });
-      liveTableDocInstance.yRowOrder.push(initialRowOrder);
-      liveTableDocInstance.yMeta.set("schemaVersion", 2);
-    });
-  });
-
-  afterEach(() => {
-    yDoc.destroy();
   });
 
   it("should expand selection with shift-click after an initial selection and update selectedCells", async () => {
-    const mockHandleSelectionStart = vi.fn();
-    vi.mocked(useSelectionStart).mockImplementation(
-      () => mockHandleSelectionStart
-    );
-    const mockHandleSelectionMove = vi.fn();
-    vi.mocked(useSelectionMove).mockImplementation(
-      () => mockHandleSelectionMove
+    const mockHandleSelectionStartOrMove = vi.fn();
+    vi.mocked(useSelectionStartOrMove).mockImplementation(
+      () => mockHandleSelectionStartOrMove
     );
 
     const mockSelectionEnd = vi.fn();
     vi.mocked(useSelectionEnd).mockImplementation(() => mockSelectionEnd);
 
     render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -146,8 +108,8 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     // 1. Simulate initial click on cell (0,0)
     fireEvent.mouseDown(firstCellToClick);
 
-    expect(mockHandleSelectionStart).toHaveBeenCalledTimes(1);
-    expect(mockHandleSelectionStart).toHaveBeenCalledWith(0, 0);
+    expect(mockHandleSelectionStartOrMove).toHaveBeenCalledTimes(1);
+    expect(mockHandleSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
 
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
     await act(async () => {
@@ -167,8 +129,8 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     // 2. Simulate shift-click on cell (1,1)
     fireEvent.mouseDown(secondCellToShiftClick, { shiftKey: true });
 
-    expect(mockHandleSelectionMove).toHaveBeenCalledTimes(1);
-    expect(mockHandleSelectionMove).toHaveBeenCalledWith(1, 1);
+    expect(mockHandleSelectionStartOrMove).toHaveBeenCalledTimes(2);
+    expect(mockHandleSelectionStartOrMove).toHaveBeenCalledWith(1, 1, true);
 
     await act(async () => {
       useIsSelectingPush(true);
@@ -180,15 +142,15 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
   });
 
   it("should start a new selection with click if shift is not pressed, even if an anchor exists", async () => {
-    const mockSelectionStart = vi.fn();
-    vi.mocked(useSelectionStart).mockImplementation(() => mockSelectionStart);
-    const mockSelectionMove = vi.fn();
-    vi.mocked(useSelectionMove).mockImplementation(() => mockSelectionMove);
+    const mockSelectionStartOrMove = vi.fn();
+    vi.mocked(useSelectionStartOrMove).mockImplementation(
+      () => mockSelectionStartOrMove
+    );
     const mockSelectionEnd = vi.fn();
     vi.mocked(useSelectionEnd).mockImplementation(() => mockSelectionEnd);
 
     const { rerender } = render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -203,13 +165,13 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     fireEvent.mouseDown(firstCellToClick);
 
     rerender(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
 
-    expect(mockSelectionStart).toHaveBeenCalledTimes(1);
-    expect(mockSelectionStart).toHaveBeenLastCalledWith(0, 0);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledTimes(1);
+    expect(mockSelectionStartOrMove).toHaveBeenLastCalledWith(0, 0, false);
 
     await act(async () => {
       useIsSelectingPush(true);
@@ -226,14 +188,13 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     fireEvent.mouseDown(secondCellToClick);
 
     rerender(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
 
-    expect(mockSelectionMove).not.toHaveBeenCalled();
-    expect(mockSelectionStart).toHaveBeenCalledTimes(2);
-    expect(mockSelectionStart).toHaveBeenLastCalledWith(1, 1);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledTimes(2);
+    expect(mockSelectionStartOrMove).toHaveBeenLastCalledWith(1, 1, false);
 
     await act(async () => {
       useIsSelectingPush(true);
@@ -245,15 +206,15 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
   });
 
   it("should start a new selection with shift-click if no initial anchor exists", async () => {
-    const mockSelectionStart = vi.fn();
-    vi.mocked(useSelectionStart).mockImplementation(() => mockSelectionStart);
-    const mockSelectionMove = vi.fn();
-    vi.mocked(useSelectionMove).mockImplementation(() => mockSelectionMove);
+    const mockSelectionStartOrMove = vi.fn();
+    vi.mocked(useSelectionStartOrMove).mockImplementation(
+      () => mockSelectionStartOrMove
+    );
     const mockSelectionEnd = vi.fn();
     vi.mocked(useSelectionEnd).mockImplementation(() => mockSelectionEnd);
 
     const { rerender } = render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
@@ -266,13 +227,13 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     fireEvent.mouseDown(cellToShiftClick, { shiftKey: true });
 
     rerender(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
+      <TestDataStoreWrapper>
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
 
-    expect(mockSelectionStart).toHaveBeenCalledTimes(1);
-    expect(mockSelectionStart).toHaveBeenCalledWith(0, 1);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledTimes(1);
+    expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 1, true);
 
     // simulate the updated hook
     await act(async () => {
@@ -282,6 +243,5 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
     fireEvent.mouseUp(cellToShiftClick);
 
     expect(mockSelectionEnd).toHaveBeenCalledTimes(1);
-    expect(mockSelectionMove).not.toHaveBeenCalled();
   });
 });
