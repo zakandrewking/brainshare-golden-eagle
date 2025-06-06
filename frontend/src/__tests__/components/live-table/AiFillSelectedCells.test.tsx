@@ -126,7 +126,7 @@ describe("AiFillSelectionButton", () => {
 
   it("should be disabled when no cells are selected", () => {
     // Mock useSelectedCells to return an empty array
-    vi.mocked(SelectionStoreModule.useSelectedCells).mockReturnValueOnce([]);
+    vi.mocked(SelectionStoreModule.useSelectedCells).mockReturnValue([]);
 
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDoc}>

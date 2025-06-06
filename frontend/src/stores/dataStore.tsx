@@ -4,11 +4,9 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { enableMapSet } from "immer";
 import { toast } from "sonner";
 import { UndoManager } from "yjs";
 import { createStore, StoreApi, useStore } from "zustand";
-import { immer } from "zustand/middleware/immer";
 
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
@@ -24,8 +22,6 @@ import {
   insertEmptyRows,
 } from "@/components/live-table/manage-rows";
 import type { CellPosition } from "@/stores/selectionStore";
-
-enableMapSet();
 
 // -----
 // Types
@@ -51,6 +47,9 @@ interface DataState {
   tableData: Record<string, unknown>[];
   headers: string[];
   isTableLoaded: boolean;
+
+  // refs
+  tableRef: React.RefObject<HTMLTableElement | null> | undefined;
 }
 
 interface DataActions {
@@ -96,6 +95,9 @@ interface DataActions {
   lockSelectedRange: (selectedCells: CellPosition[]) => string | null;
   unlockRange: (lockId: string) => boolean;
   unlockAll: () => void;
+
+  // refs
+  setTableRef: (ref: React.RefObject<HTMLTableElement | null>) => void;
 }
 
 export type DataStore = DataState & DataActions;
@@ -117,6 +119,7 @@ const initialState: DataState = {
   tableData: [],
   isTableLoaded: false,
   columnWidths: undefined,
+  tableRef: undefined,
 };
 
 /**
@@ -198,134 +201,135 @@ export const DataStoreProvider = ({
   documentDescription: string;
 }) => {
   const [store] = useState(() =>
-    createStore<DataStore>()(
-      immer((set, get) => ({
-        ...initialState,
-        lockSelectedRange: (selectedCells: CellPosition[]) =>
-          lockSelectedRange(selectedCells, liveTableDoc),
-        unlockRange: (lockId: string) => unlockRange(lockId, liveTableDoc),
-        unlockAll: () => unlockAll(liveTableDoc),
-        handleCellFocus: (rowIndex: number, colIndex: number) => {
-          yProvider.awareness.setLocalStateField("selectedCell", {
-            rowIndex,
-            colIndex,
-          });
-        },
-        handleCellBlur: () => {
-          yProvider.awareness.setLocalStateField("selectedCell", null);
-        },
-        handleHeaderDoubleClick: (colIndex: number) => {
-          const headers = get().headers;
-          if (!headers) return;
-          set((state) => {
-            state.editingHeaderIndex = colIndex;
-            state.editingHeaderValue = headers[colIndex];
-          });
-        },
-        handleHeaderChange: (value: string) => {
-          set((state) => {
-            state.editingHeaderValue = value;
-          });
-        },
-        handleHeaderBlur: () => {
-          const state = get();
-          if (state.editingHeaderIndex === null) return;
-          const headers = state.headers;
+    createStore<DataStore>()((set, get) => ({
+      ...initialState,
+      lockSelectedRange: (selectedCells: CellPosition[]) =>
+        lockSelectedRange(selectedCells, liveTableDoc),
+      unlockRange: (lockId: string) => unlockRange(lockId, liveTableDoc),
+      unlockAll: () => unlockAll(liveTableDoc),
+      handleCellFocus: (rowIndex: number, colIndex: number) => {
+        yProvider.awareness.setLocalStateField("selectedCell", {
+          rowIndex,
+          colIndex,
+        });
+      },
+      handleCellBlur: () => {
+        yProvider.awareness.setLocalStateField("selectedCell", null);
+      },
+      handleHeaderDoubleClick: (colIndex: number) => {
+        const headers = get().headers;
+        if (!headers) return;
+        set({
+          editingHeaderIndex: colIndex,
+          editingHeaderValue: headers[colIndex],
+        });
+      },
+      handleHeaderChange: (value: string) => {
+        set({
+          editingHeaderValue: value,
+        });
+      },
+      handleHeaderBlur: () => {
+        const state = get();
+        if (state.editingHeaderIndex === null) return;
+        const headers = state.headers;
 
-          const oldHeader = headers[state.editingHeaderIndex];
-          const newHeader = state.editingHeaderValue.trim();
+        const oldHeader = headers[state.editingHeaderIndex];
+        const newHeader = state.editingHeaderValue.trim();
 
-          if (newHeader && newHeader !== oldHeader) {
-            liveTableDoc.editHeader(state.editingHeaderIndex, newHeader);
-          }
+        if (newHeader && newHeader !== oldHeader) {
+          liveTableDoc.editHeader(state.editingHeaderIndex, newHeader);
+        }
 
-          set((state) => {
-            state.editingHeaderIndex = null;
-          });
-        },
-        handleCellChange: (
-          rowIndex: number,
-          header: string,
-          newValue: string
-        ) => {
-          liveTableDoc.updateCell(rowIndex, header, newValue);
-        },
-        setEditingCell: (
-          cell: { rowIndex: number; colIndex: number } | null
-        ) => {
-          set({ editingCell: cell });
-        },
-        getUndoManager: () => liveTableDoc.undoManager,
-        setEditingHeaderIndex: (index: number | null) => {
-          set({ editingHeaderIndex: index });
-        },
-        generateAndInsertRows: (
-          initialInsertIndex: number,
-          numRowsToAdd: number
-        ) => {
-          const { headers, tableData } = get();
-          return generateAndInsertRows(
-            initialInsertIndex,
-            numRowsToAdd,
-            headers,
-            tableData,
-            documentTitle,
-            documentDescription,
-            liveTableDoc
-          );
-        },
-        insertEmptyRows: (initialInsertIndex: number, numRowsToAdd: number) =>
-          insertEmptyRows(initialInsertIndex, numRowsToAdd, liveTableDoc),
-        deleteRows: (rowIndices: number[]) =>
-          deleteRows(rowIndices, liveTableDoc),
-        generateAndInsertColumns: (
-          initialInsertIndex: number,
-          numColsToAdd: number
-        ) => {
-          const { headers, tableData } = get();
-          return generateAndInsertColumns(
-            initialInsertIndex,
-            numColsToAdd,
-            headers,
-            tableData,
-            documentTitle,
-            documentDescription,
-            liveTableDoc
-          );
-        },
-        insertEmptyColumns: (
-          initialInsertIndex: number,
-          numColsToAdd: number
-        ) => {
-          if (numColsToAdd <= 0) {
-            return Promise.resolve({ count: 0 });
-          }
-          const columnsToInsert = Array.from({ length: numColsToAdd }).map(
-            () => ({
-              headerName: generateUniqueDefaultHeader(
-                "New Column",
-                get().headers,
-                []
-              ),
-              columnData: null,
-            })
-          );
-          const insertedCount = liveTableDoc.insertColumns(
-            initialInsertIndex,
-            columnsToInsert
-          );
-          return Promise.resolve({ count: insertedCount });
-        },
-        reorderColumn: (fromIndex: number, toIndex: number) => {
-          liveTableDoc.reorderColumn(fromIndex, toIndex);
-        },
-        deleteColumns: (colIndices: number[]) =>
-          deleteColumns(colIndices, liveTableDoc),
-        handleColumnResize: (header: string, newWidth: number) => {
-          liveTableDoc.updateColumnWidth(header, newWidth);
-        },
-      }))
-    )
+        set({
+          editingHeaderIndex: null,
+        });
+      },
+      handleCellChange: (
+        rowIndex: number,
+        header: string,
+        newValue: string
+      ) => {
+        liveTableDoc.updateCell(rowIndex, header, newValue);
+      },
+      setEditingCell: (cell: { rowIndex: number; colIndex: number } | null) => {
+        set({ editingCell: cell });
+      },
+      getUndoManager: () => liveTableDoc.undoManager,
+      setEditingHeaderIndex: (index: number | null) => {
+        set({ editingHeaderIndex: index });
+      },
+      generateAndInsertRows: (
+        initialInsertIndex: number,
+        numRowsToAdd: number
+      ) => {
+        const { headers, tableData } = get();
+        return generateAndInsertRows(
+          initialInsertIndex,
+          numRowsToAdd,
+          headers,
+          tableData,
+          documentTitle,
+          documentDescription,
+          liveTableDoc
+        );
+      },
+      insertEmptyRows: (initialInsertIndex: number, numRowsToAdd: number) =>
+        insertEmptyRows(initialInsertIndex, numRowsToAdd, liveTableDoc),
+      deleteRows: (rowIndices: number[]) =>
+        deleteRows(rowIndices, liveTableDoc),
+      generateAndInsertColumns: (
+        initialInsertIndex: number,
+        numColsToAdd: number
+      ) => {
+        const { headers, tableData } = get();
+        return generateAndInsertColumns(
+          initialInsertIndex,
+          numColsToAdd,
+          headers,
+          tableData,
+          documentTitle,
+          documentDescription,
+          liveTableDoc
+        );
+      },
+      insertEmptyColumns: (
+        initialInsertIndex: number,
+        numColsToAdd: number
+      ) => {
+        if (numColsToAdd <= 0) {
+          return Promise.resolve({ count: 0 });
+        }
+        const columnsToInsert = Array.from({ length: numColsToAdd }).map(
+          () => ({
+            headerName: generateUniqueDefaultHeader(
+              "New Column",
+              get().headers,
+              []
+            ),
+            columnData: null,
+          })
+        );
+        const insertedCount = liveTableDoc.insertColumns(
+          initialInsertIndex,
+          columnsToInsert
+        );
+        return Promise.resolve({ count: insertedCount });
+      },
+      reorderColumn: (fromIndex: number, toIndex: number) => {
+        liveTableDoc.reorderColumn(fromIndex, toIndex);
+      },
+      deleteColumns: (colIndices: number[]) =>
+        deleteColumns(colIndices, liveTableDoc),
+      handleColumnResize: (header: string, newWidth: number) => {
+        liveTableDoc.updateColumnWidth(header, newWidth);
+      },
+
+      // refs
+      setTableRef: (ref: React.RefObject<HTMLTableElement | null>) => {
+        set({ tableRef: ref });
+      },
+    }))
   );
 
   // wire up yjs
@@ -480,3 +484,7 @@ export const useHeaders = () => useDataStore((state) => state.headers);
 export const useTableData = () => useDataStore((state) => state.tableData);
 export const useIsTableLoaded = () =>
   useDataStore((state) => state.isTableLoaded);
+
+// refs
+export const useTableRef = () => useDataStore((state) => state.tableRef);
+export const useSetTableRef = () => useDataStore((state) => state.setTableRef);

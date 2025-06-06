@@ -14,31 +14,19 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   useColumnWidths,
-  useEditingCell,
   useEditingHeaderIndex,
   useEditingHeaderValue,
-  useHandleCellChange,
-  useHandleCellFocus,
   useHandleColumnResize,
   useHandleHeaderBlur,
   useHandleHeaderChange,
   useHandleHeaderDoubleClick,
   useHeaders,
-  useIsCellLockedFn,
   useIsTableLoaded,
   useReorderColumn,
-  useSetEditingCell,
   useSetEditingHeaderIndex,
+  useSetTableRef,
   useTableData,
 } from "@/stores/dataStore";
-import {
-  useClearSelection,
-  useIsSelecting,
-  useSelectedCell,
-  useSelectedCells,
-  useSelectionEnd,
-  useSelectionMove,
-} from "@/stores/selectionStore";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
 import TableCell from "./TableCell";
@@ -63,10 +51,6 @@ const LiveTable: React.FC = () => {
   const headers = useHeaders();
   const columnWidths = useColumnWidths();
 
-  const handleCellFocus = useHandleCellFocus();
-  const handleCellChange = useHandleCellChange();
-  const editingCell = useEditingCell();
-  const setEditingCell = useSetEditingCell();
   const editingHeaderIndex = useEditingHeaderIndex();
   const editingHeaderValue = useEditingHeaderValue();
   const handleHeaderChange = useHandleHeaderChange();
@@ -74,16 +58,9 @@ const LiveTable: React.FC = () => {
   const handleHeaderDoubleClick = useHandleHeaderDoubleClick();
   const setEditingHeaderIndex = useSetEditingHeaderIndex();
   const handleColumnResize = useHandleColumnResize();
-  const isCellLockedFn = useIsCellLockedFn();
+  const setTableRef = useSetTableRef();
 
   const reorderColumn = useReorderColumn();
-
-  const selectedCell = useSelectedCell();
-  const moveSelection = useSelectionMove();
-  const endSelection = useSelectionEnd();
-  const clearSelection = useClearSelection();
-  const isSelecting = useIsSelecting();
-  const selectedCells = useSelectedCells();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
@@ -97,6 +74,10 @@ const LiveTable: React.FC = () => {
   const tableRef = useRef<HTMLTableElement>(null);
   const lastTapTimeRef = useRef(0);
   const lastTapTargetRef = useRef<EventTarget | null>(null);
+
+  useEffect(() => {
+    setTableRef(tableRef);
+  }, [setTableRef, tableRef]);
 
   const handleColumnDragStart = useCallback(
     (event: React.DragEvent, columnIndex: number) => {
@@ -268,51 +249,6 @@ const LiveTable: React.FC = () => {
     };
   }, [resizingHeader, handleMouseMove, handleMouseUp]);
 
-  useEffect(() => {
-    if (!isSelecting) return;
-
-    const handleGlobalMouseMove = (event: MouseEvent) => {
-      if (!tableRef.current) return;
-
-      if (typeof document.elementFromPoint !== "function") {
-        return;
-      }
-
-      const cellElement = document.elementFromPoint(
-        event.clientX,
-        event.clientY
-      ) as HTMLElement;
-
-      const cell = cellElement?.closest("td");
-      if (!cell) return;
-
-      const rowIndex = parseInt(
-        cell.getAttribute("data-row-index") || "-1",
-        10
-      );
-      const colIndex = parseInt(
-        cell.getAttribute("data-col-index") || "-1",
-        10
-      );
-
-      if (rowIndex >= 0 && colIndex >= 0) {
-        moveSelection(rowIndex, colIndex);
-      }
-    };
-
-    const handleGlobalMouseUp = () => {
-      endSelection();
-    };
-
-    document.addEventListener("mousemove", handleGlobalMouseMove);
-    document.addEventListener("mouseup", handleGlobalMouseUp);
-
-    return () => {
-      document.removeEventListener("mousemove", handleGlobalMouseMove);
-      document.removeEventListener("mouseup", handleGlobalMouseUp);
-    };
-  }, [isSelecting, moveSelection, endSelection]);
-
   const handleHeaderKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === "Enter") {
@@ -326,151 +262,6 @@ const LiveTable: React.FC = () => {
     },
     [handleHeaderBlur, setEditingHeaderIndex]
   );
-
-  // Effect to handle clicks outside the table
-  useEffect(() => {
-    const handleInteractionOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-
-      const isInsideTable =
-        tableRef.current && tableRef.current.contains(target);
-      const shouldPreserveSelection = !!target.closest(
-        '[data-preserve-selection="true"]'
-      );
-
-      if (!isInsideTable && selectedCell && !shouldPreserveSelection) {
-        clearSelection();
-      }
-    };
-
-    document.addEventListener("mousedown", handleInteractionOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleInteractionOutside);
-    };
-  }, [selectedCell, clearSelection, tableRef]);
-
-  // Effect to handle keyboard input for immediate edit mode
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Only handle if we have a single cell selected and not already editing
-      if (!selectedCell || editingCell || !headers || !tableData) {
-        return;
-      }
-
-      // Check if we have a single cell selection (not a range)
-      const isSingleCellSelected =
-        selectedCells &&
-        selectedCells.length === 1 &&
-        selectedCells[0].rowIndex === selectedCell.rowIndex &&
-        selectedCells[0].colIndex === selectedCell.colIndex;
-
-      if (!isSingleCellSelected) {
-        return;
-      }
-
-      // Don't handle if the cell is locked
-      if (isCellLockedFn(selectedCell.rowIndex, selectedCell.colIndex)) {
-        return;
-      }
-
-      // Don't handle if focus is on an input element (like header editing)
-      if (
-        document.activeElement &&
-        (document.activeElement.tagName === "INPUT" ||
-          document.activeElement.tagName === "TEXTAREA")
-      ) {
-        return;
-      }
-
-      // Don't handle modifier keys (except shift for characters)
-      if (event.ctrlKey || event.metaKey || event.altKey) {
-        return;
-      }
-
-      const { key } = event;
-      const header = headers[selectedCell.colIndex];
-      const currentValue = String(
-        tableData[selectedCell.rowIndex][header] ?? ""
-      );
-
-      // Handle backspace - remove the last character
-      if (key === "Backspace") {
-        event.preventDefault();
-        const newValue = currentValue.slice(0, -1);
-        setEditingCell({
-          rowIndex: selectedCell.rowIndex,
-          colIndex: selectedCell.colIndex,
-        });
-        handleCellFocus(selectedCell.rowIndex, selectedCell.colIndex);
-        handleCellChange(selectedCell.rowIndex, header, newValue);
-
-        // Focus the input after a brief delay to ensure it's rendered
-        setTimeout(() => {
-          const cellElement = tableRef.current?.querySelector(
-            `td[data-row-index="${selectedCell.rowIndex}"][data-col-index="${selectedCell.colIndex}"] input`
-          ) as HTMLInputElement;
-          if (cellElement) {
-            cellElement.focus();
-            // Set cursor to end of text
-            cellElement.setSelectionRange(
-              cellElement.value.length,
-              cellElement.value.length
-            );
-          }
-        }, 0);
-        return;
-      }
-
-      // Handle printable characters (length 1 and not special keys)
-      if (
-        key.length === 1 &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey
-      ) {
-        event.preventDefault();
-        const newValue = currentValue + key;
-        setEditingCell({
-          rowIndex: selectedCell.rowIndex,
-          colIndex: selectedCell.colIndex,
-        });
-        handleCellFocus(selectedCell.rowIndex, selectedCell.colIndex);
-        handleCellChange(selectedCell.rowIndex, header, newValue);
-
-        // Focus the input after a brief delay to ensure it's rendered
-        setTimeout(() => {
-          const cellElement = tableRef.current?.querySelector(
-            `td[data-row-index="${selectedCell.rowIndex}"][data-col-index="${selectedCell.colIndex}"] input`
-          ) as HTMLInputElement;
-          if (cellElement) {
-            cellElement.focus();
-            // Set cursor to end of text
-            cellElement.setSelectionRange(
-              cellElement.value.length,
-              cellElement.value.length
-            );
-          }
-        }, 0);
-        return;
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [
-    selectedCell,
-    editingCell,
-    headers,
-    tableData,
-    selectedCells,
-    isCellLockedFn,
-    setEditingCell,
-    handleCellFocus,
-    handleCellChange,
-    tableRef,
-  ]);
 
   if (!isTableLoaded) {
     return <DelayedLoadingSpinner />;

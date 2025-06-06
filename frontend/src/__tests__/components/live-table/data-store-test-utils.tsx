@@ -6,6 +6,7 @@ import * as Y from "yjs";
 import type { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
 import { LiveTableDoc } from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
+import SelectionListeners from "@/components/live-table/selection-listeners";
 import { DataStoreProvider } from "@/stores/dataStore";
 
 // Test wrapper that provides DataStoreProvider context
@@ -49,6 +50,7 @@ export const TestDataStoreWrapper: React.FC<{
       documentTitle={documentTitle}
       documentDescription={documentDescription}
     >
+      <SelectionListeners />
       {children}
     </DataStoreProvider>
   );

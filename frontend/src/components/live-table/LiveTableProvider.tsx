@@ -12,6 +12,7 @@ import { type CellPosition, type SelectionArea } from "@/stores/selectionStore";
 
 import AwarenessSync from "./awareness-sync";
 import { initializeLiveblocksRoom } from "./LiveTableDoc";
+import SelectionListeners from "./selection-listeners";
 
 export type { CellPosition, SelectionArea };
 
@@ -43,6 +44,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       documentDescription={documentDescription}
     >
       <AwarenessSync liveTableDoc={liveTableDoc} yProvider={yProvider} />
+      <SelectionListeners />
       {children}
     </DataStoreProvider>
   );
