@@ -341,4 +341,40 @@ describe("LiveTableDoc - V2 Operations on Clean V2 State", () => {
       expect(rowData?.get(colId1)).toBe(newValue);
     });
   });
+
+  describe("sortRowsByColumn (V2)", () => {
+    it("should sort rows ascending by column", () => {
+      const rowId2 = crypto.randomUUID() as RowId;
+      const r2Map = new Y.Map<CellValue>();
+      r2Map.set(colId1, "b");
+      r2Map.set(colId2, "b2");
+      yDoc.transact(() => {
+        liveTableDoc.yRowData.set(rowId2, r2Map);
+        liveTableDoc.yRowOrder.push([rowId2]);
+      });
+
+      liveTableDoc.sortRowsByColumn("ColA", "asc");
+
+      const firstRowId = liveTableDoc.yRowOrder.get(0);
+      const firstRowData = liveTableDoc.yRowData.get(firstRowId);
+      expect(firstRowData?.get(colId1)).toBe("b");
+    });
+
+    it("should sort rows descending by column", () => {
+      const rowId2 = crypto.randomUUID() as RowId;
+      const r2Map = new Y.Map<CellValue>();
+      r2Map.set(colId1, "a");
+      r2Map.set(colId2, "b2");
+      yDoc.transact(() => {
+        liveTableDoc.yRowData.set(rowId2, r2Map);
+        liveTableDoc.yRowOrder.push([rowId2]);
+      });
+
+      liveTableDoc.sortRowsByColumn("ColA", "desc");
+
+      const firstRowId = liveTableDoc.yRowOrder.get(0);
+      const firstRowData = liveTableDoc.yRowData.get(firstRowId);
+      expect(firstRowData?.get(colId1)).toBe("r1a");
+    });
+  });
 });
