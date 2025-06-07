@@ -23,6 +23,7 @@ import {
   useHeaders,
   useIsTableLoaded,
   useReorderColumn,
+  useSortByColumn,
   useSetEditingHeaderIndex,
   useSetTableRef,
   useTableData,
@@ -61,6 +62,7 @@ const LiveTable: React.FC = () => {
   const setTableRef = useSetTableRef();
 
   const reorderColumn = useReorderColumn();
+  const sortByColumn = useSortByColumn();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
@@ -426,10 +428,14 @@ const LiveTable: React.FC = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem disabled>
+                          <DropdownMenuItem
+                            onSelect={() => sortByColumn(header, "asc")}
+                          >
                             Sort Ascending
                           </DropdownMenuItem>
-                          <DropdownMenuItem disabled>
+                          <DropdownMenuItem
+                            onSelect={() => sortByColumn(header, "desc")}
+                          >
                             Sort Descending
                           </DropdownMenuItem>
                         </DropdownMenuContent>

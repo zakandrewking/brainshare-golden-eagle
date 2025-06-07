@@ -102,6 +102,7 @@ interface DataActions {
     numColsToAdd: number
   ) => Promise<{ count: number }>;
   reorderColumn: (fromIndex: number, toIndex: number) => void;
+  sortByColumn: (header: string, direction: "asc" | "desc") => void;
   deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
   handleColumnResize: (header: string, newWidth: number) => void;
 
@@ -333,6 +334,9 @@ export const DataStoreProvider = ({
       reorderColumn: (fromIndex: number, toIndex: number) => {
         liveTableDoc.reorderColumn(fromIndex, toIndex);
       },
+      sortByColumn: (header: string, direction: "asc" | "desc") => {
+        liveTableDoc.sortRowsByColumn(header, direction);
+      },
       deleteColumns: (colIndices: number[]) =>
         deleteColumns(colIndices, liveTableDoc),
       handleColumnResize: (header: string, newWidth: number) => {
@@ -464,6 +468,8 @@ export const useInsertEmptyColumns = () =>
   useDataStore((state) => state.insertEmptyColumns);
 export const useReorderColumn = () =>
   useDataStore((state) => state.reorderColumn);
+export const useSortByColumn = () =>
+  useDataStore((state) => state.sortByColumn);
 
 // column widths
 export const useColumnWidths = () =>

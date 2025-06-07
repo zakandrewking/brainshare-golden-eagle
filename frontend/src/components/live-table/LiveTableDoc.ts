@@ -721,6 +721,49 @@ export class LiveTableDoc {
   }
 
   /**
+   * Sorts rows by the values in the given column.
+   * @param headerName - The column name to sort by.
+   * @param direction - "asc" for ascending or "desc" for descending.
+   */
+  sortRowsByColumn(headerName: string, direction: "asc" | "desc") {
+    let columnIdToSort: ColumnId | undefined;
+
+    for (const [id, def] of this.yColumnDefinitions) {
+      if (def.name === headerName) {
+        columnIdToSort = id;
+        break;
+      }
+    }
+
+    if (!columnIdToSort) {
+      return;
+    }
+
+    const rowsWithValues: { id: RowId; value: CellValue }[] = [];
+
+    this.yRowOrder.forEach((rowId) => {
+      const rowMap = this.yRowData.get(rowId);
+      const value = rowMap?.get(columnIdToSort!) ?? "";
+      rowsWithValues.push({ id: rowId, value });
+    });
+
+    rowsWithValues.sort((a, b) => {
+      const aVal = String(a.value);
+      const bVal = String(b.value);
+      if (aVal < bVal) return direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    const sortedRowIds = rowsWithValues.map((r) => r.id);
+
+    this.yDoc.transact(() => {
+      this.yRowOrder.delete(0, this.yRowOrder.length);
+      this.yRowOrder.push(sortedRowIds);
+    });
+  }
+
+  /**
    * Updates the locked cells state for React components.
    */
   updateLockedCellsState() {
