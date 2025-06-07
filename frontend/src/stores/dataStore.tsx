@@ -2,20 +2,11 @@
  * TODO move data, locks, editing, etc. to this store from LiveTableProvider
  */
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 import { toast } from "sonner";
 import { UndoManager } from "yjs";
-import {
-  createStore,
-  StoreApi,
-  useStore,
-} from "zustand";
+import { createStore, StoreApi, useStore } from "zustand";
 
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
@@ -50,7 +41,7 @@ interface DataState {
   columnWidths: Record<string, number> | undefined;
 
   // locked cells
-  lockedCells: Set<string>;
+  lockedCells: Map<string, string | undefined>;
 
   // table data
   tableData: Record<string, unknown>[];
@@ -107,7 +98,10 @@ interface DataActions {
   handleColumnResize: (header: string, newWidth: number) => void;
 
   // locked cells
-  lockSelectedRange: (selectedCells: CellPosition[]) => string | null;
+  lockSelectedRange: (
+    selectedCells: CellPosition[],
+    note?: string
+  ) => string | null;
   unlockRange: (lockId: string) => boolean;
   unlockAll: () => void;
 
@@ -126,7 +120,7 @@ const DataStoreContext = createContext<StoreApi<DataStore> | null>(null);
 const initialState: DataState = {
   documentTitle: "",
   documentDescription: "",
-  lockedCells: new Set<string>(),
+  lockedCells: new Map<string, string | undefined>(),
   editingHeaderIndex: null,
   editingHeaderValue: "",
   editingCell: null,
@@ -141,11 +135,13 @@ const initialState: DataState = {
  * Lock the selected range of cells.
  * @param selectedCells - The selected cells to lock.
  * @param liveTableDoc - The live table document.
+ * @param note - Optional note to associate with the lock.
  * @returns The lock ID if successful, null otherwise.
  */
 function lockSelectedRange(
   selectedCells: CellPosition[],
-  liveTableDoc: LiveTableDoc
+  liveTableDoc: LiveTableDoc,
+  note?: string
 ) {
   if (selectedCells.length === 0) {
     toast.info("No cells selected to lock.");
@@ -165,7 +161,8 @@ function lockSelectedRange(
     minRowIndex,
     maxRowIndex,
     minColIndex,
-    maxColIndex
+    maxColIndex,
+    note
   );
 
   if (lockId) {
@@ -218,8 +215,8 @@ export const DataStoreProvider = ({
   const [store] = useState(() =>
     createStore<DataStore>()((set, get) => ({
       ...initialState,
-      lockSelectedRange: (selectedCells: CellPosition[]) =>
-        lockSelectedRange(selectedCells, liveTableDoc),
+      lockSelectedRange: (selectedCells: CellPosition[], note?: string) =>
+        lockSelectedRange(selectedCells, liveTableDoc, note),
       unlockRange: (lockId: string) => unlockRange(lockId, liveTableDoc),
       unlockAll: () => unlockAll(liveTableDoc),
       handleCellFocus: (rowIndex: number, colIndex: number) => {
@@ -361,11 +358,13 @@ export const DataStoreProvider = ({
     liveTableDoc.headersUpdateCallback = handleHeadersUpdate;
 
     const handleTableDataUpdate = (newData: Record<string, unknown>[]) => {
-      store.setState({ tableData: newData });
+      store.setState({ tableData: newData, isTableLoaded: true });
     };
     liveTableDoc.tableDataUpdateCallback = handleTableDataUpdate;
 
-    const handleLockedCellsUpdate = (lockedCells: Set<string>) => {
+    const handleLockedCellsUpdate = (
+      lockedCells: Map<string, string | undefined>
+    ) => {
       store.setState({ lockedCells });
     };
     liveTableDoc.lockedCellsUpdateCallback = handleLockedCellsUpdate;
@@ -491,16 +490,23 @@ export const useUnlockAll = () => useDataStore((state) => state.unlockAll);
 export const useIsCellLocked = (rowIndex: number, colIndex: number) =>
   useDataStore((state) => state.lockedCells.has(`${rowIndex}-${colIndex}`));
 
+export const useLockNoteForCell = (rowIndex: number, colIndex: number) =>
+  useDataStore((state) => state.lockedCells.get(`${rowIndex}-${colIndex}`));
+
 export const useIsCellLockedFn = () => {
-  // don't call useDataStore because we don't want to trigger a re-render
   const store = useContext(DataStoreContext);
   if (!store) {
-    throw new Error("DataStoreContext not found");
+    throw new Error(
+      "useIsCellLockedFn must be used within a DataStoreProvider"
+    );
   }
-  return (rowIndex: number, colIndex: number) => {
-    const lockedCells = store.getState().lockedCells;
-    return lockedCells.has(`${rowIndex}-${colIndex}`);
+  // This hook provides a non-reactive function to check if a cell is locked.
+  // It's useful for event handlers where you don't want to re-render the component
+  // every time the lockedCells set changes, but you need the latest state.
+  const isCellLocked = (rowIndex: number, colIndex: number) => {
+    return store.getState().lockedCells.has(`${rowIndex}-${colIndex}`);
   };
+  return isCellLocked;
 };
 
 // table data

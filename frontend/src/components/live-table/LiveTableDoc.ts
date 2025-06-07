@@ -33,6 +33,7 @@ export interface CellLock {
 export interface LockRange {
   id: string; // Unique identifier for this lock
   cells: CellLock[]; // Array of locked cells using stable IDs
+  note?: string;
 }
 
 // Awareness-related types
@@ -103,7 +104,7 @@ export class LiveTableDoc {
     | ((widths: Record<string, number>) => void)
     | undefined;
   public lockedCellsUpdateCallback:
-    | ((lockedCells: Set<string>) => void)
+    | ((lockedCells: Map<string, string | undefined>) => void)
     | undefined;
 
   // Awareness-related callbacks
@@ -791,7 +792,7 @@ export class LiveTableDoc {
    * Updates the locked cells state for React components.
    */
   updateLockedCellsState() {
-    const lockedCells = new Set<string>();
+    const lockedCells = new Map<string, string | undefined>();
 
     this.yActiveLocks.forEach((lockRange) => {
       lockRange.cells.forEach((cellLock) => {
@@ -800,7 +801,7 @@ export class LiveTableDoc {
         const colIndex = this.yColumnOrder.toArray().indexOf(cellLock.columnId);
 
         if (rowIndex >= 0 && colIndex >= 0) {
-          lockedCells.add(`${rowIndex}-${colIndex}`);
+          lockedCells.set(`${rowIndex}-${colIndex}`, lockRange.note);
         }
       });
     });
@@ -816,13 +817,15 @@ export class LiveTableDoc {
    * @param endRowIndex - Ending row index (display order)
    * @param startColIndex - Starting column index (display order)
    * @param endColIndex - Ending column index (display order)
+   * @param note - Optional note for the lock
    * @returns The lock ID if successful, null if failed
    */
   lockCellRange(
     startRowIndex: number,
     endRowIndex: number,
     startColIndex: number,
-    endColIndex: number
+    endColIndex: number,
+    note?: string
   ): string | null {
     // Normalize the range
     const minRowIndex = Math.min(startRowIndex, endRowIndex);
@@ -852,6 +855,7 @@ export class LiveTableDoc {
     const lockRange: LockRange = {
       id: lockId,
       cells,
+      note,
     };
 
     this.yDoc.transact(() => {

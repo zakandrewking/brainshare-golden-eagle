@@ -1,10 +1,4 @@
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
@@ -498,5 +492,124 @@ describe("LiveTableDoc - V2 Sorting", () => {
 
     // Should sort as strings: "", "1", "10a", "2", "5"
     expect(sortedValues).toEqual(["", "1", "10a", "2", "5"].sort());
+  });
+});
+
+describe("LiveTableDoc - V2 Locking", () => {
+  let yDoc: Y.Doc;
+  let liveTableDoc: LiveTableDoc;
+  let colId1: ColumnId, colId2: ColumnId;
+  let rowId1: RowId, rowId2: RowId;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    yDoc = new Y.Doc();
+
+    // Initialize V2 shared types on yDoc FIRST
+    const yColumnDefinitions =
+      yDoc.getMap<ColumnDefinition>("columnDefinitions");
+    const yColumnOrder = yDoc.getArray<ColumnId>("columnOrder");
+    const yRowData = yDoc.getMap<Y.Map<CellValue>>("rowData");
+    const yRowOrder = yDoc.getArray<RowId>("rowOrder");
+    const yMeta = yDoc.getMap<unknown>("metaData");
+
+    colId1 = crypto.randomUUID() as ColumnId;
+    colId2 = crypto.randomUUID() as ColumnId;
+    rowId1 = crypto.randomUUID() as RowId;
+    rowId2 = crypto.randomUUID() as RowId;
+
+    yDoc.transact(() => {
+      yColumnDefinitions.set(colId1, {
+        id: colId1,
+        name: "ColA",
+        width: DEFAULT_COL_WIDTH,
+      });
+      yColumnDefinitions.set(colId2, {
+        id: colId2,
+        name: "ColB",
+        width: DEFAULT_COL_WIDTH,
+      });
+      yColumnOrder.push([colId1, colId2]);
+
+      const r1Map = new Y.Map<CellValue>();
+      r1Map.set(colId1, "r1a");
+      r1Map.set(colId2, "r1b");
+      yRowData.set(rowId1, r1Map);
+
+      const r2Map = new Y.Map<CellValue>();
+      r2Map.set(colId1, "r2a");
+      r2Map.set(colId2, "r2b");
+      yRowData.set(rowId2, r2Map);
+
+      yRowOrder.push([rowId1, rowId2]);
+      yMeta.set("schemaVersion", 2); // Mark as V2
+    });
+
+    // Now instantiate LiveTableDoc. It should pick up existing V2 data.
+    liveTableDoc = new LiveTableDoc(yDoc);
+  });
+
+  it("should lock a cell range without a note", () => {
+    const lockId = liveTableDoc.lockCellRange(0, 0, 0, 0);
+    expect(lockId).toBeTypeOf("string");
+
+    const activeLocks = liveTableDoc.getActiveLocks();
+    expect(activeLocks).toHaveLength(1);
+    expect(activeLocks[0].id).toBe(lockId);
+    expect(activeLocks[0].cells).toHaveLength(1);
+    expect(activeLocks[0].cells[0].rowId).toBe(rowId1);
+    expect(activeLocks[0].cells[0].columnId).toBe(colId1);
+    expect(activeLocks[0].note).toBeUndefined();
+  });
+
+  it("should lock a cell range with a note", () => {
+    const note = "This is a test note.";
+    const lockId = liveTableDoc.lockCellRange(0, 1, 0, 1, note);
+    expect(lockId).toBeTypeOf("string");
+
+    const activeLocks = liveTableDoc.getActiveLocks();
+    expect(activeLocks).toHaveLength(1);
+    expect(activeLocks[0].id).toBe(lockId);
+    expect(activeLocks[0].cells).toHaveLength(4);
+    expect(activeLocks[0].note).toBe(note);
+  });
+
+  it("should update lockedCellsState with notes", () => {
+    const mockCallback = vi.fn();
+    liveTableDoc.lockedCellsUpdateCallback = mockCallback;
+
+    const note = "This is a test note.";
+    liveTableDoc.lockCellRange(0, 0, 0, 0, note);
+
+    liveTableDoc.updateLockedCellsState();
+
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+    const lockedCellsMap = mockCallback.mock.calls[0][0];
+    expect(lockedCellsMap).toBeInstanceOf(Map);
+    expect(lockedCellsMap.size).toBe(1);
+    expect(lockedCellsMap.get("0-0")).toBe(note);
+  });
+
+  it("should unlock a range", () => {
+    const lockId = liveTableDoc.lockCellRange(0, 0, 0, 0);
+    expect(liveTableDoc.getActiveLocks()).toHaveLength(1);
+
+    const result = liveTableDoc.unlockRange(lockId!);
+    expect(result).toBe(true);
+    expect(liveTableDoc.getActiveLocks()).toHaveLength(0);
+  });
+
+  it("should return false when unlocking a non-existent range", () => {
+    const result = liveTableDoc.unlockRange("non-existent-id");
+    expect(result).toBe(false);
+  });
+
+  it("should unlock all ranges", () => {
+    liveTableDoc.lockCellRange(0, 0, 0, 0);
+    liveTableDoc.lockCellRange(1, 1, 1, 1);
+    expect(liveTableDoc.getActiveLocks()).toHaveLength(2);
+
+    liveTableDoc.unlockAll();
+    expect(liveTableDoc.getActiveLocks()).toHaveLength(0);
   });
 });

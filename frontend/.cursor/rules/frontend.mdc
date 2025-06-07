@@ -5,6 +5,9 @@ alwaysApply: true
 ---
 - NEVER EVER add comments to code. The only exceptions are you can add a docstring
   to a function or module. Otherwise, NO COMMENTS.
+- when starting on a medium to large sized change, first write a markdown
+  project plan into the folder .cursor/projects/, and ask for review
+  * as you work, update the project plan and mark tasks as complete
 - never use a check like process.env.NODE_ENV === "test" to get around failing
   tests
 - use kebab-case to name files
