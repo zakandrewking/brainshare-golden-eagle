@@ -23,6 +23,7 @@ import {
   useHeaders,
   useIsTableLoaded,
   useReorderColumn,
+  useSortByColumn,
   useSetEditingHeaderIndex,
   useSetTableRef,
   useTableData,
@@ -30,6 +31,7 @@ import {
 
 import { DelayedLoadingSpinner } from "../ui/loading";
 import TableCell from "./TableCell";
+import { useSetSelectionRange } from "@/stores/selectionStore";
 
 export interface CursorInfo {
   user?: { name: string; color: string };
@@ -61,6 +63,8 @@ const LiveTable: React.FC = () => {
   const setTableRef = useSetTableRef();
 
   const reorderColumn = useReorderColumn();
+  const sortByColumn = useSortByColumn();
+  const setSelectionRange = useSetSelectionRange();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
@@ -263,6 +267,30 @@ const LiveTable: React.FC = () => {
     [handleHeaderBlur, setEditingHeaderIndex]
   );
 
+  const handleColumnHeaderClick = useCallback(
+    (colIndex: number) => {
+      if (!headers || !tableData || tableData.length === 0) return;
+      const lastRowIndex = tableData.length - 1;
+      setSelectionRange(
+        { rowIndex: 0, colIndex },
+        { rowIndex: lastRowIndex, colIndex }
+      );
+    },
+    [headers, tableData, setSelectionRange]
+  );
+
+  const handleRowHeaderClick = useCallback(
+    (rowIndex: number) => {
+      if (!headers || headers.length === 0) return;
+      const lastColIndex = headers.length - 1;
+      setSelectionRange(
+        { rowIndex, colIndex: 0 },
+        { rowIndex, colIndex: lastColIndex }
+      );
+    },
+    [headers, setSelectionRange]
+  );
+
   if (!isTableLoaded) {
     return <DelayedLoadingSpinner />;
   }
@@ -344,6 +372,7 @@ const LiveTable: React.FC = () => {
                     onDragOver={(e) => handleColumnDragOver(e, index)}
                     onDragLeave={handleColumnDragLeave}
                     onDrop={handleColumnDrop}
+                    onClick={() => handleColumnHeaderClick(index)}
                     className={`border border-slate-300 p-0 text-left relative group overflow-hidden ${
                       isDragging ? "opacity-50" : ""
                     }`}
@@ -426,10 +455,14 @@ const LiveTable: React.FC = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem disabled>
+                          <DropdownMenuItem
+                            onSelect={() => sortByColumn(header, "asc")}
+                          >
                             Sort Ascending
                           </DropdownMenuItem>
-                          <DropdownMenuItem disabled>
+                          <DropdownMenuItem
+                            onSelect={() => sortByColumn(header, "desc")}
+                          >
                             Sort Descending
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -469,6 +502,7 @@ const LiveTable: React.FC = () => {
                     maxWidth: `${ROW_NUMBER_COL_WIDTH}px`,
                   }}
                   data-testid="row-number"
+                  onClick={() => handleRowHeaderClick(rowIndex)}
                 >
                   <div className="p-2 h-full flex items-center justify-center">
                     {rowIndex + 1}
