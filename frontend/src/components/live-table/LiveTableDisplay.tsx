@@ -62,9 +62,9 @@ const LiveTable: React.FC = () => {
   const handleColumnResize = useHandleColumnResize();
   const setTableRef = useSetTableRef();
 
-  const reorderColumn = useReorderColumn();
-  const sortByColumn = useSortByColumn();
-  const setSelectionRange = useSetSelectionRange();
+const reorderColumn = useReorderColumn();
+const sortByColumn = useSortByColumn();
+const setSelectionRange = useSetSelectionRange();
 
   const [resizingHeader, setResizingHeader] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
