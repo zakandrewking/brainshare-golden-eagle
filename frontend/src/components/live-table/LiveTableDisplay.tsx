@@ -30,6 +30,7 @@ import {
 
 import { DelayedLoadingSpinner } from "../ui/loading";
 import TableCell from "./TableCell";
+import SelectionHandles from "./SelectionHandles";
 
 export interface CursorInfo {
   user?: { name: string; color: string };
@@ -269,7 +270,7 @@ const LiveTable: React.FC = () => {
 
   return (
     <div className="overflow-x-auto overscroll-none h-full">
-      <div className="w-max min-w-full">
+      <div className="w-max min-w-full relative">
         <table
           ref={tableRef}
           className="table-fixed border-collapse border border-slate-400 relative"
@@ -490,6 +491,7 @@ const LiveTable: React.FC = () => {
             ))}
           </tbody>
         </table>
+        <SelectionHandles />
       </div>
     </div>
   );
