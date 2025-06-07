@@ -39,17 +39,21 @@ export default function SelectionListeners() {
   useEffect(() => {
     if (!isSelecting) return;
 
-    const handleGlobalMouseMove = (event: MouseEvent) => {
+    const handleGlobalMouseMove = (event: MouseEvent | TouchEvent) => {
       if (!tableRef?.current) return;
 
       if (typeof document.elementFromPoint !== "function") {
         return;
       }
 
-      const cellElement = document.elementFromPoint(
-        event.clientX,
-        event.clientY
-      ) as HTMLElement;
+      const clientX =
+        'clientX' in event ? event.clientX : event.touches[0]?.clientX;
+      const clientY =
+        'clientY' in event ? event.clientY : event.touches[0]?.clientY;
+
+      if (clientX == null || clientY == null) return;
+
+      const cellElement = document.elementFromPoint(clientX, clientY) as HTMLElement;
 
       const cell = cellElement?.closest("td");
       if (!cell) return;
@@ -72,12 +76,20 @@ export default function SelectionListeners() {
       endSelection();
     };
 
+    const handleGlobalTouchEnd = () => {
+      endSelection();
+    };
+
     document.addEventListener("mousemove", handleGlobalMouseMove);
     document.addEventListener("mouseup", handleGlobalMouseUp);
+    document.addEventListener("touchmove", handleGlobalMouseMove);
+    document.addEventListener("touchend", handleGlobalTouchEnd);
 
     return () => {
       document.removeEventListener("mousemove", handleGlobalMouseMove);
       document.removeEventListener("mouseup", handleGlobalMouseUp);
+      document.removeEventListener("touchmove", handleGlobalMouseMove);
+      document.removeEventListener("touchend", handleGlobalTouchEnd);
     };
   }, [isSelecting, selectionStartOrMove, endSelection, tableRef]);
 

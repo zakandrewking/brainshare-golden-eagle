@@ -94,6 +94,25 @@ const TableCell: React.FC<TableCellProps> = ({
     [editingCell, rowIndex, colIndex, setEditingCell, startOrMoveSelection]
   );
 
+  const handleCellTouchStart = useCallback(
+    (event: React.TouchEvent) => {
+      const isCurrentlyEditing =
+        editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
+
+      if (isCurrentlyEditing) {
+        return;
+      }
+      event.preventDefault();
+
+      if (editingCell) {
+        setEditingCell(null);
+      }
+
+      startOrMoveSelection(rowIndex, colIndex, true);
+    },
+    [editingCell, rowIndex, colIndex, setEditingCell, startOrMoveSelection]
+  );
+
   const handleCellDoubleClick = useCallback(
     (event: React.MouseEvent) => {
       // Don't allow editing locked cells
@@ -141,6 +160,7 @@ const TableCell: React.FC<TableCellProps> = ({
             undefined,
       }}
       onMouseDown={handleCellMouseDown}
+      onTouchStart={handleCellTouchStart}
       onDoubleClick={handleCellDoubleClick}
     >
       <input
