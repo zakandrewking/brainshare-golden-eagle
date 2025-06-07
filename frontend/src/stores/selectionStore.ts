@@ -18,6 +18,7 @@ export interface SelectionState {
   // true if the user is currently dragging to select cells
   isSelecting: boolean;
   setSelectedCell: (cell: CellPosition | null) => void;
+  setSelectionRange: (start: CellPosition, end: CellPosition) => void;
   startOrMoveSelection: (
     rowIndex: number,
     colIndex: number,
@@ -39,6 +40,12 @@ const initialState: Pick<
 export const selectionStore = createStore<SelectionState>((set, get) => ({
   ...initialState,
   setSelectedCell: (cell) => set({ selectedCell: cell }),
+  setSelectionRange: (startCell, endCell) =>
+    set({
+      selectedCell: startCell,
+      selectionArea: { startCell, endCell },
+      isSelecting: false,
+    }),
   startOrMoveSelection: (rowIndex, colIndex, shiftKeyOrDrag) => {
     const { selectionArea } = get();
     if (shiftKeyOrDrag && selectionArea !== null) {
@@ -103,6 +110,9 @@ export const useClearSelection = () =>
 
 export const useSelectionArea = () =>
   useSelectionStore((state) => state.selectionArea);
+
+export const useSetSelectionRange = () =>
+  useSelectionStore((state) => state.setSelectionRange);
 
 export const selectSelectedCells = (state: SelectionState): CellPosition[] => {
   const { selectionArea } = state;
