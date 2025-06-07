@@ -288,16 +288,14 @@ describe("Room Creation Actions", () => {
 
     it("should return validation errors for invalid form data", async () => {
       const formData = new FormData();
-      formData.append("name", "t");
+      formData.append("name", " "); // Invalid name (empty after trim)
       formData.append("docType", "invalid-type");
 
       const result = await handleCreateRoomForm(null, formData);
 
       expect(result.success).toBeUndefined();
       if (!result.success) {
-        expect(result.errors?.name).toContain(
-          "Document name must be at least 3 characters long."
-        );
+        expect(result.errors?.name).toContain("Document name cannot be empty.");
         expect(result.errors?.docType).toContain(
           "Invalid document type selected."
         );

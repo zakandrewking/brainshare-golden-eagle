@@ -32,7 +32,7 @@ import {
 } from "./actions";
 
 const formSchema = z.object({
-  name: z.string().min(3, "Document name must be at least 3 characters long."),
+  name: z.string().trim().min(1, "Document name cannot be empty."),
   description: z.string().optional(),
   docType: z.enum(["text", "table"], {
     message: "A document type must be selected.",

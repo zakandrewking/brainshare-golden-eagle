@@ -73,13 +73,7 @@ const liveblocks = new Liveblocks({
 
 // --- Form Action for Create Document Page ---
 const CreateRoomFormSchema = z.object({
-  name: z
-    .string()
-    .min(3, "Document name must be at least 3 characters long.")
-    .regex(
-      /^[a-zA-Z0-9_-]+$/,
-      "Document name can only contain letters, numbers, underscores, and hyphens."
-    ),
+  name: z.string().trim().min(1, "Document name cannot be empty."),
   description: z.string().optional(),
   docType: z.enum(["text", "table"], {
     message: "Invalid document type selected.",
