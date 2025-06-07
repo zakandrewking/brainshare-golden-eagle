@@ -22,6 +22,7 @@ import {
   useSortByColumn,
   useTableData,
 } from "@/stores/dataStore";
+import { useSetSelectionRange } from "@/stores/selectionStore";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
 import TableCell from "./TableCell";
@@ -54,6 +55,7 @@ const LiveTable: React.FC = () => {
   const setEditingHeaderIndex = useSetEditingHeaderIndex();
   const handleColumnResize = useHandleColumnResize();
   const setTableRef = useSetTableRef();
+  const setSelectionRange = useSetSelectionRange();
 
   const reorderColumn = useReorderColumn();
   const sortByColumn = useSortByColumn();
@@ -259,6 +261,30 @@ const LiveTable: React.FC = () => {
     [handleHeaderBlur, setEditingHeaderIndex]
   );
 
+  const handleColumnHeaderClick = useCallback(
+    (colIndex: number) => {
+      if (!headers || !tableData || tableData.length === 0) return;
+      const lastRowIndex = tableData.length - 1;
+      setSelectionRange(
+        { rowIndex: 0, colIndex },
+        { rowIndex: lastRowIndex, colIndex }
+      );
+    },
+    [headers, tableData, setSelectionRange]
+  );
+
+  const handleRowHeaderClick = useCallback(
+    (rowIndex: number) => {
+      if (!headers || headers.length === 0) return;
+      const lastColIndex = headers.length - 1;
+      setSelectionRange(
+        { rowIndex, colIndex: 0 },
+        { rowIndex, colIndex: lastColIndex }
+      );
+    },
+    [headers, setSelectionRange]
+  );
+
   if (!isTableLoaded) {
     return <DelayedLoadingSpinner />;
   }
@@ -349,6 +375,7 @@ const LiveTable: React.FC = () => {
                     handleColumnDragOver={handleColumnDragOver}
                     handleColumnDragLeave={handleColumnDragLeave}
                     handleColumnDrop={handleColumnDrop}
+                    handleColumnHeaderClick={handleColumnHeaderClick}
                     isDragging={isDragging}
                     showInsertBefore={showInsertBefore}
                     showInsertAfter={showInsertAfter}
@@ -381,6 +408,7 @@ const LiveTable: React.FC = () => {
                     maxWidth: `${ROW_NUMBER_COL_WIDTH}px`,
                   }}
                   data-testid="row-number"
+                  onClick={() => handleRowHeaderClick(rowIndex)}
                 >
                   <div className="p-2 h-full flex items-center justify-center">
                     {rowIndex + 1}

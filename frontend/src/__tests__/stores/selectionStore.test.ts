@@ -14,6 +14,7 @@ import {
   useSelectedCells,
   useSelectIsCellInSelection,
   useSelectIsCellSelected,
+  useSetSelectionRange,
 } from "@/stores/selectionStore";
 
 describe("useSelectedCells", () => {
@@ -182,5 +183,92 @@ describe("useSelectIsCellInSelection", () => {
       selectionStore.getState().startOrMoveSelection(1, 1, true);
     });
     expect(callback).toHaveReturnedWith(false); // (0,0) is no longer in selection
+  });
+});
+
+describe("useSetSelectionRange", () => {
+  beforeEach(() => {
+    act(() => {
+      selectionStore.getState().clearSelection();
+    });
+  });
+
+  it("should correctly set the selected cell, selection area, and selection status", () => {
+    const { result: setSelectionRangeHook } = renderHook(() =>
+      useSetSelectionRange()
+    );
+
+    const startCell = { rowIndex: 2, colIndex: 2 };
+    const endCell = { rowIndex: 4, colIndex: 4 };
+
+    act(() => {
+      setSelectionRangeHook.current(startCell, endCell);
+    });
+
+    const state = selectionStore.getState();
+
+    expect(state.selectedCell).toEqual(startCell);
+    expect(state.selectionArea).toEqual({ startCell, endCell });
+    expect(state.isSelecting).toBe(false);
+  });
+
+  it("should update derived state like useSelectedCells", () => {
+    const { result: setSelectionRange } = renderHook(() =>
+      useSetSelectionRange()
+    );
+    const { result: selectedCells } = renderHook(() => useSelectedCells());
+
+    const startCell = { rowIndex: 1, colIndex: 1 };
+    const endCell = { rowIndex: 2, colIndex: 2 };
+
+    act(() => {
+      setSelectionRange.current(startCell, endCell);
+    });
+
+    const expectedCells: CellPosition[] = [
+      { rowIndex: 1, colIndex: 1 },
+      { rowIndex: 1, colIndex: 2 },
+      { rowIndex: 2, colIndex: 1 },
+      { rowIndex: 2, colIndex: 2 },
+    ];
+
+    expect(selectedCells.current).toEqual(
+      expect.arrayContaining(expectedCells)
+    );
+    expect(selectedCells.current.length).toBe(4);
+  });
+
+  it("should override any existing selection", () => {
+    // Set an initial selection
+    act(() => {
+      selectionStore.getState().startOrMoveSelection(0, 0, false);
+      selectionStore.getState().startOrMoveSelection(5, 5, true);
+    });
+
+    const { result: setSelectionRange } = renderHook(() =>
+      useSetSelectionRange()
+    );
+    const { result: selectedCells } = renderHook(() => useSelectedCells());
+
+    const startCell = { rowIndex: 1, colIndex: 1 };
+    const endCell = { rowIndex: 1, colIndex: 2 };
+
+    act(() => {
+      setSelectionRange.current(startCell, endCell);
+    });
+
+    const expectedCells: CellPosition[] = [
+      { rowIndex: 1, colIndex: 1 },
+      { rowIndex: 1, colIndex: 2 },
+    ];
+
+    const state = selectionStore.getState();
+
+    expect(state.selectedCell).toEqual(startCell);
+    expect(state.selectionArea).toEqual({ startCell, endCell });
+    expect(selectedCells.current).toEqual(
+      expect.arrayContaining(expectedCells)
+    );
+    expect(selectedCells.current.length).toBe(2);
   });
 });

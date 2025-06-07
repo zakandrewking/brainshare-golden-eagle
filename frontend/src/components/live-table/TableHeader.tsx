@@ -29,6 +29,7 @@ interface TableHeaderProps {
   handleColumnDragOver: (event: React.DragEvent, columnIndex: number) => void;
   handleColumnDragLeave: (event: React.DragEvent) => void;
   handleColumnDrop: (event: React.DragEvent) => void;
+  handleColumnHeaderClick: (index: number) => void;
   isDragging: boolean;
   showInsertBefore: boolean;
   showInsertAfter: boolean;
@@ -56,6 +57,7 @@ const TableHeader: React.FC<TableHeaderProps> = ({
   handleColumnDragOver,
   handleColumnDragLeave,
   handleColumnDrop,
+  handleColumnHeaderClick,
   isDragging,
   showInsertBefore,
   showInsertAfter,
@@ -73,6 +75,7 @@ const TableHeader: React.FC<TableHeaderProps> = ({
       onDragOver={(e) => handleColumnDragOver(e, index)}
       onDragLeave={handleColumnDragLeave}
       onDrop={handleColumnDrop}
+      onClick={() => handleColumnHeaderClick(index)}
       className={`border border-slate-300 p-0 text-left relative group overflow-hidden ${
         isDragging ? "opacity-50" : ""
       }`}
