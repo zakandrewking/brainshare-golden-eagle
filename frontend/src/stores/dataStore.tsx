@@ -446,8 +446,12 @@ export const useUndoManager = () =>
 // editing
 export const useEditingHeaderIndex = () =>
   useDataStore((state) => state.editingHeaderIndex);
-export const useEditingHeaderValue = () =>
-  useDataStore((state) => state.editingHeaderValue);
+export const useEditingHeaderValue = (index: number) =>
+  useDataStore((state) => {
+    // only update if this cell is being edited. ("" === "")
+    if (state.editingHeaderIndex !== index) return "";
+    return state.editingHeaderValue;
+  });
 export const useHandleCellChange = () =>
   useDataStore((state) => state.handleCellChange);
 export const useSetEditingCell = () =>

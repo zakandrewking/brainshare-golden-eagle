@@ -10,19 +10,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useEditingHeaderValue } from "@/stores/dataStore";
 
 interface TableHeaderProps {
   header: string;
   index: number;
   width: number;
   isEditing: boolean;
-  editingHeaderValue: string;
   handleHeaderChange: (value: string) => void;
   handleHeaderBlur: () => void;
   handleHeaderKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   handleHeaderDoubleClick: (index: number) => void;
-  lastTapTimeRef: React.MutableRefObject<number>;
-  lastTapTargetRef: React.MutableRefObject<EventTarget | null>;
+  lastTapTimeRef: React.RefObject<number>;
+  lastTapTargetRef: React.RefObject<EventTarget | null>;
   sortByColumn: (header: string, direction: "asc" | "desc") => void;
   handleColumnDragStart: (event: React.DragEvent, columnIndex: number) => void;
   handleColumnDragEnd: (event: React.DragEvent) => void;
@@ -44,7 +44,6 @@ const TableHeader: React.FC<TableHeaderProps> = ({
   index,
   width,
   isEditing,
-  editingHeaderValue,
   handleHeaderChange,
   handleHeaderBlur,
   handleHeaderKeyDown,
@@ -63,6 +62,8 @@ const TableHeader: React.FC<TableHeaderProps> = ({
   resizingHeader,
   handleMouseDown,
 }) => {
+  const editingHeaderValue = useEditingHeaderValue(index);
+
   return (
     <th
       data-header={header}

@@ -10,7 +10,6 @@ import React, {
 import {
   useColumnWidths,
   useEditingHeaderIndex,
-  useEditingHeaderValue,
   useHandleColumnResize,
   useHandleHeaderBlur,
   useHandleHeaderChange,
@@ -49,7 +48,6 @@ const LiveTable: React.FC = () => {
   const columnWidths = useColumnWidths();
 
   const editingHeaderIndex = useEditingHeaderIndex();
-  const editingHeaderValue = useEditingHeaderValue();
   const handleHeaderChange = useHandleHeaderChange();
   const handleHeaderBlur = useHandleHeaderBlur();
   const handleHeaderDoubleClick = useHandleHeaderDoubleClick();
@@ -339,7 +337,6 @@ const LiveTable: React.FC = () => {
                     index={index}
                     width={width}
                     isEditing={isEditing}
-                    editingHeaderValue={editingHeaderValue}
                     handleHeaderChange={handleHeaderChange}
                     handleHeaderBlur={handleHeaderBlur}
                     handleHeaderKeyDown={handleHeaderKeyDown}
