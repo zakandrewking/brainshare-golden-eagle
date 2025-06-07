@@ -270,11 +270,31 @@ describe("LiveTableDoc - V2 Operations on Clean V2 State", () => {
         liveTableDoc.yColumnDefinitions.clear();
 
         // Set up 5 columns
-        liveTableDoc.yColumnDefinitions.set(colA, { id: colA, name: "A", width: 150 });
-        liveTableDoc.yColumnDefinitions.set(colB, { id: colB, name: "B", width: 150 });
-        liveTableDoc.yColumnDefinitions.set(colC, { id: colC, name: "C", width: 150 });
-        liveTableDoc.yColumnDefinitions.set(colD, { id: colD, name: "D", width: 150 });
-        liveTableDoc.yColumnDefinitions.set(colE, { id: colE, name: "E", width: 150 });
+        liveTableDoc.yColumnDefinitions.set(colA, {
+          id: colA,
+          name: "A",
+          width: 150,
+        });
+        liveTableDoc.yColumnDefinitions.set(colB, {
+          id: colB,
+          name: "B",
+          width: 150,
+        });
+        liveTableDoc.yColumnDefinitions.set(colC, {
+          id: colC,
+          name: "C",
+          width: 150,
+        });
+        liveTableDoc.yColumnDefinitions.set(colD, {
+          id: colD,
+          name: "D",
+          width: 150,
+        });
+        liveTableDoc.yColumnDefinitions.set(colE, {
+          id: colE,
+          name: "E",
+          width: 150,
+        });
         liveTableDoc.yColumnOrder.push([colA, colB, colC, colD, colE]);
       });
 
@@ -376,5 +396,107 @@ describe("LiveTableDoc - V2 Operations on Clean V2 State", () => {
       const firstRowData = liveTableDoc.yRowData.get(firstRowId);
       expect(firstRowData?.get(colId1)).toBe("r1a");
     });
+  });
+});
+
+describe("LiveTableDoc - V2 Sorting", () => {
+  let yDoc: Y.Doc;
+  let liveTableDoc: LiveTableDoc;
+  let colId1: ColumnId, colId2: ColumnId;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    yDoc = new Y.Doc();
+    const yColumnDefinitions =
+      yDoc.getMap<ColumnDefinition>("columnDefinitions");
+    const yColumnOrder = yDoc.getArray<ColumnId>("columnOrder");
+    const yRowData = yDoc.getMap<Y.Map<CellValue>>("rowData");
+    const yRowOrder = yDoc.getArray<RowId>("rowOrder");
+    const yMeta = yDoc.getMap<unknown>("metaData");
+
+    colId1 = "col1-numeric";
+    colId2 = "col2-string";
+
+    yDoc.transact(() => {
+      yColumnDefinitions.set(colId1, {
+        id: colId1,
+        name: "NumberColumn",
+        width: 100,
+      });
+      yColumnDefinitions.set(colId2, {
+        id: colId2,
+        name: "StringColumn",
+        width: 100,
+      });
+      yColumnOrder.push([colId1, colId2]);
+
+      const rows = [
+        { id: "row1", num: "10", str: "c" },
+        { id: "row2", num: "2", str: "a" },
+        { id: "row3", num: "5", str: "b" },
+        { id: "row4", num: "", str: "d" }, // Empty string
+        { id: "row5", num: "1", str: "e" },
+      ];
+
+      rows.forEach((row) => {
+        const rowMap = new Y.Map<CellValue>();
+        rowMap.set(colId1, row.num);
+        rowMap.set(colId2, row.str);
+        yRowData.set(row.id, rowMap);
+        yRowOrder.push([row.id]);
+      });
+
+      yMeta.set("schemaVersion", 2);
+    });
+
+    liveTableDoc = new LiveTableDoc(yDoc);
+  });
+
+  it("should sort a numeric column ascending", () => {
+    liveTableDoc.sortRowsByColumn("NumberColumn", "asc");
+
+    const sortedRowOrder = liveTableDoc.yRowOrder.toArray();
+    const sortedValues = sortedRowOrder.map(
+      (rowId) => liveTableDoc.yRowData.get(rowId)?.get(colId1) || ""
+    );
+    // Empty strings should come first
+    expect(sortedValues).toEqual(["", "1", "2", "5", "10"]);
+  });
+
+  it("should sort a numeric column descending", () => {
+    liveTableDoc.sortRowsByColumn("NumberColumn", "desc");
+
+    const sortedRowOrder = liveTableDoc.yRowOrder.toArray();
+    const sortedValues = sortedRowOrder.map(
+      (rowId) => liveTableDoc.yRowData.get(rowId)?.get(colId1) || ""
+    );
+    // Empty strings should come last
+    expect(sortedValues).toEqual(["10", "5", "2", "1", ""]);
+  });
+
+  it("should sort a string column ascending", () => {
+    liveTableDoc.sortRowsByColumn("StringColumn", "asc");
+
+    const sortedRowOrder = liveTableDoc.yRowOrder.toArray();
+    const sortedValues = sortedRowOrder.map(
+      (rowId) => liveTableDoc.yRowData.get(rowId)?.get(colId2) || ""
+    );
+    expect(sortedValues).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  it("should handle mixed numeric and non-numeric content as strings", () => {
+    // Add a non-numeric value to the numeric column
+    const rowWithMixedDataId = liveTableDoc.yRowOrder.get(0); // "row1"
+    const rowMap = liveTableDoc.yRowData.get(rowWithMixedDataId);
+    rowMap?.set(colId1, "10a"); // This makes the column non-numeric
+
+    liveTableDoc.sortRowsByColumn("NumberColumn", "asc");
+    const sortedRowOrder = liveTableDoc.yRowOrder.toArray();
+    const sortedValues = sortedRowOrder.map(
+      (rowId) => liveTableDoc.yRowData.get(rowId)?.get(colId1) || ""
+    );
+
+    // Should sort as strings: "", "1", "10a", "2", "5"
+    expect(sortedValues).toEqual(["", "1", "10a", "2", "5"].sort());
   });
 });

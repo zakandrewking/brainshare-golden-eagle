@@ -747,7 +747,31 @@ export class LiveTableDoc {
       rowsWithValues.push({ id: rowId, value });
     });
 
+    const isNumericColumn =
+      rowsWithValues.length > 0 &&
+      rowsWithValues.every(({ value }) => {
+        if (value === null) return true;
+        const strValue = String(value).trim();
+        if (strValue === "") return true;
+        const num = Number(strValue);
+        return !isNaN(num) && isFinite(num);
+      });
+
     rowsWithValues.sort((a, b) => {
+      if (isNumericColumn) {
+        const aIsEmpty = a.value === null || String(a.value).trim() === "";
+        const bIsEmpty = b.value === null || String(b.value).trim() === "";
+
+        if (aIsEmpty && bIsEmpty) return 0;
+        if (aIsEmpty) return direction === "asc" ? -1 : 1;
+        if (bIsEmpty) return direction === "asc" ? 1 : -1;
+
+        const aNum = Number(a.value);
+        const bNum = Number(b.value);
+
+        return direction === "asc" ? aNum - bNum : bNum - aNum;
+      }
+
       const aVal = String(a.value);
       const bVal = String(b.value);
       if (aVal < bVal) return direction === "asc" ? -1 : 1;
