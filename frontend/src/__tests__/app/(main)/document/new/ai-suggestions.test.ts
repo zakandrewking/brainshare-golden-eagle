@@ -46,6 +46,7 @@ let generateTableInitializationModule: typeof import("@/app/(main)/document/new/
 describe("generateTableInitialization", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+
     generateTableInitializationModule = await import(
       "@/app/(main)/document/new/ai-suggestions"
     );
@@ -80,7 +81,7 @@ describe("generateTableInitialization", () => {
     );
     expect(HumanMessageSpy).toHaveBeenCalledWith(
       expect.stringContaining(
-        `Document Title: "${documentTitle}. Document Description: "`
+        `Document Title: "${documentTitle}". Document Description: "`
       )
     );
 
