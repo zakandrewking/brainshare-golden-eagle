@@ -44,6 +44,7 @@ export function LockButton() {
   const handleLockWithNote = () => {
     // We get this error, but i'm going to accept it for now: Blocked
     // aria-hidden on an element because its descendant retained focus.
+    // ... already spend > 1 hour messing around with this.
     setIsDropdownOpen(false);
     requestAnimationFrame(() => {
       setIsDialogOpen(true);
