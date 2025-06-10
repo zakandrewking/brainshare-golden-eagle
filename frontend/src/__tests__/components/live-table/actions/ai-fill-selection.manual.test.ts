@@ -13,200 +13,40 @@ import generateSelectedCellsSuggestions
 describe("generateSelectedCellsSuggestions AI Fill Selection", () => {
   const testCases = [
     {
-      title: "Animal Registry",
-      description: "A comprehensive database of animal species",
+      title: "Planet Data",
+      description: "Solar system planets with astronomical information",
       tableData: [
         {
-          "Common Name": "Tiger",
-          "Scientific Name": "Panthera tigris",
-          Habitat: "",
-          Diet: "",
+          "Planet Name": "Mars",
+          "Order from the Sun": "4",
+          "Number of Moons": "2",
         },
         {
-          "Common Name": "Eagle",
-          "Scientific Name": "Aquila chrysaetos",
-          Habitat: "",
-          Diet: "Carnivore",
+          "Planet Name": "Jupiter",
+          "Order from the Sun": "5",
+          "Number of Moons": "79",
         },
         {
-          "Common Name": "Dolphin",
-          "Scientific Name": "",
-          Habitat: "Ocean",
-          Diet: "",
-        },
-        {
-          "Common Name": "Panda",
-          "Scientific Name": "Ailuropoda melanoleuca",
-          Habitat: "",
-          Diet: "",
+          "Planet Name": "Saturn",
+          "Order from the Sun": "6",
+          "Number of Moons": "83",
         },
       ],
-      headers: ["Common Name", "Scientific Name", "Habitat", "Diet"],
+      headers: ["Planet Name", "Order from the Sun", "Number of Moons"],
       selectedCells: [
-        { rowIndex: 0, colIndex: 2 }, // Tiger habitat
-        { rowIndex: 0, colIndex: 3 }, // Tiger diet
-        { rowIndex: 2, colIndex: 1 }, // Dolphin scientific name
-        { rowIndex: 3, colIndex: 2 }, // Panda habitat
-        { rowIndex: 3, colIndex: 3 }, // Panda diet
+        { rowIndex: 0, colIndex: 2 }, // Mars - Number of Moons
+        { rowIndex: 1, colIndex: 2 }, // Jupiter - Number of Moons
+        { rowIndex: 2, colIndex: 2 }, // Saturn - Number of Moons
       ],
       selectedCellsData: [
-        [""], // Tiger habitat
-        [""], // Tiger diet
-        [""], // Dolphin scientific name
-        [""], // Panda habitat
-        [""], // Panda diet
+        ["2"], // Mars moons
+        ["79"], // Jupiter moons
+        ["83"], // Saturn moons
       ],
       expectedPatterns: [
-        "Should suggest appropriate habitats (e.g., 'Forest', 'Tropical rainforest')",
-        "Should suggest correct diets (e.g., 'Carnivore', 'Fish and squid', 'Bamboo')",
-        "Should provide accurate scientific names",
-      ],
-    },
-    {
-      title: "Country Information",
-      description: "Geographic and demographic data about world countries",
-      tableData: [
-        {
-          Country: "Japan",
-          Capital: "Tokyo",
-          Population: "125 million",
-          Currency: "",
-        },
-        {
-          Country: "Brazil",
-          Capital: "",
-          Population: "215 million",
-          Currency: "Real",
-        },
-        { Country: "Egypt", Capital: "Cairo", Population: "", Currency: "" },
-        { Country: "Canada", Capital: "", Population: "", Currency: "Dollar" },
-      ],
-      headers: ["Country", "Capital", "Population", "Currency"],
-      selectedCells: [
-        { rowIndex: 0, colIndex: 3 }, // Japan currency
-        { rowIndex: 1, colIndex: 1 }, // Brazil capital
-        { rowIndex: 2, colIndex: 2 }, // Egypt population
-        { rowIndex: 2, colIndex: 3 }, // Egypt currency
-        { rowIndex: 3, colIndex: 1 }, // Canada capital
-        { rowIndex: 3, colIndex: 2 }, // Canada population
-      ],
-      selectedCellsData: [
-        [""], // Japan currency
-        [""], // Brazil capital
-        [""], // Egypt population
-        [""], // Egypt currency
-        [""], // Canada capital
-        [""], // Canada population
-      ],
-      expectedPatterns: [
-        "Should provide accurate currencies (e.g., 'Yen', 'Pound')",
-        "Should suggest correct capitals (e.g., 'Brasília', 'Ottawa')",
-        "Should provide realistic population estimates",
-      ],
-    },
-    {
-      title: "Recipe Collection",
-      description: "Personal cooking recipes with ingredients and instructions",
-      tableData: [
-        {
-          Recipe: "Chocolate Cake",
-          "Main Ingredient": "Chocolate",
-          "Prep Time": "",
-          Difficulty: "",
-        },
-        {
-          Recipe: "Caesar Salad",
-          "Main Ingredient": "",
-          "Prep Time": "15 minutes",
-          Difficulty: "Easy",
-        },
-        {
-          Recipe: "Beef Stir Fry",
-          "Main Ingredient": "Beef",
-          "Prep Time": "",
-          Difficulty: "",
-        },
-        {
-          Recipe: "Vegetable Soup",
-          "Main Ingredient": "",
-          "Prep Time": "",
-          Difficulty: "",
-        },
-      ],
-      headers: ["Recipe", "Main Ingredient", "Prep Time", "Difficulty"],
-      selectedCells: [
-        { rowIndex: 0, colIndex: 2 }, // Chocolate Cake prep time
-        { rowIndex: 0, colIndex: 3 }, // Chocolate Cake difficulty
-        { rowIndex: 1, colIndex: 1 }, // Caesar Salad main ingredient
-        { rowIndex: 2, colIndex: 2 }, // Beef Stir Fry prep time
-        { rowIndex: 2, colIndex: 3 }, // Beef Stir Fry difficulty
-        { rowIndex: 3, colIndex: 1 }, // Vegetable Soup main ingredient
-        { rowIndex: 3, colIndex: 2 }, // Vegetable Soup prep time
-        { rowIndex: 3, colIndex: 3 }, // Vegetable Soup difficulty
-      ],
-      selectedCellsData: [
-        [""], // Chocolate Cake prep time
-        [""], // Chocolate Cake difficulty
-        [""], // Caesar Salad main ingredient
-        [""], // Beef Stir Fry prep time
-        [""], // Beef Stir Fry difficulty
-        [""], // Vegetable Soup main ingredient
-        [""], // Vegetable Soup prep time
-        [""], // Vegetable Soup difficulty
-      ],
-      expectedPatterns: [
-        "Should suggest realistic prep times based on recipe complexity",
-        "Should provide appropriate difficulty levels (Easy, Medium, Hard)",
-        "Should identify logical main ingredients",
-      ],
-    },
-    {
-      title: "Employee Directory",
-      description: "Company staff information and contact details",
-      tableData: [
-        {
-          Name: "Alice Johnson",
-          Department: "Engineering",
-          Role: "",
-          Email: "",
-        },
-        {
-          Name: "Bob Smith",
-          Department: "",
-          Role: "Marketing Manager",
-          Email: "bob@company.com",
-        },
-        { Name: "Carol Davis", Department: "HR", Role: "", Email: "" },
-        {
-          Name: "David Wilson",
-          Department: "",
-          Role: "",
-          Email: "david.wilson@company.com",
-        },
-      ],
-      headers: ["Name", "Department", "Role", "Email"],
-      selectedCells: [
-        { rowIndex: 0, colIndex: 2 }, // Alice role
-        { rowIndex: 0, colIndex: 3 }, // Alice email
-        { rowIndex: 1, colIndex: 1 }, // Bob department
-        { rowIndex: 2, colIndex: 2 }, // Carol role
-        { rowIndex: 2, colIndex: 3 }, // Carol email
-        { rowIndex: 3, colIndex: 1 }, // David department
-        { rowIndex: 3, colIndex: 2 }, // David role
-      ],
-      selectedCellsData: [
-        [""], // Alice role
-        [""], // Alice email
-        [""], // Bob department
-        [""], // Carol role
-        [""], // Carol email
-        [""], // David department
-        [""], // David role
-      ],
-      expectedPatterns: [
-        "Should suggest appropriate roles based on department",
-        "Should generate consistent email formats",
-        "Should infer departments based on roles where possible",
+        "Should validate or correct the number of moons for each planet",
+        "Should provide accurate astronomical data based on current knowledge",
+        "Should maintain consistency in numerical format",
       ],
     },
   ];

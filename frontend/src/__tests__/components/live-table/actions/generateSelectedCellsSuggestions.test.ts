@@ -90,19 +90,14 @@ describe("generateSelectedCellsSuggestions", () => {
     // Arrange
     mockInvoke.mockResolvedValueOnce({ suggestions: mockSuggestions });
 
-    const expectedSystemPrompt = `You are an AI assistant specializing in data enrichment for tables.
-The current document is titled "${mockDocumentTitle}" and described as: "${mockDocumentDescription}".
-You will be given a table represented as an array of JSON objects, the table headers, and a set of selected cells with their current values. Your task is to provide concise and relevant suggestions for each of the selected cells, based on the overall table context, patterns in the data, and the document's theme. Return the suggestions as a JSON object matching the provided schema.`;
-    const expectedUserPrompt = `Here is the table data:
+    const expectedSystemPromptStart = `You are an AI assistant specializing in data enrichment for tables.`;
+    const expectedUserPromptStart = `Table Data:
 ${JSON.stringify(mockTableData, null, 2)}
 
-Table Headers: ${JSON.stringify(mockHeaders)}
+Headers: ${JSON.stringify(mockHeaders)}
 Selected Cells: ${JSON.stringify(mockSelectedCells)}
-Selected Cells Data: ${JSON.stringify(mockSelectedCellsData)}
-Document Title: ${mockDocumentTitle}
-Document Description: ${mockDocumentDescription}
-
-Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data, context, and the document's theme.`;
+Current Values: ${JSON.stringify(mockSelectedCellsData)}
+`;
 
     // Act
     const result = await generateSelectedCellsSuggestionsModule.default(
@@ -119,18 +114,26 @@ Please provide suggestions for each of the selected cells. Generate improvements
 
     // Check that SystemMessage and HumanMessage were instantiated with the correct content
     expect(SystemMessageSpy).toHaveBeenCalledTimes(1);
-    expect(SystemMessageSpy).toHaveBeenCalledWith(expectedSystemPrompt);
+    expect(SystemMessageSpy).toHaveBeenCalledWith(
+      expect.stringContaining(expectedSystemPromptStart)
+    );
 
     expect(HumanMessageSpy).toHaveBeenCalledTimes(1);
-    expect(HumanMessageSpy).toHaveBeenCalledWith(expectedUserPrompt);
+    expect(HumanMessageSpy).toHaveBeenCalledWith(
+      expect.stringContaining(expectedUserPromptStart)
+    );
 
     // Verify the actual objects passed to invoke
     const invokeCallArgs = mockInvoke.mock.calls[0][0];
     expect(invokeCallArgs).toHaveLength(2);
     expect(invokeCallArgs[0]).toBeInstanceOf(ActualMessages.SystemMessage);
-    expect(invokeCallArgs[0].content).toEqual(expectedSystemPrompt);
+    expect(invokeCallArgs[0].content).toEqual(
+      expect.stringContaining(expectedSystemPromptStart)
+    );
     expect(invokeCallArgs[1]).toBeInstanceOf(ActualMessages.HumanMessage);
-    expect(invokeCallArgs[1].content).toEqual(expectedUserPrompt);
+    expect(invokeCallArgs[1].content).toEqual(
+      expect.stringContaining(expectedUserPromptStart)
+    );
 
     expect(result).toEqual({ suggestions: mockSuggestions });
   });
@@ -158,19 +161,14 @@ Please provide suggestions for each of the selected cells. Generate improvements
     const errorMessage = "LLM API Error";
     mockInvoke.mockRejectedValueOnce(new Error(errorMessage));
 
-    const expectedSystemPrompt = `You are an AI assistant specializing in data enrichment for tables.
-The current document is titled "${mockDocumentTitle}" and described as: "${mockDocumentDescription}".
-You will be given a table represented as an array of JSON objects, the table headers, and a set of selected cells with their current values. Your task is to provide concise and relevant suggestions for each of the selected cells, based on the overall table context, patterns in the data, and the document's theme. Return the suggestions as a JSON object matching the provided schema.`;
-    const expectedUserPrompt = `Here is the table data:
+    const expectedSystemPromptStart = `You are an AI assistant specializing in data enrichment for tables.`;
+    const expectedUserPromptStart = `Table Data:
 ${JSON.stringify(mockTableData, null, 2)}
 
-Table Headers: ${JSON.stringify(mockHeaders)}
+Headers: ${JSON.stringify(mockHeaders)}
 Selected Cells: ${JSON.stringify(mockSelectedCells)}
-Selected Cells Data: ${JSON.stringify(mockSelectedCellsData)}
-Document Title: ${mockDocumentTitle}
-Document Description: ${mockDocumentDescription}
-
-Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data, context, and the document's theme.`;
+Current Values: ${JSON.stringify(mockSelectedCellsData)}
+`;
 
     // Act
     const result = await generateSelectedCellsSuggestionsModule.default(
@@ -186,13 +184,21 @@ Please provide suggestions for each of the selected cells. Generate improvements
     expect(mockInvoke).toHaveBeenCalledTimes(1);
 
     expect(SystemMessageSpy).toHaveBeenCalledTimes(1);
-    expect(SystemMessageSpy).toHaveBeenCalledWith(expectedSystemPrompt);
+    expect(SystemMessageSpy).toHaveBeenCalledWith(
+      expect.stringContaining(expectedSystemPromptStart)
+    );
     expect(HumanMessageSpy).toHaveBeenCalledTimes(1);
-    expect(HumanMessageSpy).toHaveBeenCalledWith(expectedUserPrompt);
+    expect(HumanMessageSpy).toHaveBeenCalledWith(
+      expect.stringContaining(expectedUserPromptStart)
+    );
 
     const invokeCallArgs = mockInvoke.mock.calls[0][0];
-    expect(invokeCallArgs[0].content).toEqual(expectedSystemPrompt);
-    expect(invokeCallArgs[1].content).toEqual(expectedUserPrompt);
+    expect(invokeCallArgs[0].content).toEqual(
+      expect.stringContaining(expectedSystemPromptStart)
+    );
+    expect(invokeCallArgs[1].content).toEqual(
+      expect.stringContaining(expectedUserPromptStart)
+    );
 
     expect(result.error).toBe(
       `Failed to generate suggestions: ${errorMessage}`

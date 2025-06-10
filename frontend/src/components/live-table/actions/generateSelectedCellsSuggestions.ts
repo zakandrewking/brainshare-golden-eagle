@@ -39,19 +39,43 @@ export default async function generateSelectedCellsSuggestions(
   }
 
   const systemPrompt = `You are an AI assistant specializing in data enrichment for tables.
-The current document is titled "${documentTitle}" and described as: "${documentDescription}".
-You will be given a table represented as an array of JSON objects, the table headers, and a set of selected cells with their current values. Your task is to provide concise and relevant suggestions for each of the selected cells, based on the overall table context, patterns in the data, and the document's theme. Return the suggestions as a JSON object matching the provided schema.`;
 
-  const userPrompt = `Here is the table data:
+Your task: You will be given a table represented as an array of JSON objects,
+the table headers, and a set of selected cells with their current values. Your
+task is to provide concise and relevant suggestions for each of the selected
+cells, based on the overall table context, patterns in the data, and the
+document's theme.
+
+CRITICAL RULES:
+1. ONLY return the core data value - no descriptions, explanations, or additional text
+2. If existing data appears accurate, return the EXACT same value unchanged
+3. Match the existing data format exactly (numbers as numbers, text as text)
+4. Do not add parenthetical information, examples, or elaborations
+5. Return only what should appear in the cell itself
+
+The document is titled "${documentTitle}" and described as: "${documentDescription}".
+
+EXAMPLES:
+Good: "2" (just the number)
+Bad: "2 (Phobos, Deimos)" (added description)
+Good: "Tokyo" (just the city)
+Bad: "Tokyo (capital of Japan)" (added description)
+`;
+
+  const userPrompt = `Table Data:
 ${JSON.stringify(tableData, null, 2)}
 
-Table Headers: ${JSON.stringify(headers)}
+Headers: ${JSON.stringify(headers)}
 Selected Cells: ${JSON.stringify(selectedCells)}
-Selected Cells Data: ${JSON.stringify(selectedCellsData)}
-Document Title: ${documentTitle}
-Document Description: ${documentDescription}
+Current Values: ${JSON.stringify(selectedCellsData)}
 
-Please provide suggestions for each of the selected cells. Generate improvements or enhancements based on the surrounding data, context, and the document's theme.`;
+For each selected cell, provide ONLY the value that should appear in that cell:
+- If the current value is accurate, return it unchanged
+- If it needs correction, return only the corrected value
+- If it's empty and needs data, return only the missing value
+- NO descriptions, explanations, or additional context
+
+Return suggestions that match the existing data format and style exactly.`;
 
   try {
     const response = await selectedCellsModel.invoke([
