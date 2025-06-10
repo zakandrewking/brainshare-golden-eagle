@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
 import {
   describe,
   expect,
@@ -7,11 +9,52 @@ import {
 import generateSelectedCellsSuggestions
   from "@/components/live-table/actions/generateSelectedCellsSuggestions";
 
+interface TestCase {
+  title: string;
+  description: string;
+  tableData: Record<string, unknown>[];
+  headers: string[];
+  selectedCells: { rowIndex: number; colIndex: number }[];
+  selectedCellsData: string[][];
+  expectedPatterns: string[];
+}
+
+function loadTestCasesFromJSON(): TestCase[] {
+  const testCasesPath = join(
+    process.cwd(),
+    "ai-fill-selection-test-cases.json"
+  );
+
+  if (!existsSync(testCasesPath)) {
+    console.log("ℹ️  No additional test cases file found at:", testCasesPath);
+    return [];
+  }
+
+  try {
+    const fileContent = readFileSync(testCasesPath, "utf-8");
+    const loadedCases = JSON.parse(fileContent);
+
+    if (!Array.isArray(loadedCases)) {
+      console.warn("⚠️  Test cases file should contain an array of test cases");
+      return [];
+    }
+
+    console.log(
+      `✅ Loaded ${loadedCases.length} additional test cases from JSON file`
+    );
+    return loadedCases;
+  } catch (error) {
+    console.warn("⚠️  Failed to load test cases from JSON file:", error);
+    return [];
+  }
+}
+
 // This test suite calls a live AI model and is meant for manual evaluation.
 // It is skipped by default. To run it, use the following command:
 // OPENAI_API_KEY=your_api_key_here RUN_AI_TESTS=true npm test -- src/__tests__/components/live-table/actions/ai-fill-selection.manual.test.ts
 describe("generateSelectedCellsSuggestions AI Fill Selection", () => {
-  const testCases = [
+  // Load test cases from JSON file (if exists) and combine with hardcoded ones
+  const hardcodedTestCases: TestCase[] = [
     {
       title: "Planet Data",
       description: "Solar system planets with astronomical information",
@@ -51,6 +94,9 @@ describe("generateSelectedCellsSuggestions AI Fill Selection", () => {
     },
   ];
 
+  const loadedTestCases = loadTestCasesFromJSON();
+  const testCases = [...hardcodedTestCases, ...loadedTestCases];
+
   it(
     "should generate contextually relevant suggestions for selected cells",
     {
@@ -59,6 +105,9 @@ describe("generateSelectedCellsSuggestions AI Fill Selection", () => {
     },
     async () => {
       console.log("--- Running AI Fill Selection Evaluation ---");
+      console.log(
+        `📊 Total test cases: ${testCases.length} (${hardcodedTestCases.length} hardcoded + ${loadedTestCases.length} from JSON)`
+      );
       console.log("\nWhat to look for in good AI Fill Selection suggestions:");
       console.log(
         "- Suggestions should be contextually relevant to the document theme"

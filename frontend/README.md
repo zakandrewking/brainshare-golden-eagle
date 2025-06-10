@@ -20,6 +20,26 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## AI Fill Selection Debug Mode
+
+This app includes a debug mode for AI Fill Selection that allows you to capture real-world usage scenarios and convert them into test cases.
+
+### Quick Start
+
+```bash
+# Start the app
+npm run dev
+
+# Enable debug mode: Menu → Debug Settings → Check "Enable Debug Mode"
+# Use AI Fill Selection in any table, then copy the JSON output from browser console
+# Save it to ai-fill-selection-test-cases.json
+
+# Run tests with your captured scenarios
+OPENAI_API_KEY=your_key RUN_AI_TESTS=true npm test -- ai-fill-selection.manual.test.ts
+```
+
+For detailed instructions, see [DEBUG_AI_FILL_SELECTION.md](./DEBUG_AI_FILL_SELECTION.md).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

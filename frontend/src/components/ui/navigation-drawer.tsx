@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Grid2x2Plus,
   Search,
+  Settings,
 } from "lucide-react";
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -141,9 +142,19 @@ function NavigationButtonWithDrawer() {
               </NavButton>
 
               <DocumentNavList setOpen={setWillOpen} />
+
+              <NavButton
+                href="/debug"
+                match={new RegExp("^/debug$")}
+                setOpen={setWillOpen}
+                className="mt-4"
+              >
+                <Settings className="mr-2" size={16} />
+                Debug Settings
+              </NavButton>
             </Stack>
           </div>
-          <DrawerFooter>
+          <DrawerFooter className="p-0">
             version: {process.env.NEXT_PUBLIC_GIT_SHA}
           </DrawerFooter>
         </Stack>

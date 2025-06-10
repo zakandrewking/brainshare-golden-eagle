@@ -54,6 +54,11 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   useSelectedCell: vi.fn(),
 }));
 
+vi.mock("@/stores/debugSettingsStore", () => ({
+  useIsAiFillSelectionDebugEnabled: vi.fn(() => false),
+  useSetAiFillSelectionDebugEnabled: vi.fn(),
+}));
+
 vi.mock(
   "@/components/live-table/actions/generateSelectedCellsSuggestions",
   () => ({
