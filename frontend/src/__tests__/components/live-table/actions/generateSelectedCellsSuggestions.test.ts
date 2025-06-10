@@ -90,7 +90,7 @@ describe("generateSelectedCellsSuggestions", () => {
     // Arrange
     mockInvoke.mockResolvedValueOnce({ suggestions: mockSuggestions });
 
-    const expectedSystemPromptStart = `You are an AI assistant specializing in data enrichment for tables.`;
+    const expectedSystemPromptStart = `You are an AI assistant specializing in data enrichment and fact-checking for tables.`;
     const expectedUserPromptStart = `Table Data:
 ${JSON.stringify(mockTableData, null, 2)}
 
@@ -161,7 +161,7 @@ Current Values: ${JSON.stringify(mockSelectedCellsData)}
     const errorMessage = "LLM API Error";
     mockInvoke.mockRejectedValueOnce(new Error(errorMessage));
 
-    const expectedSystemPromptStart = `You are an AI assistant specializing in data enrichment for tables.`;
+    const expectedSystemPromptStart = `You are an AI assistant specializing in data enrichment and fact-checking for tables.`;
     const expectedUserPromptStart = `Table Data:
 ${JSON.stringify(mockTableData, null, 2)}
 
