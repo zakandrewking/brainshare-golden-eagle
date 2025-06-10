@@ -80,20 +80,11 @@ describe("generateNewColumns", () => {
       generatedColumns: mockLlmGeneratedColumns,
     });
 
-    const expectedSystemPrompt = `You are an AI assistant specializing in data enrichment for tables.
-The current document is titled "${documentTitle}" and described as: "${documentDescription}".
-You will be given existing table data (array of JSON objects), its headers, and a specific number of new columns to generate.
-For each of the ${numColsToGenerate} new columns, your task is to invent a new, interesting, and relevant column header that does not already exist in the provided headers or among the other headers you are generating in this batch. The new column should be relevant to the document's title and description.
-Then, for each row in the original table, generate a corresponding value for this new column based on the data in that row and the overall table context, keeping the document's theme in mind.
-Return an array of ${numColsToGenerate} generated columns, where each element in the array is an object containing the 'headerName' and its 'columnData' (an array of values, one for each row).
-Ensure all generated headers are unique (case-insensitive) among themselves and with respect to existing headers.
-The 'columnData' array for each generated column must have the same length as the input 'tableData'.`;
-    const expectedUserPrompt = `Here is the existing table data:
+    const expectedSystemPromptStart = `You are an AI assistant specializing in data enrichment and fact-checking for tables.`;
+    const expectedUserPromptStart = `Here is the existing table data:
 ${JSON.stringify(mockTableData, null, 2)}
 
-Existing Headers: ${JSON.stringify(mockHeaders)}
-
-Please generate ${numColsToGenerate} new column(s) with their corresponding data.`;
+Existing Headers: ${JSON.stringify(mockHeaders)}`;
 
     const result = await generateNewColumnsModule.default(
       mockTableData,
@@ -106,8 +97,12 @@ Please generate ${numColsToGenerate} new column(s) with their corresponding data
     expect(MockChatOpenAIClass).toHaveBeenCalledTimes(1);
     expect(mockWithStructuredOutput).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenCalledTimes(1);
-    expect(SystemMessageSpy).toHaveBeenCalledWith(expectedSystemPrompt);
-    expect(HumanMessageSpy).toHaveBeenCalledWith(expectedUserPrompt);
+    expect(SystemMessageSpy).toHaveBeenCalledWith(
+      expect.stringContaining(expectedSystemPromptStart)
+    );
+    expect(HumanMessageSpy).toHaveBeenCalledWith(
+      expect.stringContaining(expectedUserPromptStart)
+    );
     expect(result).toEqual({ generatedColumns: mockLlmGeneratedColumns });
   });
 

@@ -57,23 +57,50 @@ export default async function generateNewColumns(
 
   const existingHeadersLower = headers.map((h) => h.toLowerCase());
 
-  const systemPrompt = `You are an AI assistant specializing in data enrichment for tables.
+  const systemPrompt = `You are an AI assistant specializing in data enrichment and fact-checking for tables.
 The current document is titled "${documentTitle}" and described as: "${documentDescription}".
 You will be given existing table data (array of JSON objects), its headers, and a specific number of new columns to generate.
+
+CRITICAL ANALYSIS STEPS:
+1. Examine existing data to understand the entities and context
+2. Generate column headers that are relevant to the document theme and existing data
+3. For each new column, generate factually accurate data based on real-world knowledge
+4. Ensure all generated values are consistent with the specific entities in each row
+5. Verify data accuracy using your knowledge of the subject matter
+
+CRITICAL RULES:
+1. Generate factually accurate data based on real-world knowledge for the specific entities in each row
+2. Match the existing data format exactly (numbers as numbers, text as text)
+3. Ensure column headers are unique and relevant to the document theme
+4. Do not generate fictional or inaccurate information
+5. Base data on the actual entities shown in other columns of the same row
+
+FACT-CHECKING EXAMPLES:
+- For geographic data about specific places, use accurate real-world information
+- For scientific data about specific objects/phenomena, ensure accuracy based on established knowledge
+- For product information about specific items, use real specifications
+- For biographical data about specific people, verify against known facts
+
 For each of the ${numCols} new columns, your task is to invent a new, interesting, and relevant column header that does not already exist in the provided headers or among the other headers you are generating in this batch. The new column should be relevant to the document's title and description.
-Then, for each row in the original table, generate a corresponding value for this new column based on the data in that row and the overall table context, keeping the document's theme in mind.
-Return an array of ${numCols} generated columns, where each element in the array is an object containing the 'headerName' and its 'columnData' (an array of values, one for each row).
+Then, for each row in the original table, generate a corresponding value for this new column based on the specific entities in that row and real-world knowledge about those entities.
+Return an array of ${numCols} generated columns, where each element in the array is an object containing the 'headerName' and its 'columnData' (an array of factually accurate values, one for each row).
 Ensure all generated headers are unique (case-insensitive) among themselves and with respect to existing headers.
 The 'columnData' array for each generated column must have the same length as the input 'tableData'.`;
 
   const userPrompt = `Here is the existing table data:
-${JSON.stringify(
-    tableData,
-    null,
-    2
-  )}\n\nExisting Headers: ${JSON.stringify(
-    headers
-  )}\n\nPlease generate ${numCols} new column(s) with their corresponding data.`;
+${JSON.stringify(tableData, null, 2)}
+
+Existing Headers: ${JSON.stringify(headers)}
+
+ANALYSIS REQUIRED:
+For each new column you generate:
+1. Choose a header that adds meaningful, factual information about the entities in the table
+2. For each row, examine the specific entity (person, place, product, etc.) in other columns
+3. Generate factually accurate data for that specific entity based on real-world knowledge
+4. Ensure the data format matches the type of information (numbers for quantities, text for names, etc.)
+
+RESPONSE INSTRUCTIONS:
+Please generate ${numCols} new column(s) with factually accurate data for each row based on the specific entities shown in the existing columns.`;
 
   try {
     const response = await newColumnsModel.invoke([

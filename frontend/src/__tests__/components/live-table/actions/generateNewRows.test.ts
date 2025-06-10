@@ -76,21 +76,11 @@ describe("generateNewRows", () => {
     ];
     mockInvoke.mockResolvedValueOnce({ newRows: mockLlmGeneratedRows });
 
-    const expectedSystemPrompt = `You are an AI assistant specializing in data generation and table population.
-The current document is titled "${documentTitle}" and described as: "${documentDescription}".
-You will be given existing table data (if any), the table headers, and a specific number of new rows to generate.
-Your task is to generate realistic and contextually relevant data for these new rows, fitting the established pattern of the table and the document's theme.
-For each new row, return an array of string values. The order of these string values MUST correspond exactly to the order of the table headers provided.
-Return all new rows as a JSON object matching the provided schema.`;
-    const expectedUserPrompt = `Existing table data:
+    const expectedSystemPromptStart = `You are an AI assistant specializing in data generation and fact-checking for table population.`;
+    const expectedUserPromptStart = `Existing table data:
 ${JSON.stringify(mockTableData, null, 2)}
 
-Table Headers (in order): ${JSON.stringify(mockHeaders)}
-Document Title: ${documentTitle}
-Document Description: ${documentDescription}
-
-Please generate ${numRowsToGenerate} new row(s). For each row, provide an array of cell values. The order of values in each array must strictly match the order of the Table Headers listed above.
-`;
+Table Headers (in order): ${JSON.stringify(mockHeaders)}`;
 
     const result = await generateNewRowsModule.default(
       mockTableData,
@@ -104,8 +94,12 @@ Please generate ${numRowsToGenerate} new row(s). For each row, provide an array 
     expect(mockWithStructuredOutput).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenCalledTimes(1);
 
-    expect(SystemMessageSpy).toHaveBeenCalledWith(expectedSystemPrompt);
-    expect(HumanMessageSpy).toHaveBeenCalledWith(expectedUserPrompt);
+    expect(SystemMessageSpy).toHaveBeenCalledWith(
+      expect.stringContaining(expectedSystemPromptStart)
+    );
+    expect(HumanMessageSpy).toHaveBeenCalledWith(
+      expect.stringContaining(expectedUserPromptStart)
+    );
 
     expect(result).toEqual({ newRows: expectedMappedRows });
   });

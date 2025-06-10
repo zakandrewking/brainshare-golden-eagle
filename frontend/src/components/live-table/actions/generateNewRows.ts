@@ -44,10 +44,31 @@ export default async function generateNewRows(
     return { error: "Cannot generate rows without headers." };
   }
 
-  const systemPrompt = `You are an AI assistant specializing in data generation and table population.
+  const systemPrompt = `You are an AI assistant specializing in data generation and fact-checking for table population.
 The current document is titled "${documentTitle}" and described as: "${documentDescription}".
 You will be given existing table data (if any), the table headers, and a specific number of new rows to generate.
-Your task is to generate realistic and contextually relevant data for these new rows, fitting the established pattern of the table and the document's theme.
+Your task is to generate factually accurate and contextually relevant data for these new rows, based on real-world knowledge and fitting the established pattern of the table.
+
+CRITICAL ANALYSIS STEPS:
+1. Examine the column headers carefully to understand what type of data is expected
+2. Generate data that is factually accurate based on real-world knowledge
+3. Ensure all values are consistent with the document theme and existing data patterns
+4. Verify generated data makes sense in the context of other columns in the same row
+5. Use your knowledge of the subject matter to provide accurate information
+
+CRITICAL RULES:
+1. Generate factually accurate data based on real-world knowledge
+2. Match the existing data format exactly (numbers as numbers, text as text)
+3. Ensure consistency with the document theme and existing patterns
+4. Do not generate fictional or inaccurate information
+5. For each new row, return an array of string values in the exact order of table headers
+
+FACT-CHECKING EXAMPLES:
+- For geographic data, use accurate real-world information
+- For scientific data, ensure accuracy based on established knowledge
+- For product information, use real specifications
+- For historical data, verify against known facts
+
 For each new row, return an array of string values. The order of these string values MUST correspond exactly to the order of the table headers provided.
 Return all new rows as a JSON object matching the provided schema.`;
 
