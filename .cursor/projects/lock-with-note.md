@@ -41,6 +41,7 @@ This document outlines the plan to implement a "Lock with Note" feature. This wi
     *   In `frontend/src/components/live-table/LockButton.tsx`, add a new `DropdownMenuItem`: "Lock with Note...".
     *   Clicking this item will open the `LockWithNoteDialog`.
     *   Implement the logic to handle the submission from the dialog. On submission, it will call the `lockSelectedRange` action from `dataStore` with the selected cells and the note.
+-   **Status**: Complete. Added "Lock with Note..." dropdown item, integrated LockWithNoteDialog component, and implemented dialog submission logic.
 
 ## 5. UI: Displaying the Note (`TableCell.tsx`)
 
