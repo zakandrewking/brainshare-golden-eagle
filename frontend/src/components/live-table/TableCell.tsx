@@ -129,7 +129,7 @@ const TableCell: React.FC<TableCellProps> = ({
           setEditingCell(null);
         }
       }}
-      className={`w-full h-full p-2 border-none focus:outline-none ${
+      className={`w-full h-full p-2 border-none focus:outline-none text-base ${
         isCellLocked
           ? "bg-gray-300 dark:bg-gray-700"
           : isEditing
