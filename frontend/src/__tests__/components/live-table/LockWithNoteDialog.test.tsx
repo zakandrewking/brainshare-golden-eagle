@@ -13,6 +13,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import LockWithNoteDialog from "@/components/live-table/LockWithNoteDialog";
 import type { CellPosition } from "@/stores/selectionStore";
@@ -63,7 +64,7 @@ describe("LockWithNoteDialog", () => {
       screen.getByText(/You are about to lock 1 cell/)
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Lock 1 cell" })
+      screen.getByRole("button", { name: /Lock 1 cell/ })
     ).toBeInTheDocument();
   });
 
@@ -74,7 +75,7 @@ describe("LockWithNoteDialog", () => {
       screen.getByText(/You are about to lock 3 cells/)
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Lock 3 cells" })
+      screen.getByRole("button", { name: /Lock 3 cells/ })
     ).toBeInTheDocument();
   });
 
@@ -93,7 +94,7 @@ describe("LockWithNoteDialog", () => {
     render(<LockWithNoteDialog {...defaultProps} />);
 
     expect(
-      screen.getByRole("button", { name: "Lock 3 cells" })
+      screen.getByRole("button", { name: /Lock 3 cells/ })
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
@@ -111,7 +112,7 @@ describe("LockWithNoteDialog", () => {
     render(<LockWithNoteDialog {...defaultProps} />);
 
     const textarea = screen.getByLabelText("Note (optional)");
-    const lockButton = screen.getByRole("button", { name: "Lock 3 cells" });
+    const lockButton = screen.getByRole("button", { name: /Lock 3 cells/ });
 
     fireEvent.change(textarea, { target: { value: "Important data" } });
     fireEvent.click(lockButton);
@@ -123,7 +124,7 @@ describe("LockWithNoteDialog", () => {
   it("should call onLock with undefined when note is empty", () => {
     render(<LockWithNoteDialog {...defaultProps} />);
 
-    const lockButton = screen.getByRole("button", { name: "Lock 3 cells" });
+    const lockButton = screen.getByRole("button", { name: /Lock 3 cells/ });
     fireEvent.click(lockButton);
 
     expect(defaultProps.onLock).toHaveBeenCalledWith(undefined);
@@ -134,7 +135,7 @@ describe("LockWithNoteDialog", () => {
     render(<LockWithNoteDialog {...defaultProps} />);
 
     const textarea = screen.getByLabelText("Note (optional)");
-    const lockButton = screen.getByRole("button", { name: "Lock 3 cells" });
+    const lockButton = screen.getByRole("button", { name: /Lock 3 cells/ });
 
     fireEvent.change(textarea, { target: { value: "   " } });
     fireEvent.click(lockButton);
@@ -157,7 +158,7 @@ describe("LockWithNoteDialog", () => {
     render(<LockWithNoteDialog {...defaultProps} />);
 
     const textarea = screen.getByLabelText("Note (optional)");
-    const lockButton = screen.getByRole("button", { name: "Lock 3 cells" });
+    const lockButton = screen.getByRole("button", { name: /Lock 3 cells/ });
 
     fireEvent.change(textarea, { target: { value: "Test note" } });
     expect(textarea).toHaveValue("Test note");
@@ -195,7 +196,7 @@ describe("LockWithNoteDialog", () => {
       screen.getByText(/You are about to lock 0 cells/)
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Lock 0 cells" })
+      screen.getByRole("button", { name: /Lock 0 cells/ })
     ).toBeInTheDocument();
   });
 
@@ -209,14 +210,107 @@ describe("LockWithNoteDialog", () => {
     expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("should maintain textarea focus when typing", () => {
-    render(<LockWithNoteDialog {...defaultProps} />);
+  it("should maintain textarea focus when typing", async () => {
+    const mockOnOpenChange = vi.fn();
+    const mockOnLock = vi.fn();
+    const selectedCells = [{ rowIndex: 0, colIndex: 0 }];
+    const user = userEvent.setup();
 
-    const textarea = screen.getByLabelText("Note (optional)");
-    textarea.focus();
+    render(
+      <LockWithNoteDialog
+        isOpen={true}
+        onOpenChange={mockOnOpenChange}
+        onLock={mockOnLock}
+        selectedCells={selectedCells}
+      />
+    );
 
-    fireEvent.change(textarea, { target: { value: "Test" } });
+    const textarea = screen.getByPlaceholderText(
+      "Enter a reason for locking these cells..."
+    );
+    await user.type(textarea, "test note");
 
-    expect(document.activeElement).toBe(textarea);
+    expect(textarea).toHaveFocus();
+  });
+
+  it("should lock cells when CMD+Enter is pressed", async () => {
+    const mockOnOpenChange = vi.fn();
+    const mockOnLock = vi.fn();
+    const selectedCells = [{ rowIndex: 0, colIndex: 0 }];
+    const user = userEvent.setup();
+
+    render(
+      <LockWithNoteDialog
+        isOpen={true}
+        onOpenChange={mockOnOpenChange}
+        onLock={mockOnLock}
+        selectedCells={selectedCells}
+      />
+    );
+
+    const textarea = screen.getByPlaceholderText(
+      "Enter a reason for locking these cells..."
+    );
+    await user.type(textarea, "test note");
+
+    // Simulate CMD+Enter (Meta+Enter on Mac)
+    await user.keyboard("{Meta>}{Enter}{/Meta}");
+
+    expect(mockOnLock).toHaveBeenCalledWith("test note");
+    expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("should lock cells when CTRL+Enter is pressed", async () => {
+    const mockOnOpenChange = vi.fn();
+    const mockOnLock = vi.fn();
+    const selectedCells = [{ rowIndex: 0, colIndex: 0 }];
+    const user = userEvent.setup();
+
+    render(
+      <LockWithNoteDialog
+        isOpen={true}
+        onOpenChange={mockOnOpenChange}
+        onLock={mockOnLock}
+        selectedCells={selectedCells}
+      />
+    );
+
+    const textarea = screen.getByPlaceholderText(
+      "Enter a reason for locking these cells..."
+    );
+    await user.type(textarea, "another test note");
+
+    // Simulate CTRL+Enter
+    await user.keyboard("{Control>}{Enter}{/Control}");
+
+    expect(mockOnLock).toHaveBeenCalledWith("another test note");
+    expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("should cancel dialog when Escape is pressed", async () => {
+    const mockOnOpenChange = vi.fn();
+    const mockOnLock = vi.fn();
+    const selectedCells = [{ rowIndex: 0, colIndex: 0 }];
+    const user = userEvent.setup();
+
+    render(
+      <LockWithNoteDialog
+        isOpen={true}
+        onOpenChange={mockOnOpenChange}
+        onLock={mockOnLock}
+        selectedCells={selectedCells}
+      />
+    );
+
+    const textarea = screen.getByPlaceholderText(
+      "Enter a reason for locking these cells..."
+    );
+    await user.type(textarea, "this should be discarded");
+
+    // Simulate Escape key
+    await user.keyboard("{Escape}");
+
+    expect(mockOnLock).not.toHaveBeenCalled();
+    expect(mockOnOpenChange).toHaveBeenCalledWith(false);
   });
 });

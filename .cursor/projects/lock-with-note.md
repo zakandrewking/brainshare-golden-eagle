@@ -50,13 +50,11 @@ This document outlines the plan to implement a "Lock with Note" feature. This wi
     *   In `frontend/src/components/live-table/TableCell.tsx`, use the new `useLockNoteForCell` hook to get the note for the current cell.
     *   If a cell is locked and has a note, wrap the `<td>` element with a `Tooltip` component (from `/components/ui/tooltip.tsx`).
     *   The `TooltipContent` will display the lock note.
-
-## 6. Testing
-
--   **Goal**: Ensure the new functionality is robust and doesn't introduce regressions.
--   **Tasks**:
-    *   Update existing tests for `LiveTableDoc.ts` to cover notes. (**Done**)
-    *   Update tests for `dataStore.tsx` to reflect the change from `Set` to `Map` for `lockedCells` and test the new hook.
-    *   Create new tests for `LockWithNoteDialog.tsx`.
-    *   Update tests for `LockButton.tsx` to cover the new dropdown item and dialog interaction.
-    *   Update tests for `TableCell.tsx` to verify the tooltip appears with the correct note.
+-   **Status**: Complete. Added tooltip functionality to TableCell.tsx using the
+    useLockNoteForCell hook and TextTooltip component. Tooltips only appear when
+    cells are locked AND have a note. Fixed HTML structure issue by wrapping input
+    element inside td instead of wrapping the entire td. Added keyboard shortcuts
+    (CMD/CTRL+Enter to lock, Escape to cancel) to LockWithNoteDialog with platform-
+    specific detection (⌘ on Mac, Ctrl on Windows/Linux) displayed using shadcn
+    CommandShortcut component. Fixed modal close issue by simplifying focus
+    management. Comprehensive tests added.

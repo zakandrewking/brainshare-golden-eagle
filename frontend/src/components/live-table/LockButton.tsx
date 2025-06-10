@@ -42,16 +42,12 @@ export function LockButton() {
   };
 
   const handleLockWithNote = () => {
-    // Close dropdown and blur focused element to prevent aria-hidden conflicts
+    // We get this error, but i'm going to accept it for now: Blocked
+    // aria-hidden on an element because its descendant retained focus.
     setIsDropdownOpen(false);
-    if (
-      document.activeElement &&
-      document.activeElement instanceof HTMLElement
-    ) {
-      document.activeElement.blur();
-    }
-
-    setIsDialogOpen(true);
+    requestAnimationFrame(() => {
+      setIsDialogOpen(true);
+    });
   };
 
   const handleDialogLock = (note?: string) => {

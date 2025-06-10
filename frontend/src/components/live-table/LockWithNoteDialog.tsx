@@ -1,9 +1,11 @@
 import React, {
+  useCallback,
   useEffect,
   useState,
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import { CommandShortcut } from "@/components/ui/command";
 import {
   Dialog,
   DialogClose,
@@ -31,95 +33,46 @@ export function LockWithNoteDialog({
 }: LockWithNoteDialogProps) {
   const [note, setNote] = useState("");
 
-  // Manage dialog open/close effects
-  useEffect(() => {
-    if (isOpen) {
-      // When dialog opens, ensure focus goes to the textarea
-      setTimeout(() => {
-        const textarea = document.getElementById("lock-note");
-        if (textarea) {
-          textarea.focus();
-        }
-      }, 100);
-    }
+  // Detect platform for keyboard shortcut display
+  const isMac =
+    typeof navigator !== "undefined" &&
+    navigator.userAgent.toUpperCase().indexOf("MAC") >= 0;
+  const shortcutKey = isMac ? "⌘" : "Ctrl";
 
-    if (!isOpen) {
-      // Force reset body styles that might be left over from modal
-      setTimeout(() => {
-        // Reset body styles
-        document.body.style.overflow = "";
-        document.body.style.pointerEvents = "";
-        document.body.style.userSelect = "";
-        document.body.style.webkitUserSelect = "";
-
-        // Remove any leftover modal classes
-        document.body.classList.remove("overflow-hidden");
-
-        // Only manage focus if it's problematic
-        if (
-          document.activeElement &&
-          !document.body.contains(document.activeElement)
-        ) {
-          // Focus is on an element that no longer exists, focus body
-          document.body.focus();
-          document.body.blur();
-        }
-      }, 50);
-    }
-  }, [isOpen]);
-
-  const handleLock = () => {
+  const handleLock = useCallback(() => {
     onLock(note.trim() || undefined);
     setNote("");
-    forcePageResponsiveness();
     onOpenChange(false);
-  };
+  }, [note, onLock, onOpenChange]);
 
-  const forcePageResponsiveness = () => {
-    // Aggressive cleanup to ensure page remains responsive
-    setTimeout(() => {
-      document.body.style.overflow = "";
-      document.body.style.pointerEvents = "";
-      document.body.style.userSelect = "";
-      document.body.style.webkitUserSelect = "";
-      document.body.style.cursor = "";
-      document.body.classList.remove("overflow-hidden");
-
-      // Remove any potential modal-related attributes
-      document.body.removeAttribute("data-scroll-locked");
-      document.body.removeAttribute("data-radix-scroll-area-viewport");
-
-      // Only blur focus if it's on a non-existent element
-      if (
-        document.activeElement &&
-        !document.body.contains(document.activeElement)
-      ) {
-        (document.activeElement as HTMLElement).blur?.();
-      }
-
-      // Force a repaint to ensure styles are applied
-      void document.body.offsetHeight;
-    }, 10);
-
-    // Additional cleanup after a slightly longer delay
-    setTimeout(() => {
-      // Make sure body is definitely interactive
-      document.body.style.pointerEvents = "";
-      document.body.style.userSelect = "";
-    }, 100);
-  };
-
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setNote("");
-    forcePageResponsiveness();
     onOpenChange(false);
-  };
+  }, [onOpenChange]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        handleLock();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        handleCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, handleLock, handleCancel]);
 
   const handleDialogOpenChange = (open: boolean) => {
     if (!open) {
-      // Clear note when dialog closes
       setNote("");
-      forcePageResponsiveness();
     }
     onOpenChange(open);
   };
@@ -132,11 +85,6 @@ export function LockWithNoteDialog({
       <DialogContent
         data-testid="lock-with-note-dialog"
         data-preserve-selection="true"
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-        onPointerUp={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
       >
         <DialogHeader>
           <DialogTitle>Lock with Note</DialogTitle>
@@ -171,8 +119,9 @@ export function LockWithNoteDialog({
               Cancel
             </Button>
           </DialogClose>
-          <Button onClick={handleLock}>
+          <Button onClick={handleLock} className="flex items-center gap-3">
             Lock {cellCount} {cellText}
+            <CommandShortcut>{shortcutKey}+Enter</CommandShortcut>
           </Button>
         </DialogFooter>
       </DialogContent>

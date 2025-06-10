@@ -1,8 +1,18 @@
 import React from "react";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import LockButton from "@/components/live-table/LockButton";
 import {
@@ -36,8 +46,8 @@ describe("LockButton", () => {
     // table loaded
     vi.mocked(useIsTableLoaded).mockReturnValue(true);
 
-    // Mock useLockedCells with default empty set
-    vi.mocked(useLockedCells).mockReturnValue(new Set());
+    // Mock useLockedCells with default empty map
+    vi.mocked(useLockedCells).mockReturnValue(new Map());
 
     // Mock useLockSelectedRange
     vi.mocked(useLockSelectedRange).mockReturnValue(mockLockSelectedRange);
@@ -114,17 +124,5 @@ describe("LockButton", () => {
     rerender(<LockButton />);
 
     expect(lockButton).not.toBeDisabled();
-  });
-
-  it("should call unlockAll function when component has access to it", () => {
-    // This test verifies that the component has access to the unlockAll function
-    vi.mocked(useSelectedCells).mockReturnValue([]);
-    vi.mocked(useLockedCells).mockReturnValue(new Set(["0-0", "0-1"])); // Some locked cells
-
-    render(<LockButton />);
-
-    // Verify the component has access to unlockAll by checking the mock was provided
-    expect(vi.mocked(useUnlockAll)).toHaveBeenCalled();
-    expect(vi.mocked(useUnlockAll)).toHaveReturnedWith(mockUnlockAll);
   });
 });

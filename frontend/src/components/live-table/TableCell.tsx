@@ -2,6 +2,7 @@
 
 import React, { useCallback } from "react";
 
+import { TextTooltip } from "@/components/ui/tooltip";
 import {
   useFirstUserColorForCell,
   useHasOtherUserCursors,
@@ -10,6 +11,7 @@ import {
   useEditingCell,
   useHandleCellChange,
   useIsCellLocked,
+  useLockNoteForCell,
   useSetEditingCell,
 } from "@/stores/dataStore";
 import {
@@ -32,6 +34,7 @@ const TableCell: React.FC<TableCellProps> = ({
   value,
 }) => {
   const isCellLocked = useIsCellLocked(rowIndex, colIndex);
+  const lockNote = useLockNoteForCell(rowIndex, colIndex);
 
   const editingCell = useEditingCell();
   const handleCellChange = useHandleCellChange();
@@ -111,6 +114,31 @@ const TableCell: React.FC<TableCellProps> = ({
     [rowIndex, colIndex, setEditingCell, isCellLocked]
   );
 
+  const inputElement = (
+    <input
+      type="text"
+      value={String(value ?? "")}
+      onChange={(e) => {
+        // Don't allow changes to locked cells
+        if (!isCellLocked) {
+          handleCellChange(rowIndex, header, e.target.value);
+        }
+      }}
+      onBlur={() => {
+        if (isEditing) {
+          setEditingCell(null);
+        }
+      }}
+      className={`w-full h-full p-2 border-none focus:outline-none ${
+        isCellLocked
+          ? "bg-gray-300 dark:bg-gray-700"
+          : isEditing
+          ? "focus:ring-2 focus:ring-yellow-400"
+          : "focus:ring-2 focus:ring-blue-300"
+      } bg-transparent`}
+    />
+  );
+
   return (
     <td
       className="border p-0 relative"
@@ -135,28 +163,12 @@ const TableCell: React.FC<TableCellProps> = ({
       onMouseDown={handleCellMouseDown}
       onDoubleClick={handleCellDoubleClick}
     >
-      <input
-        type="text"
-        value={String(value ?? "")}
-        onChange={(e) => {
-          // Don't allow changes to locked cells
-          if (!isCellLocked) {
-            handleCellChange(rowIndex, header, e.target.value);
-          }
-        }}
-        onBlur={() => {
-          if (isEditing) {
-            setEditingCell(null);
-          }
-        }}
-        className={`w-full h-full p-2 border-none focus:outline-none ${
-          isCellLocked
-            ? "bg-gray-300 dark:bg-gray-700"
-            : isEditing
-            ? "focus:ring-2 focus:ring-yellow-400"
-            : "focus:ring-2 focus:ring-blue-300"
-        } bg-transparent`}
-      />
+      {/* If cell is locked and has a note, wrap input with tooltip */}
+      {isCellLocked && lockNote ? (
+        <TextTooltip text={lockNote}>{inputElement}</TextTooltip>
+      ) : (
+        inputElement
+      )}
     </td>
   );
 };
