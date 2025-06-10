@@ -22,7 +22,7 @@ interface TestCase {
 function loadTestCasesFromJSON(): TestCase[] {
   const testCasesPath = join(
     process.cwd(),
-    "ai-fill-selection-test-cases.json"
+    "src/__tests__/components/live-table/actions/ai-fill-selection-test-cases.json"
   );
 
   if (!existsSync(testCasesPath)) {
@@ -216,7 +216,7 @@ describe("generateSelectedCellsSuggestions AI Fill Selection", () => {
               // Mark selected cells
               let displayValue;
               if (selectedCellsSet.has(cellKey)) {
-                displayValue = suggestions ? `[${value}]` : `[EMPTY→?]`;
+                displayValue = `[${value || "(empty)"}]`;
               } else {
                 displayValue = value || "(empty)";
               }
@@ -232,7 +232,7 @@ describe("generateSelectedCellsSuggestions AI Fill Selection", () => {
         console.log("\n📋 ORIGINAL TABLE:");
         visualizeTable(testCase.tableData);
 
-        console.log("\n🎯 SELECTED CELLS (marked with []):");
+        console.log("\n🎯 SELECTED CELLS (marked with [] in table):");
         testCase.selectedCells.forEach((cell, index) => {
           const header = testCase.headers[cell.colIndex];
           const row = testCase.tableData[cell.rowIndex] as Record<

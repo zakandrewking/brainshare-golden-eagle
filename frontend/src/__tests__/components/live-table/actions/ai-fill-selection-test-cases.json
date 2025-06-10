@@ -1,0 +1,38 @@
+[
+  {
+    "title": "Cars Models",
+    "description": "Makes and models of cars",
+    "tableData": [
+      {
+        "Make": "Bugatti",
+        "Model": "Chiron",
+        "Country": "France",
+        "Top Speed (mph)": "420"
+      },
+      {
+        "Make": "SEAT",
+        "Model": "Ateca",
+        "Country": "Spain",
+        "Top Speed (mph)": "190"
+      }
+    ],
+    "headers": ["Make", "Model", "Country", "Top Speed (mph)"],
+    "selectedCells": [
+      {
+        "rowIndex": 0,
+        "colIndex": 3
+      },
+      {
+        "rowIndex": 1,
+        "colIndex": 3
+      }
+    ],
+    "selectedCellsData": [["420"], ["190"]],
+    "expectedPatterns": [
+      "Should provide appropriate values for \"Top Speed (mph)\" column",
+      "Should be contextually relevant to \"Cars Models\"",
+      "Should maintain consistency with existing data patterns",
+      "Should respect the data type and format of existing cells"
+    ]
+  }
+]
