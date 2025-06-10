@@ -7,10 +7,10 @@ import React, { useMemo } from "react";
 
 import { useRoom } from "@liveblocks/react/suspense";
 
+import { AwarenessStoreProvider } from "@/stores/awareness-store";
 import { DataStoreProvider } from "@/stores/dataStore";
 import { type CellPosition, type SelectionArea } from "@/stores/selectionStore";
 
-import AwarenessSync from "./awareness-sync";
 import { initializeLiveblocksRoom } from "./LiveTableDoc";
 import SelectionListeners from "./selection-listeners";
 
@@ -43,9 +43,10 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       documentTitle={documentTitle}
       documentDescription={documentDescription}
     >
-      <AwarenessSync liveTableDoc={liveTableDoc} yProvider={yProvider} />
-      <SelectionListeners />
-      {children}
+      <AwarenessStoreProvider liveTableDoc={liveTableDoc} yProvider={yProvider}>
+        <SelectionListeners />
+        {children}
+      </AwarenessStoreProvider>
     </DataStoreProvider>
   );
 };

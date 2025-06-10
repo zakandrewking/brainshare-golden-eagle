@@ -1,9 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
-import generateNewColumns from "@/components/live-table/actions/generateNewColumns";
+import generateNewColumns
+  from "@/components/live-table/actions/generateNewColumns";
 import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import {
@@ -14,7 +27,18 @@ import {
 } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
 
-import { TestDataStoreWrapper } from "./data-store-test-utils";
+import { TestDataStoreWrapper } from "./live-table-store-test-utils";
+
+vi.mock("@liveblocks/react", () => ({
+  useSelf: vi.fn(() => ({
+    info: {
+      name: "Test User",
+      color: "#FF0000",
+    },
+  })),
+  useRoom: vi.fn(() => ({})),
+  RoomProvider: vi.fn(({ children }) => children),
+}));
 
 vi.mock("@/components/live-table/actions/generateNewColumns", () => ({
   default: vi.fn(),

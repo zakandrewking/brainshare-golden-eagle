@@ -19,7 +19,18 @@ import { CellPosition } from "@/stores/selectionStore";
 
 import {
   TestDataStoreWrapper,
-} from "../components/live-table/data-store-test-utils";
+} from "../components/live-table/live-table-store-test-utils";
+
+vi.mock("@liveblocks/react", () => ({
+  useSelf: vi.fn(() => ({
+    info: {
+      name: "Test User",
+      color: "#FF0000",
+    },
+  })),
+  useRoom: vi.fn(() => ({})),
+  RoomProvider: vi.fn(({ children }) => children),
+}));
 
 vi.mock("sonner", () => ({
   toast: {

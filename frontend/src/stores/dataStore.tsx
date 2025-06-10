@@ -2,11 +2,20 @@
  * TODO move data, locks, editing, etc. to this store from LiveTableProvider
  */
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 import { toast } from "sonner";
 import { UndoManager } from "yjs";
-import { createStore, StoreApi, useStore } from "zustand";
+import {
+  createStore,
+  StoreApi,
+  useStore,
+} from "zustand";
 
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
@@ -54,8 +63,6 @@ interface DataState {
 
 interface DataActions {
   // interactions
-  handleCellFocus: (rowIndex: number, colIndex: number) => void;
-  handleCellBlur: () => void;
   handleHeaderDoubleClick: (colIndex: number) => void;
   handleHeaderChange: (value: string) => void;
   handleHeaderBlur: () => void;
@@ -219,15 +226,6 @@ export const DataStoreProvider = ({
         lockSelectedRange(selectedCells, liveTableDoc, note),
       unlockRange: (lockId: string) => unlockRange(lockId, liveTableDoc),
       unlockAll: () => unlockAll(liveTableDoc),
-      handleCellFocus: (rowIndex: number, colIndex: number) => {
-        yProvider.awareness.setLocalStateField("selectedCell", {
-          rowIndex,
-          colIndex,
-        });
-      },
-      handleCellBlur: () => {
-        yProvider.awareness.setLocalStateField("selectedCell", null);
-      },
       handleHeaderDoubleClick: (colIndex: number) => {
         const headers = get().headers;
         if (!headers) return;
@@ -427,10 +425,6 @@ export const useDocumentTitle = () =>
 export const useDocumentDescription = () =>
   useDataStore((state) => state.documentDescription);
 
-export const useHandleCellFocus = () =>
-  useDataStore((state) => state.handleCellFocus);
-export const useHandleCellBlur = () =>
-  useDataStore((state) => state.handleCellBlur);
 export const useHandleHeaderDoubleClick = () =>
   useDataStore((state) => state.handleHeaderDoubleClick);
 export const useHandleHeaderChange = () =>

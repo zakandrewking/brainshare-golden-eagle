@@ -3,10 +3,12 @@
 import React, { useCallback } from "react";
 
 import {
+  useFirstUserColorForCell,
+  useHasOtherUserCursors,
+} from "@/stores/awareness-store";
+import {
   useEditingCell,
-  useHandleCellBlur,
   useHandleCellChange,
-  useHandleCellFocus,
   useIsCellLocked,
   useSetEditingCell,
 } from "@/stores/dataStore";
@@ -33,23 +35,17 @@ const TableCell: React.FC<TableCellProps> = ({
 
   const editingCell = useEditingCell();
   const handleCellChange = useHandleCellChange();
-  const handleCellBlur = useHandleCellBlur();
   const setEditingCell = useSetEditingCell();
-  const handleCellFocus = useHandleCellFocus();
 
   const startOrMoveSelection = useSelectionStartOrMove();
   const isSelected = useSelectIsCellSelected(rowIndex, colIndex);
   const isInSelection = useSelectIsCellInSelection(rowIndex, colIndex);
 
+  const hasOtherUserCursors = useHasOtherUserCursors(rowIndex, colIndex);
+  const firstUserColor = useFirstUserColorForCell(rowIndex, colIndex);
+
   const isEditing =
     editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
-
-  // bring this back later
-  // const { getCursorsForCell } = useLiveTable();
-  // // Get cursors for this cell (other users' selections)
-  // const cursorsForCell = getCursorsForCell(rowIndex, colIndex);
-  // const hasOtherUserCursors =
-  //   cursorsForCell && cursorsForCell.cursors.length > 0;
 
   // Determine border color based on selection/cursors
   let borderColor = "transparent";
@@ -61,11 +57,10 @@ const TableCell: React.FC<TableCellProps> = ({
   } else if (isInSelection) {
     borderColor = "rgba(59, 130, 246, 0.5)";
     borderWidth = "1px";
-    // } else if (hasOtherUserCursors) {
-    //   // Use the first user's color for the border
-    //   const firstUserColor = cursorsForCell.cursors[0]?.user?.color ?? "gray";
-    //   borderColor = firstUserColor;
-    //   borderWidth = "2px";
+  } else if (hasOtherUserCursors) {
+    // Use the first user's color for the border
+    borderColor = firstUserColor ?? "gray";
+    borderWidth = "2px";
   }
 
   const handleCellMouseDown = useCallback(
@@ -104,9 +99,6 @@ const TableCell: React.FC<TableCellProps> = ({
       // First, set the editing state
       setEditingCell({ rowIndex, colIndex });
 
-      // notify that the cell has focus
-      handleCellFocus(rowIndex, colIndex);
-
       // Find and focus the input inside the current cell
       const cell = event.currentTarget as HTMLElement;
       if (cell) {
@@ -116,7 +108,7 @@ const TableCell: React.FC<TableCellProps> = ({
         }
       }
     },
-    [rowIndex, colIndex, setEditingCell, handleCellFocus, isCellLocked]
+    [rowIndex, colIndex, setEditingCell, isCellLocked]
   );
 
   return (
@@ -136,9 +128,9 @@ const TableCell: React.FC<TableCellProps> = ({
           ? "rgba(255, 255, 200, 0.2)"
           : isInSelection
           ? "rgba(59, 130, 246, 0.1)"
-          : // : hasOtherUserCursors
-            // ? `${cursorsForCell.cursors[0]?.user?.color}20` // 20 for low opacity
-            undefined,
+          : hasOtherUserCursors
+          ? `${firstUserColor}20` // 20 for low opacity
+          : undefined,
       }}
       onMouseDown={handleCellMouseDown}
       onDoubleClick={handleCellDoubleClick}
@@ -153,7 +145,6 @@ const TableCell: React.FC<TableCellProps> = ({
           }
         }}
         onBlur={() => {
-          handleCellBlur();
           if (isEditing) {
             setEditingCell(null);
           }

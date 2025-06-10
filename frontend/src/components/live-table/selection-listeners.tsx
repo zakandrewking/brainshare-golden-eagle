@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import {
   useEditingCell,
   useHandleCellChange,
-  useHandleCellFocus,
   useHeaders,
   useIsCellLockedFn,
   useSetEditingCell,
@@ -31,7 +30,6 @@ export default function SelectionListeners() {
   const headers = useHeaders();
   const tableData = useTableData();
   const setEditingCell = useSetEditingCell();
-  const handleCellFocus = useHandleCellFocus();
   const handleCellChange = useHandleCellChange();
   const isCellLockedFn = useIsCellLockedFn();
   const tableRef = useTableRef();
@@ -155,7 +153,6 @@ export default function SelectionListeners() {
           rowIndex: selectedCell.rowIndex,
           colIndex: selectedCell.colIndex,
         });
-        handleCellFocus(selectedCell.rowIndex, selectedCell.colIndex);
         handleCellChange(selectedCell.rowIndex, header, newValue);
 
         // Focus the input after a brief delay to ensure it's rendered
@@ -188,7 +185,6 @@ export default function SelectionListeners() {
           rowIndex: selectedCell.rowIndex,
           colIndex: selectedCell.colIndex,
         });
-        handleCellFocus(selectedCell.rowIndex, selectedCell.colIndex);
         handleCellChange(selectedCell.rowIndex, header, newValue);
 
         // Focus the input after a brief delay to ensure it's rendered
@@ -221,7 +217,6 @@ export default function SelectionListeners() {
     selectedCells,
     isCellLockedFn,
     setEditingCell,
-    handleCellFocus,
     handleCellChange,
     tableRef,
   ]);

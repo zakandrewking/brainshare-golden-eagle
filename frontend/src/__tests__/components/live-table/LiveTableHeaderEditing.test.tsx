@@ -1,8 +1,19 @@
 import React from "react";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
@@ -29,7 +40,18 @@ import {
   useTableData,
 } from "@/stores/dataStore";
 
-import { TestDataStoreWrapper } from "./data-store-test-utils";
+import { TestDataStoreWrapper } from "./live-table-store-test-utils";
+
+vi.mock("@liveblocks/react", () => ({
+  useSelf: vi.fn(() => ({
+    info: {
+      name: "Test User",
+      color: "#FF0000",
+    },
+  })),
+  useRoom: vi.fn(() => ({})),
+  RoomProvider: vi.fn(({ children }) => children),
+}));
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),

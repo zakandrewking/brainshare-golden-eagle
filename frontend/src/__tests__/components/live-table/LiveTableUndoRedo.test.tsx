@@ -1,15 +1,39 @@
 import React from "react";
 
-import { beforeEach, describe, expect, it, type Mocked, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mocked,
+  vi,
+} from "vitest";
 import { UndoManager } from "yjs";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsTableLoaded, useUndoManager } from "@/stores/dataStore";
 
-import { TestDataStoreWrapper } from "./data-store-test-utils";
+import { TestDataStoreWrapper } from "./live-table-store-test-utils";
+
+// Mock Liveblocks to avoid RoomProvider error
+vi.mock("@liveblocks/react", () => ({
+  useSelf: vi.fn(() => ({
+    info: {
+      name: "Test User",
+      color: "#FF0000",
+    },
+  })),
+  useRoom: vi.fn(() => ({})),
+  RoomProvider: vi.fn(({ children }) => children),
+}));
 
 // Define a type for the mock UndoManager
 type MockUndoManagerType = {

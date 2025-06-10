@@ -39,7 +39,18 @@ import {
   useSelectionStartOrMove,
 } from "@/stores/selectionStore";
 
-import { TestDataStoreWrapper } from "./data-store-test-utils";
+import { TestDataStoreWrapper } from "./live-table-store-test-utils";
+
+vi.mock("@liveblocks/react", () => ({
+  useSelf: vi.fn(() => ({
+    info: {
+      name: "Test User",
+      color: "#FF0000",
+    },
+  })),
+  useRoom: vi.fn(() => ({})),
+  RoomProvider: vi.fn(({ children }) => children),
+}));
 
 vi.mock("@/stores/dataStore", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -54,6 +65,10 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   useSelectionStartOrMove: vi.fn(),
   useSelectionEnd: vi.fn(),
   useIsSelecting: useIsSelectingMock,
+  useSelectionArea: vi.fn(() => ({
+    startCell: null,
+    endCell: null,
+  })),
 }));
 
 describe("LiveTableDisplay - Drag Selection", () => {

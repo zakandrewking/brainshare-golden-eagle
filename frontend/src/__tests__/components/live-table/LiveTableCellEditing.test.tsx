@@ -23,9 +23,7 @@ import {
 } from "@/components/live-table/LiveTableDoc";
 import {
   useEditingCell,
-  useHandleCellBlur,
   useHandleCellChange,
-  useHandleCellFocus,
   useHeaders,
   useIsCellLockedFn,
   useIsTableLoaded,
@@ -40,14 +38,28 @@ import {
   useSelectionStartOrMove,
 } from "@/stores/selectionStore";
 
-import { TestDataStoreWrapper } from "./data-store-test-utils";
+import { TestDataStoreWrapper } from "./live-table-store-test-utils";
+
+vi.mock("@liveblocks/react", () => ({
+  useSelf: vi.fn(() => ({
+    info: {
+      name: "Test User",
+      color: "#FF0000",
+    },
+  })),
+  useRoom: vi.fn(() => ({})),
+  RoomProvider: vi.fn(({ children }) => children),
+}));
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal()),
   useSelectedCell: vi.fn(),
   useSelectedCells: vi.fn(),
   useSelectionStartOrMove: vi.fn(),
-  useSelectionArea: vi.fn(),
+  useSelectionArea: vi.fn(() => ({
+    startCell: null,
+    endCell: null,
+  })),
   useIsSelecting: vi.fn(),
 }));
 
@@ -57,8 +69,6 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
   useHeaders: vi.fn(),
   useTableData: vi.fn(),
   useIsCellLockedFn: vi.fn(),
-  useHandleCellFocus: vi.fn(),
-  useHandleCellBlur: vi.fn(),
   useHandleCellChange: vi.fn(),
   useEditingCell: vi.fn(),
   useSetEditingCell: vi.fn(),
@@ -87,8 +97,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     // This ensures a clean state for dataStore hooks that are commonly mocked per test.
     vi.mocked(useEditingCell).mockReturnValue(null);
     vi.mocked(useSetEditingCell).mockReturnValue(vi.fn());
-    vi.mocked(useHandleCellFocus).mockReturnValue(vi.fn());
-    vi.mocked(useHandleCellBlur).mockReturnValue(vi.fn());
     vi.mocked(useHandleCellChange).mockReturnValue(vi.fn());
     vi.mocked(useSelectionStartOrMove).mockReturnValue(vi.fn());
     vi.mocked(useSelectedCells).mockReturnValue([]);
@@ -106,16 +114,8 @@ describe("LiveTableDisplay Cell Editing", () => {
     const mockSetEditingCell = vi.fn();
     vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
 
-    const mockHandleCellFocus = vi.fn(); // Correctly scoped mock for this test
-    vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
-
     const mockHandleCellChange = vi.fn(); // Define and mock for the whole test scope
     vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
-
-    const mockHandleCellBlur = vi.fn(); // Define and mock for the whole test scope
-    vi.mocked(useHandleCellBlur).mockReturnValue(mockHandleCellBlur);
-
-    // useHandleCellChange and useHandleCellBlur use global mocks or are re-mocked if specific behavior is needed
 
     const { container, rerender } = render(
       <TestDataStoreWrapper>
@@ -140,7 +140,6 @@ describe("LiveTableDisplay Cell Editing", () => {
       rowIndex: 0,
       colIndex: 0,
     });
-    expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0); // Assert scoped mock
 
     vi.mocked(useEditingCell).mockReturnValue({
       // Simulate entering edit mode
@@ -175,14 +174,9 @@ describe("LiveTableDisplay Cell Editing", () => {
       "New Name"
     );
 
-    // Mock useHandleCellBlur for this specific part of the test
-    // const mockHandleCellBlurScoped = vi.fn();
-    // vi.mocked(useHandleCellBlur).mockReturnValue(mockHandleCellBlurScoped);
-
     const cellInputJaneSmith = screen.getByDisplayValue("Jane Smith");
     await user.click(cellInputJaneSmith.closest("td")!); // Click another cell's TD
 
-    expect(mockHandleCellBlur).toHaveBeenCalled(); // Assert the test-scoped mock
     expect(mockSelectionStartOrMove).toHaveBeenCalledWith(1, 0, false); // New selection should start
   });
 
@@ -193,8 +187,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
     const mockHandleCellChange = vi.fn();
     vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
-    const mockHandleCellFocus = vi.fn();
-    vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
     const mockSelectionStartOrMove = vi.fn();
     vi.mocked(useSelectionStartOrMove).mockReturnValue(
       mockSelectionStartOrMove
@@ -232,7 +224,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Clear mocks that might have been called by click
     mockSetEditingCell.mockClear();
     mockHandleCellChange.mockClear();
-    mockHandleCellFocus.mockClear();
 
     // Mock the selection state to simulate a single cell being selected
     // This simulates that the click above resulted in cell (0,0) being selected
@@ -253,7 +244,6 @@ describe("LiveTableDisplay Cell Editing", () => {
       rowIndex: 0,
       colIndex: 0,
     });
-    expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
     const headerNameForFirstCol = initialHeaders[0]; // "name"
     expect(mockHandleCellChange).toHaveBeenCalledWith(
       0,
@@ -279,8 +269,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
     const mockHandleCellChange = vi.fn();
     vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
-    const mockHandleCellFocus = vi.fn();
-    vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
     const mockSelectionStartOrMove = vi.fn();
     vi.mocked(useSelectionStartOrMove).mockReturnValue(
       mockSelectionStartOrMove
@@ -320,7 +308,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Clear mocks
     mockSetEditingCell.mockClear();
     mockHandleCellChange.mockClear();
-    mockHandleCellFocus.mockClear();
 
     // Mock the selection state
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
@@ -338,7 +325,6 @@ describe("LiveTableDisplay Cell Editing", () => {
       rowIndex: 0,
       colIndex: 0,
     });
-    expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
     const headerNameForFirstCol = initialHeaders[0]; // "name"
     expect(mockHandleCellChange).toHaveBeenCalledWith(
       0,
@@ -362,8 +348,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
     const mockHandleCellChange = vi.fn();
     vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
-    const mockHandleCellFocus = vi.fn();
-    vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
 
     vi.mocked(useEditingCell).mockReturnValue(null); // Initially not editing
 
@@ -390,7 +374,6 @@ describe("LiveTableDisplay Cell Editing", () => {
 
     // Should NOT enter edit mode when multiple cells are selected
     expect(mockSetEditingCell).not.toHaveBeenCalled();
-    expect(mockHandleCellFocus).not.toHaveBeenCalled();
     expect(mockHandleCellChange).not.toHaveBeenCalled();
   });
 
@@ -401,8 +384,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     vi.mocked(useSetEditingCell).mockReturnValue(mockSetEditingCell);
     const mockHandleCellChange = vi.fn();
     vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChange);
-    const mockHandleCellFocus = vi.fn();
-    vi.mocked(useHandleCellFocus).mockReturnValue(mockHandleCellFocus);
     const mockSelectionStartOrMove = vi.fn();
     vi.mocked(useSelectionStartOrMove).mockReturnValue(
       mockSelectionStartOrMove
@@ -447,7 +428,6 @@ describe("LiveTableDisplay Cell Editing", () => {
     // Clear mocks
     mockSetEditingCell.mockClear();
     mockHandleCellChange.mockClear();
-    mockHandleCellFocus.mockClear();
 
     // Mock the selection state
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
@@ -466,7 +446,6 @@ describe("LiveTableDisplay Cell Editing", () => {
       rowIndex: 0,
       colIndex: 0,
     });
-    expect(mockHandleCellFocus).toHaveBeenCalledWith(0, 0);
     const headerNameForFirstCol = initialHeaders[0]; // "name"
     expect(mockHandleCellChange).toHaveBeenCalledWith(
       0,

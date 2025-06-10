@@ -1,7 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import LiveTableDisplay from "@/components/live-table/LiveTableDisplay";
 import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
@@ -12,7 +23,18 @@ import {
   useTableData,
 } from "@/stores/dataStore";
 
-import { TestDataStoreWrapper } from "./data-store-test-utils";
+import { TestDataStoreWrapper } from "./live-table-store-test-utils";
+
+vi.mock("@liveblocks/react", () => ({
+  useSelf: vi.fn(() => ({
+    info: {
+      name: "Test User",
+      color: "#FF0000",
+    },
+  })),
+  useRoom: vi.fn(() => ({})),
+  RoomProvider: vi.fn(({ children }) => children),
+}));
 
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -31,8 +53,6 @@ vi.mock("@/stores/dataStore", async (importOriginal) => ({
   useUnlockAll: () => vi.fn(),
   useUnlockRange: () => vi.fn(),
   useIsCellLocked: () => vi.fn(() => false),
-  useHandleCellFocus: () => vi.fn(),
-  useHandleCellBlur: () => vi.fn(),
   useHandleHeaderDoubleClick: () => vi.fn(),
   useHandleHeaderChange: () => vi.fn(),
   useHandleHeaderBlur: () => vi.fn(),

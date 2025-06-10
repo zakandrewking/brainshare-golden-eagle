@@ -5,12 +5,13 @@ import * as Y from "yjs";
 
 import type { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
-import { LiveTableDoc } from "@/components/live-table/LiveTableDoc"; // Import the actual LiveTableDoc
+import { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
 import SelectionListeners from "@/components/live-table/selection-listeners";
+import { AwarenessStoreProvider } from "@/stores/awareness-store";
 import { DataStoreProvider } from "@/stores/dataStore";
 
-// Test wrapper that provides DataStoreProvider context
-export const TestDataStoreWrapper: React.FC<{
+// Test wrapper that provides both DataStoreProvider and AwarenessStoreProvider context
+export const TestLiveTableStoreWrapper: React.FC<{
   children: React.ReactNode;
   liveTableDoc?: LiveTableDoc;
   documentTitle?: string;
@@ -50,8 +51,16 @@ export const TestDataStoreWrapper: React.FC<{
       documentTitle={documentTitle}
       documentDescription={documentDescription}
     >
-      <SelectionListeners />
-      {children}
+      <AwarenessStoreProvider
+        liveTableDoc={defaultDoc}
+        yProvider={mockYProvider as unknown as LiveblocksYjsProvider}
+      >
+        <SelectionListeners />
+        {children}
+      </AwarenessStoreProvider>
     </DataStoreProvider>
   );
 };
+
+// Backward compatibility - keep the old export name
+export const TestDataStoreWrapper = TestLiveTableStoreWrapper;
