@@ -754,7 +754,9 @@ export class LiveTableDoc {
         if (value === null) return true;
         const strValue = String(value).trim();
         if (strValue === "") return true;
-        const num = Number(strValue);
+        // Remove commas before checking if it's a number
+        const cleanedValue = strValue.replace(/,/g, "");
+        const num = Number(cleanedValue);
         return !isNaN(num) && isFinite(num);
       });
 
@@ -767,8 +769,9 @@ export class LiveTableDoc {
         if (aIsEmpty) return direction === "asc" ? -1 : 1;
         if (bIsEmpty) return direction === "asc" ? 1 : -1;
 
-        const aNum = Number(a.value);
-        const bNum = Number(b.value);
+        // Remove commas before converting to numbers
+        const aNum = Number(String(a.value).replace(/,/g, ""));
+        const bNum = Number(String(b.value).replace(/,/g, ""));
 
         return direction === "asc" ? aNum - bNum : bNum - aNum;
       }

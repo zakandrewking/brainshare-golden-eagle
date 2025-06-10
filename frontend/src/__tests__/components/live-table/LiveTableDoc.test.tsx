@@ -1,4 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as Y from "yjs";
 
 import { DEFAULT_COL_WIDTH } from "@/components/live-table/config";
@@ -492,6 +498,191 @@ describe("LiveTableDoc - V2 Sorting", () => {
 
     // Should sort as strings: "", "1", "10a", "2", "5"
     expect(sortedValues).toEqual(["", "1", "10a", "2", "5"].sort());
+  });
+});
+
+describe("LiveTableDoc - V2 Sorting with Comma Separators", () => {
+  let yDoc: Y.Doc;
+  let liveTableDoc: LiveTableDoc;
+  let colId1: ColumnId, colId2: ColumnId;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    yDoc = new Y.Doc();
+    const yColumnDefinitions =
+      yDoc.getMap<ColumnDefinition>("columnDefinitions");
+    const yColumnOrder = yDoc.getArray<ColumnId>("columnOrder");
+    const yRowData = yDoc.getMap<Y.Map<CellValue>>("rowData");
+    const yRowOrder = yDoc.getArray<RowId>("rowOrder");
+    const yMeta = yDoc.getMap<unknown>("metaData");
+
+    colId1 = "col1-numeric-with-commas";
+    colId2 = "col2-string";
+
+    yDoc.transact(() => {
+      yColumnDefinitions.set(colId1, {
+        id: colId1,
+        name: "NumberWithCommas",
+        width: 100,
+      });
+      yColumnDefinitions.set(colId2, {
+        id: colId2,
+        name: "StringColumn",
+        width: 100,
+      });
+      yColumnOrder.push([colId1, colId2]);
+
+      const rows = [
+        { id: "row1", num: "1,234", str: "c" },
+        { id: "row2", num: "10,000", str: "a" },
+        { id: "row3", num: "567", str: "b" },
+        { id: "row4", num: "1,234,567", str: "d" },
+        { id: "row5", num: "99", str: "e" },
+        { id: "row6", num: "2,000", str: "f" },
+      ];
+
+      rows.forEach((row) => {
+        const rowMap = new Y.Map<CellValue>();
+        rowMap.set(colId1, row.num);
+        rowMap.set(colId2, row.str);
+        yRowData.set(row.id, rowMap);
+        yRowOrder.push([row.id]);
+      });
+
+      yMeta.set("schemaVersion", 2);
+    });
+
+    liveTableDoc = new LiveTableDoc(yDoc);
+  });
+
+  it("should correctly identify numeric column with comma separators", () => {
+    liveTableDoc.sortRowsByColumn("NumberWithCommas", "asc");
+
+    const sortedRowOrder = liveTableDoc.yRowOrder.toArray();
+    const sortedValues = sortedRowOrder.map(
+      (rowId) => liveTableDoc.yRowData.get(rowId)?.get(colId1) || ""
+    );
+
+    // Should sort numerically: 99, 567, 1,234, 2,000, 10,000, 1,234,567
+    expect(sortedValues).toEqual([
+      "99",
+      "567",
+      "1,234",
+      "2,000",
+      "10,000",
+      "1,234,567",
+    ]);
+  });
+
+  it("should sort numeric column with commas descending", () => {
+    liveTableDoc.sortRowsByColumn("NumberWithCommas", "desc");
+
+    const sortedRowOrder = liveTableDoc.yRowOrder.toArray();
+    const sortedValues = sortedRowOrder.map(
+      (rowId) => liveTableDoc.yRowData.get(rowId)?.get(colId1) || ""
+    );
+
+    // Should sort numerically descending: 1,234,567, 10,000, 2,000, 1,234, 567, 99
+    expect(sortedValues).toEqual([
+      "1,234,567",
+      "10,000",
+      "2,000",
+      "1,234",
+      "567",
+      "99",
+    ]);
+  });
+
+  it("should handle mixed comma and non-comma numbers", () => {
+    // Add a row with a number without commas
+    const rowWithoutCommas = "row7";
+    const rowMap = new Y.Map<CellValue>();
+    rowMap.set(colId1, "500");
+    rowMap.set(colId2, "g");
+    yDoc.transact(() => {
+      liveTableDoc.yRowData.set(rowWithoutCommas, rowMap);
+      liveTableDoc.yRowOrder.push([rowWithoutCommas]);
+    });
+
+    liveTableDoc.sortRowsByColumn("NumberWithCommas", "asc");
+
+    const sortedRowOrder = liveTableDoc.yRowOrder.toArray();
+    const sortedValues = sortedRowOrder.map(
+      (rowId) => liveTableDoc.yRowData.get(rowId)?.get(colId1) || ""
+    );
+
+    // Should sort numerically: 99, 500, 567, 1,234, 2,000, 10,000, 1,234,567
+    expect(sortedValues).toEqual([
+      "99",
+      "500",
+      "567",
+      "1,234",
+      "2,000",
+      "10,000",
+      "1,234,567",
+    ]);
+  });
+
+  it("should handle empty values with comma-separated numbers", () => {
+    // Add a row with empty value
+    const rowEmpty = "row_empty";
+    const rowMap = new Y.Map<CellValue>();
+    rowMap.set(colId1, "");
+    rowMap.set(colId2, "h");
+    yDoc.transact(() => {
+      liveTableDoc.yRowData.set(rowEmpty, rowMap);
+      liveTableDoc.yRowOrder.push([rowEmpty]);
+    });
+
+    liveTableDoc.sortRowsByColumn("NumberWithCommas", "asc");
+
+    const sortedRowOrder = liveTableDoc.yRowOrder.toArray();
+    const sortedValues = sortedRowOrder.map(
+      (rowId) => liveTableDoc.yRowData.get(rowId)?.get(colId1) || ""
+    );
+
+    // Empty string should come first
+    expect(sortedValues[0]).toBe("");
+    // Rest should be sorted numerically
+    expect(sortedValues.slice(1)).toEqual([
+      "99",
+      "567",
+      "1,234",
+      "2,000",
+      "10,000",
+      "1,234,567",
+    ]);
+  });
+
+  it("should fall back to string sorting when mixed with non-numeric values", () => {
+    // Add a non-numeric value to the column
+    const rowWithText = "row_text";
+    const rowMap = new Y.Map<CellValue>();
+    rowMap.set(colId1, "abc");
+    rowMap.set(colId2, "i");
+    yDoc.transact(() => {
+      liveTableDoc.yRowData.set(rowWithText, rowMap);
+      liveTableDoc.yRowOrder.push([rowWithText]);
+    });
+
+    liveTableDoc.sortRowsByColumn("NumberWithCommas", "asc");
+
+    const sortedRowOrder = liveTableDoc.yRowOrder.toArray();
+    const sortedValues = sortedRowOrder.map(
+      (rowId) => liveTableDoc.yRowData.get(rowId)?.get(colId1) || ""
+    );
+
+    // Should sort as strings since one value is non-numeric
+    const expectedSorted = [
+      "1,234",
+      "1,234,567",
+      "10,000",
+      "2,000",
+      "567",
+      "99",
+      "abc",
+    ].sort();
+    expect(sortedValues).toEqual(expectedSorted);
   });
 });
 
