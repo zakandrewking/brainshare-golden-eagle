@@ -22,6 +22,8 @@ import {
   Rows3,
   Trash2,
   Undo,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,6 +46,7 @@ import {
 import {
   useDeleteColumns,
   useDeleteRows,
+  useDocumentId,
   useGenerateAndInsertColumns,
   useGenerateAndInsertRows,
   useHandleCellChange,
@@ -56,6 +59,7 @@ import {
   useUndoManager,
 } from "@/stores/dataStore";
 import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
+import { useZoomStore } from "@/stores/zoom-store";
 
 import { AiFillSelectionButton } from "./AiFillSelectionButton";
 import LockButton from "./LockButton";
@@ -81,16 +85,18 @@ const BUTTON_TYPES = {
   ADD_EMPTY_ROW_ABOVE: "add-empty-row-above",
   ADD_EMPTY_ROW_BELOW: "add-empty-row-below",
   DELETE_ROWS: "delete-rows",
+  ADD_COLUMN_LEFT: "add-column-left",
+  ADD_COLUMN_RIGHT: "add-column-right",
+  ADD_EMPTY_COL_LEFT: "add-empty-col-left",
+  ADD_EMPTY_COL_RIGHT: "add-empty-col-right",
+  DELETE_COLS: "delete-cols",
+  CLEAR_CELLS: "clear-cells",
   ADD_ROW_GROUP: "add-row-group",
   ADD_COLUMN_GROUP: "add-column-group",
-  ADD_COL_LEFT: "add-column-left",
-  ADD_EMPTY_COL_LEFT: "add-empty-column-left",
-  ADD_COL_RIGHT: "add-column-right",
-  ADD_EMPTY_COL_RIGHT: "add-empty-column-right",
-  DELETE_COLS: "delete-columns",
-  CLEAR_CELLS: "clear-cells",
   AI_FILL: "ai-fill",
   LOCK: "lock",
+  ZOOM_IN: "zoom-in",
+  ZOOM_OUT: "zoom-out",
   DOWNLOAD: "download",
 } as const;
 
@@ -110,6 +116,9 @@ const BUTTON_ORDER = [
   BUTTON_TYPES.AI_FILL,
   BUTTON_TYPES.LOCK,
   "separator-4",
+  BUTTON_TYPES.ZOOM_OUT,
+  BUTTON_TYPES.ZOOM_IN,
+  "separator-5",
   BUTTON_TYPES.DOWNLOAD,
 ];
 
@@ -125,14 +134,16 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
   [BUTTON_TYPES.CLEAR_CELLS]: 36,
   [BUTTON_TYPES.AI_FILL]: 100,
   [BUTTON_TYPES.LOCK]: 83,
-  [BUTTON_TYPES.DOWNLOAD]: 36,
+  [BUTTON_TYPES.ZOOM_OUT]: 36,
+  [BUTTON_TYPES.ZOOM_IN]: 36,
   "separator-1": 16,
   "separator-2": 16,
   "separator-2.5": 16,
   "separator-3": 16,
   "separator-4": 16,
-  [BUTTON_TYPES.ADD_COL_LEFT]: 36,
-  [BUTTON_TYPES.ADD_COL_RIGHT]: 36,
+  "separator-5": 16,
+  [BUTTON_TYPES.ADD_COLUMN_LEFT]: 36,
+  [BUTTON_TYPES.ADD_COLUMN_RIGHT]: 36,
 };
 
 const LiveTableToolbar: React.FC = () => {
@@ -152,6 +163,13 @@ const LiveTableToolbar: React.FC = () => {
   const deleteColumns = useDeleteColumns();
   const handleCellChange = useHandleCellChange();
 
+  const documentId = useDocumentId();
+  const zoomStore = useZoomStore(documentId);
+  const zoomLevel = zoomStore((state) => state.zoomLevel);
+  const zoomIn = zoomStore((state) => state.zoomIn);
+  const zoomOut = zoomStore((state) => state.zoomOut);
+  const getZoomPercentage = zoomStore((state) => state.getZoomPercentage);
+
   const [isPending, startTransition] = useTransition();
   const [pendingOperation, setPendingOperation] =
     useState<PendingOperation>(null);
@@ -167,6 +185,7 @@ const LiveTableToolbar: React.FC = () => {
 
   const isTableEmptyOfRows = !tableData || tableData.length === 0;
   const isAnyOperationPending = isPending && pendingOperation !== null;
+  const zoomPercentage = getZoomPercentage();
 
   const getUniqueSelectedColumnIndices = useCallback((): number[] => {
     if (!selectedCells || selectedCells.length === 0) {
@@ -865,7 +884,7 @@ const LiveTableToolbar: React.FC = () => {
         onClick: handleDeleteRows,
         disabled: !canDeleteRow,
       },
-      [BUTTON_TYPES.ADD_COL_LEFT]: {
+      [BUTTON_TYPES.ADD_COLUMN_LEFT]: {
         icon: isAddColumnLeftPending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
@@ -893,7 +912,7 @@ const LiveTableToolbar: React.FC = () => {
           isAddEmptyColumnRightPending ||
           isAddColumnLeftPending,
       },
-      [BUTTON_TYPES.ADD_COL_RIGHT]: {
+      [BUTTON_TYPES.ADD_COLUMN_RIGHT]: {
         icon: isAddColumnRightPending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
@@ -944,6 +963,18 @@ const LiveTableToolbar: React.FC = () => {
         onClick: handleDownloadCsv,
         disabled: !canDownload || isAnyOperationPending,
       },
+      [BUTTON_TYPES.ZOOM_OUT]: {
+        icon: <ZoomOut className="h-4 w-4" />,
+        label: `Zoom Out (${zoomPercentage}%)`,
+        onClick: zoomOut,
+        disabled: false,
+      },
+      [BUTTON_TYPES.ZOOM_IN]: {
+        icon: <ZoomIn className="h-4 w-4" />,
+        label: `Zoom In (${zoomPercentage}%)`,
+        onClick: zoomIn,
+        disabled: false,
+      },
     }),
     [
       handleUndo,
@@ -984,6 +1015,10 @@ const LiveTableToolbar: React.FC = () => {
       handleAddEmptyColumn,
       handleClearSelectedCells,
       canClearCells,
+      zoomLevel,
+      zoomOut,
+      zoomIn,
+      zoomPercentage,
     ]
   );
 
@@ -1175,8 +1210,8 @@ const LiveTableToolbar: React.FC = () => {
     }
 
     if (buttonId === BUTTON_TYPES.ADD_COLUMN_GROUP) {
-      const aiLeftConfig = buttonConfigs[BUTTON_TYPES.ADD_COL_LEFT];
-      const aiRightConfig = buttonConfigs[BUTTON_TYPES.ADD_COL_RIGHT];
+      const aiLeftConfig = buttonConfigs[BUTTON_TYPES.ADD_COLUMN_LEFT];
+      const aiRightConfig = buttonConfigs[BUTTON_TYPES.ADD_COLUMN_RIGHT];
       const emptyLeftConfig = buttonConfigs[BUTTON_TYPES.ADD_EMPTY_COL_LEFT];
       const emptyRightConfig = buttonConfigs[BUTTON_TYPES.ADD_EMPTY_COL_RIGHT];
 
@@ -1474,8 +1509,8 @@ const LiveTableToolbar: React.FC = () => {
     if (!config) {
       if (
         !isInDropdown &&
-        (buttonId === BUTTON_TYPES.ADD_COL_LEFT ||
-          buttonId === BUTTON_TYPES.ADD_COL_RIGHT ||
+        (buttonId === BUTTON_TYPES.ADD_COLUMN_LEFT ||
+          buttonId === BUTTON_TYPES.ADD_COLUMN_RIGHT ||
           buttonId === BUTTON_TYPES.ADD_ROW_ABOVE ||
           buttonId === BUTTON_TYPES.ADD_ROW_BELOW)
       ) {

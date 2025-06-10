@@ -9,6 +9,7 @@ import React, {
 
 import {
   useColumnWidths,
+  useDocumentId,
   useEditingHeaderIndex,
   useHandleColumnResize,
   useHandleHeaderBlur,
@@ -23,6 +24,7 @@ import {
   useTableData,
 } from "@/stores/dataStore";
 import { useSetSelectionRange } from "@/stores/selectionStore";
+import { useZoomStore } from "@/stores/zoom-store";
 
 import { DelayedLoadingSpinner } from "../ui/loading";
 import TableCell from "./TableCell";
@@ -47,6 +49,9 @@ const LiveTable: React.FC = () => {
   const tableData = useTableData();
   const headers = useHeaders();
   const columnWidths = useColumnWidths();
+  const documentId = useDocumentId();
+  const zoomStore = useZoomStore(documentId);
+  const zoomLevel = zoomStore((state) => state.zoomLevel);
 
   const editingHeaderIndex = useEditingHeaderIndex();
   const handleHeaderChange = useHandleHeaderChange();
@@ -60,18 +65,20 @@ const LiveTable: React.FC = () => {
   const reorderColumn = useReorderColumn();
   const sortByColumn = useSortByColumn();
 
-  const [resizingHeader, setResizingHeader] = useState<string | null>(null);
-  const [startX, setStartX] = useState(0);
-  const [startWidth, setStartWidth] = useState(0);
   const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(
     null
   );
   const [dragInsertPosition, setDragInsertPosition] = useState<number | null>(
     null
   );
-  const tableRef = useRef<HTMLTableElement>(null);
+  const [resizingHeader, setResizingHeader] = useState<string | null>(null);
+  const [startX, setStartX] = useState(0);
+  const [startWidth, setStartWidth] = useState(0);
+
   const lastTapTimeRef = useRef(0);
   const lastTapTargetRef = useRef<EventTarget | null>(null);
+
+  const tableRef = useRef<HTMLTableElement>(null);
 
   useEffect(() => {
     setTableRef(tableRef);
@@ -291,7 +298,15 @@ const LiveTable: React.FC = () => {
 
   return (
     <div className="overflow-x-auto overscroll-none h-full">
-      <div className="w-max min-w-full">
+      <div
+        className="w-max min-w-full"
+        style={{
+          transform: `scale(${zoomLevel})`,
+          transformOrigin: "top left",
+          transition: "transform 0.1s ease-out",
+          willChange: "transform",
+        }}
+      >
         <table
           ref={tableRef}
           className="table-fixed border-collapse border border-slate-400 relative"

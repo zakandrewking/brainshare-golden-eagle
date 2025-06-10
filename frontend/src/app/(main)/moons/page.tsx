@@ -12,6 +12,7 @@ export default function Moons() {
         tableId="moons"
         documentTitle={pageTitle}
         documentDescription={pageDescription}
+        docId="moons-fake-uuid"
       />
     </Container>
   );

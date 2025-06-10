@@ -123,6 +123,7 @@ export type DataStore = DataState & DataActions;
 // -----
 
 const DataStoreContext = createContext<StoreApi<DataStore> | null>(null);
+const DocumentIdContext = createContext<string | null>(null);
 
 const initialState: DataState = {
   documentTitle: "",
@@ -212,12 +213,14 @@ export const DataStoreProvider = ({
   yProvider,
   documentTitle,
   documentDescription,
+  docId,
 }: {
   children: React.ReactNode;
   liveTableDoc: LiveTableDoc;
   yProvider: LiveblocksYjsProvider;
   documentTitle: string;
   documentDescription: string;
+  docId: string;
 }) => {
   const [store] = useState(() =>
     createStore<DataStore>()((set, get) => ({
@@ -400,7 +403,9 @@ export const DataStoreProvider = ({
 
   return (
     <DataStoreContext.Provider value={store}>
-      {children}
+      <DocumentIdContext.Provider value={docId}>
+        {children}
+      </DocumentIdContext.Provider>
     </DataStoreContext.Provider>
   );
 };
@@ -512,3 +517,11 @@ export const useIsTableLoaded = () =>
 // refs
 export const useTableRef = () => useDataStore((state) => state.tableRef);
 export const useSetTableRef = () => useDataStore((state) => state.setTableRef);
+
+export const useDocumentId = (): string => {
+  const context = useContext(DocumentIdContext);
+  if (!context) {
+    throw new Error("useDocumentId must be used within a DocumentIdContext");
+  }
+  return context;
+};

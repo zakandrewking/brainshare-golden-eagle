@@ -44,26 +44,28 @@ export default function DocumentPageClient({
   }
 
   const pageTitle = document.title;
-  const pageDescription = document.description || `Live collaborative table for document ${document.title}.`;
+  const pageDescription =
+    document.description ||
+    `Live collaborative table for document ${document.title}.`;
   const documentTitleForPrompt = document.title;
 
-  const handleUpdate = async (updates: { title?: string; description?: string }) => {
+  const handleUpdate = async (updates: {
+    title?: string;
+    description?: string;
+  }) => {
     const result = await updateDocument(docId, updates);
 
     if (result.error) {
       throw new Error(result.error);
     }
 
-    setDocument(prev => prev ? { ...prev, ...updates } : prev);
+    setDocument((prev) => (prev ? { ...prev, ...updates } : prev));
     router.refresh();
   };
 
   return (
     <Container>
-      <DocumentSettingsDropdown
-        docId={docId}
-        documentTitle={document.title}
-      />
+      <DocumentSettingsDropdown docId={docId} documentTitle={document.title} />
       <EditableFlexTitle
         title={pageTitle}
         description={pageDescription}
@@ -73,6 +75,7 @@ export default function DocumentPageClient({
         tableId={document.liveblocks_id}
         documentTitle={documentTitleForPrompt}
         documentDescription={pageDescription}
+        docId={docId}
       />
     </Container>
   );

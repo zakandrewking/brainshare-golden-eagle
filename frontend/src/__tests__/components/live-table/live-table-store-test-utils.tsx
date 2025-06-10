@@ -16,11 +16,13 @@ export const TestLiveTableStoreWrapper: React.FC<{
   liveTableDoc?: LiveTableDoc;
   documentTitle?: string;
   documentDescription?: string;
+  docId?: string;
 }> = ({
   children,
   liveTableDoc,
   documentTitle = "Test Doc Title",
   documentDescription = "Test Doc Desc",
+  docId = "test-document-id",
 }) => {
   // Create a default LiveTableDoc if none provided
   const defaultDoc = React.useMemo(() => {
@@ -50,6 +52,7 @@ export const TestLiveTableStoreWrapper: React.FC<{
       yProvider={mockYProvider as unknown as LiveblocksYjsProvider}
       documentTitle={documentTitle}
       documentDescription={documentDescription}
+      docId={docId}
     >
       <AwarenessStoreProvider
         liveTableDoc={defaultDoc}

@@ -21,6 +21,7 @@ interface LiveTableProviderProps {
   tableId: string;
   documentTitle: string;
   documentDescription: string;
+  docId: string;
 }
 
 const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
@@ -29,6 +30,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
   tableId,
   documentTitle,
   documentDescription,
+  docId,
 }) => {
   const room = useRoom();
   const { liveTableDoc, yProvider } = useMemo(
@@ -42,6 +44,7 @@ const LiveTableProvider: React.FC<LiveTableProviderProps> = ({
       yProvider={yProvider}
       documentTitle={documentTitle}
       documentDescription={documentDescription}
+      docId={docId}
     >
       <AwarenessStoreProvider liveTableDoc={liveTableDoc} yProvider={yProvider}>
         <SelectionListeners />

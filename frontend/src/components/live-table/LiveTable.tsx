@@ -12,16 +12,27 @@ interface LiveTableProps {
   tableId: string;
   documentTitle: string;
   documentDescription: string;
+  docId: string;
 }
 
-const LiveTable: React.FC<LiveTableProps> = ({ tableId, documentTitle, documentDescription }) => {
+const LiveTable: React.FC<LiveTableProps> = ({
+  tableId,
+  documentTitle,
+  documentDescription,
+  docId,
+}) => {
   // TODO When we switch to multiple rooms per table, we'll drop the Room
   // component and move yDoc initialization into LiveTableProvider.
   const roomId = tableId;
 
   return (
     <Room roomId={roomId}>
-      <LiveTableProvider tableId={tableId} documentTitle={documentTitle} documentDescription={documentDescription}>
+      <LiveTableProvider
+        tableId={tableId}
+        documentTitle={documentTitle}
+        documentDescription={documentDescription}
+        docId={docId}
+      >
         <LiveTableContainer>
           <LiveTableToolbar />
           <LiveTableDisplay />

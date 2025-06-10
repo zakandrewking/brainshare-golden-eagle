@@ -23,6 +23,7 @@ export default function Planets() {
         tableId="planet-editor"
         documentTitle={pageTitle}
         documentDescription={pageDescription}
+        docId="planets-fake-uuid"
       />
     </Container>
   );
