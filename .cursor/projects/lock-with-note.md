@@ -22,6 +22,7 @@ This document outlines the plan to implement a "Lock with Note" feature. This wi
     *   Update the `handleLockedCellsUpdate` listener to correctly handle the incoming `Map` from `LiveTableDoc`.
     *   Update `useIsCellLocked` and `useIsCellLockedFn` to work with the new
         `Map` structure (i.e., use `lockedCells.has(...)`).
+-   **Status**: Complete. All tasks have been implemented and are working correctly..
 
 ## 3. UI: Lock with Note Dialog
 
@@ -31,6 +32,7 @@ This document outlines the plan to implement a "Lock with Note" feature. This wi
     *   This component will be a dialog/modal (using `AlertDialog` or `Dialog` from `/components/ui`).
     *   It will contain a `Textarea` for the note and "Lock" and "Cancel" buttons.
     *   The dialog will be controlled by state within `LockButton.tsx`.
+-   **Status**: Complete. Created LockWithNoteDialog component with Dialog UI, Textarea for notes, and Lock/Cancel buttons. Comprehensive tests added covering all functionality.
 
 ## 4. UI: Update `LockButton.tsx`
 
