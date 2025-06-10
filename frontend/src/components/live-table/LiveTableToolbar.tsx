@@ -15,6 +15,7 @@ import {
   ChevronDownIcon,
   Columns3,
   Download,
+  Eraser,
   Loader2,
   MoreVertical,
   Redo,
@@ -45,6 +46,7 @@ import {
   useDeleteRows,
   useGenerateAndInsertColumns,
   useGenerateAndInsertRows,
+  useHandleCellChange,
   useHeaders,
   useInsertEmptyColumns,
   useInsertEmptyRows,
@@ -86,6 +88,7 @@ const BUTTON_TYPES = {
   ADD_COL_RIGHT: "add-column-right",
   ADD_EMPTY_COL_RIGHT: "add-empty-column-right",
   DELETE_COLS: "delete-columns",
+  CLEAR_CELLS: "clear-cells",
   AI_FILL: "ai-fill",
   LOCK: "lock",
   DOWNLOAD: "download",
@@ -101,6 +104,8 @@ const BUTTON_ORDER = [
   "separator-2",
   BUTTON_TYPES.ADD_COLUMN_GROUP,
   BUTTON_TYPES.DELETE_COLS,
+  "separator-2.5",
+  BUTTON_TYPES.CLEAR_CELLS,
   "separator-3",
   BUTTON_TYPES.AI_FILL,
   BUTTON_TYPES.LOCK,
@@ -113,15 +118,17 @@ const ESTIMATED_WIDTHS: Record<string, number> = {
   [BUTTON_TYPES.REDO]: 36,
   [BUTTON_TYPES.ADD_ROW_ABOVE]: 36,
   [BUTTON_TYPES.ADD_ROW_BELOW]: 36,
-  [BUTTON_TYPES.ADD_ROW_GROUP]: 120,
+  [BUTTON_TYPES.ADD_ROW_GROUP]: 220,
   [BUTTON_TYPES.DELETE_ROWS]: 52,
-  [BUTTON_TYPES.ADD_COLUMN_GROUP]: 120,
+  [BUTTON_TYPES.ADD_COLUMN_GROUP]: 220,
   [BUTTON_TYPES.DELETE_COLS]: 64,
+  [BUTTON_TYPES.CLEAR_CELLS]: 36,
   [BUTTON_TYPES.AI_FILL]: 100,
   [BUTTON_TYPES.LOCK]: 83,
   [BUTTON_TYPES.DOWNLOAD]: 36,
   "separator-1": 16,
   "separator-2": 16,
+  "separator-2.5": 16,
   "separator-3": 16,
   "separator-4": 16,
   [BUTTON_TYPES.ADD_COL_LEFT]: 36,
@@ -143,6 +150,7 @@ const LiveTableToolbar: React.FC = () => {
   const generateAndInsertColumns = useGenerateAndInsertColumns();
   const insertEmptyColumns = useInsertEmptyColumns();
   const deleteColumns = useDeleteColumns();
+  const handleCellChange = useHandleCellChange();
 
   const [isPending, startTransition] = useTransition();
   const [pendingOperation, setPendingOperation] =
@@ -553,6 +561,54 @@ const LiveTableToolbar: React.FC = () => {
     });
   }, [deleteColumns, getUniqueSelectedColumnIndices]);
 
+  const handleClearSelectedCells = useCallback(() => {
+    if (!isTableLoaded || !headers || headers.length === 0) {
+      return;
+    }
+
+    const cellsToClear =
+      selectedCells.length > 0
+        ? selectedCells
+        : selectedCell
+        ? [selectedCell]
+        : [];
+
+    if (cellsToClear.length === 0) {
+      toast.info("No cells selected to clear.");
+      return;
+    }
+
+    const lockedCells = cellsToClear.filter((cell) =>
+      isCellLockedFn(cell.rowIndex, cell.colIndex)
+    );
+    if (lockedCells.length > 0) {
+      toast.error("Cannot clear locked cells.");
+      return;
+    }
+
+    try {
+      cellsToClear.forEach((cell) => {
+        const header = headers[cell.colIndex];
+        if (header) {
+          handleCellChange(cell.rowIndex, header, "");
+        }
+      });
+
+      const cellCount = cellsToClear.length;
+      toast.success(`Cleared ${cellCount} cell${cellCount === 1 ? "" : "s"}.`);
+    } catch (error) {
+      console.error("Error clearing cells:", error);
+      toast.error("Failed to clear cells. Please try again.");
+    }
+  }, [
+    isTableLoaded,
+    headers,
+    selectedCells,
+    selectedCell,
+    isCellLockedFn,
+    handleCellChange,
+  ]);
+
   const handleDownloadCsv = useCallback(() => {
     if (!isTableLoaded || !headers || headers.length === 0 || !tableData) {
       console.warn("CSV Download aborted: No headers or table data.");
@@ -675,6 +731,17 @@ const LiveTableToolbar: React.FC = () => {
       ? "Delete Selected Column"
       : `Delete ${uniqueSelectedColIndices.length} Columns`;
 
+  const cellsToClear =
+    selectedCells.length > 0
+      ? selectedCells
+      : selectedCell
+      ? [selectedCell]
+      : [];
+  const clearCellsButtonLabel =
+    cellsToClear.length <= 1
+      ? "Clear Selected Cell"
+      : `Clear ${cellsToClear.length} Selected Cells`;
+
   const canAddRows =
     isTableLoaded && !isAnyOperationPending && headers && headers.length > 0;
   const canAddColumns = isTableLoaded && !isAnyOperationPending;
@@ -688,6 +755,11 @@ const LiveTableToolbar: React.FC = () => {
     !isAnyOperationPending &&
     uniqueSelectedColIndices.length > 0 &&
     !hasLockedCellsInSelectedColumns();
+  const canClearCells =
+    isTableLoaded &&
+    !isAnyOperationPending &&
+    cellsToClear.length > 0 &&
+    !cellsToClear.some((cell) => isCellLockedFn(cell.rowIndex, cell.colIndex));
   const canDownload =
     isTableLoaded &&
     headers &&
@@ -860,6 +932,12 @@ const LiveTableToolbar: React.FC = () => {
         onClick: handleDeleteColumns,
         disabled: !canDeleteColumn,
       },
+      [BUTTON_TYPES.CLEAR_CELLS]: {
+        icon: <Eraser className="h-4 w-4" />,
+        label: clearCellsButtonLabel,
+        onClick: handleClearSelectedCells,
+        disabled: !canClearCells,
+      },
       [BUTTON_TYPES.DOWNLOAD]: {
         icon: <Download className="h-4 w-4" />,
         label: "Download CSV",
@@ -897,12 +975,15 @@ const LiveTableToolbar: React.FC = () => {
       deleteColButtonLabel,
       handleDeleteColumns,
       canDeleteColumn,
+      clearCellsButtonLabel,
       handleDownloadCsv,
       canDownload,
       handleAddRowRelative,
       handleAddEmptyRowRelative,
       handleAddColumnRelative,
       handleAddEmptyColumn,
+      handleClearSelectedCells,
+      canClearCells,
     ]
   );
 
