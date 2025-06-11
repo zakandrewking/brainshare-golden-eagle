@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import Image from "next/image";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -102,9 +104,11 @@ export function ImageUrlCellEditor({
                 Failed to load image. Please check the URL.
               </div>
             ) : (
-              <img
+              <Image
                 src={localValue}
                 alt="Preview"
+                width={150}
+                height={96}
                 className="max-w-full max-h-24 object-contain rounded"
                 onLoad={handleImageLoad}
                 onError={handleImageError}

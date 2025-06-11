@@ -4,7 +4,7 @@ import {
   Binary,
   Calendar,
   Hash,
-  Image,
+  Image as ImageIcon,
   List,
   ToggleLeft,
   Type,
@@ -70,7 +70,7 @@ const DATA_TYPE_CONFIG = {
   },
   imageurl: {
     label: "Image URL",
-    icon: <Image className="h-4 w-4" />,
+    icon: <ImageIcon className="h-4 w-4" />,
     description: "Valid image URLs",
   },
 } as const;

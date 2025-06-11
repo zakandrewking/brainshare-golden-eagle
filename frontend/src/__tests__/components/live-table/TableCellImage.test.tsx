@@ -17,6 +17,48 @@ import userEvent from "@testing-library/user-event";
 
 import TableCell from "@/components/live-table/TableCell";
 
+// Mock Next.js Image component
+vi.mock("next/image", () => ({
+  default: ({
+    src,
+    alt,
+    onLoad,
+    onError,
+    width,
+    height,
+    ...props
+  }: {
+    src: string;
+    alt: string;
+    onLoad?: () => void;
+    onError?: () => void;
+    width: number;
+    height: number;
+    style?: React.CSSProperties;
+    className?: string;
+    onDoubleClick?: (e: React.MouseEvent) => void;
+    draggable?: boolean;
+    ref?: React.Ref<HTMLImageElement>;
+  }) => {
+    // Create a simple img element that mimics Next.js Image behavior
+    return React.createElement("img", {
+      src: `/api/imageproxy?url=${encodeURIComponent(
+        src
+      )}&w=${width}&h=${height}`,
+      alt,
+      onLoad,
+      onError,
+      width,
+      height,
+      style: props.style,
+      className: props.className,
+      onDoubleClick: props.onDoubleClick,
+      draggable: props.draggable,
+      ref: props.ref,
+    });
+  },
+}));
+
 vi.mock("@/stores/awareness-store", () => ({
   useFirstUserColorForCell: vi.fn(() => null),
   useHasOtherUserCursors: vi.fn(() => false),
@@ -50,7 +92,8 @@ describe("TableCell Image Rendering", () => {
 
     const image = screen.getByRole("img");
     expect(image).toBeInTheDocument();
-    expect(image).toHaveAttribute("src", imageUrl);
+    // Check that the src contains the original URL (encoded)
+    expect(image.getAttribute("src")).toContain(encodeURIComponent(imageUrl));
     expect(image).toHaveAttribute("alt", "Cell content");
   });
 
@@ -349,6 +392,11 @@ describe("TableCell Image Rendering", () => {
 
     const img = screen.getByRole("img");
 
+    // Wait for the image to be in the DOM and set up natural dimensions
+    await vi.waitFor(() => {
+      expect(img).toBeInTheDocument();
+    });
+
     // Simulate the image loading with natural dimensions
     Object.defineProperty(img, "naturalWidth", { value: 800, writable: false });
     Object.defineProperty(img, "naturalHeight", {
@@ -356,8 +404,15 @@ describe("TableCell Image Rendering", () => {
       writable: false,
     });
 
-    // Trigger the load event
-    fireEvent.load(img);
+    // Trigger the load event - need to use async version for Next.js Image
+    await vi.waitFor(() => {
+      fireEvent.load(img);
+    });
+
+    // Wait a bit for the async dimension calculation
+    await vi.waitFor(() => {
+      expect(mockHandleCellChange).toHaveBeenCalled();
+    });
 
     // Should call handleCellChange with calculated dimensions that preserve aspect ratio
     // 800x600 should be scaled down to fit within max bounds while preserving 4:3 ratio

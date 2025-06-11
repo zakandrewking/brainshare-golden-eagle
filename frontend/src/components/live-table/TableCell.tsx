@@ -7,6 +7,8 @@ import React, {
   useState,
 } from "react";
 
+import Image from "next/image";
+
 import { TextTooltip } from "@/components/ui/tooltip";
 import {
   useFirstUserColorForCell,
@@ -259,10 +261,12 @@ const ResizableImage: React.FC<ResizableImageProps> = ({
 
   return (
     <div className="relative inline-block group">
-      <img
+      <Image
         ref={imageRef}
         src={src}
         alt={alt}
+        width={dimensions.width}
+        height={dimensions.height}
         className="object-contain rounded cursor-pointer"
         style={{
           width: `${dimensions.width}px`,

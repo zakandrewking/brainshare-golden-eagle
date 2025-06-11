@@ -165,7 +165,6 @@ const LiveTableToolbar: React.FC = () => {
 
   const documentId = useDocumentId();
   const zoomStore = useZoomStore(documentId);
-  const zoomLevel = zoomStore((state) => state.zoomLevel);
   const zoomIn = zoomStore((state) => state.zoomIn);
   const zoomOut = zoomStore((state) => state.zoomOut);
   const getZoomPercentage = zoomStore((state) => state.getZoomPercentage);
@@ -1015,7 +1014,6 @@ const LiveTableToolbar: React.FC = () => {
       handleAddEmptyColumn,
       handleClearSelectedCells,
       canClearCells,
-      zoomLevel,
       zoomOut,
       zoomIn,
       zoomPercentage,
