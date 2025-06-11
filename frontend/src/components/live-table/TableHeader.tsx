@@ -7,10 +7,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useEditingHeaderValue } from "@/stores/dataStore";
+import {
+  useEditingHeaderValue,
+  useGetColumnDataType,
+  useGetColumnEnumValues,
+  useUpdateColumnDataType,
+} from "@/stores/dataStore";
+
+import { DataTypeSelector } from "./DataTypeSelector";
+import type { DataType } from "./LiveTableDoc";
 
 interface TableHeaderProps {
   header: string;
@@ -40,6 +49,16 @@ interface TableHeaderProps {
   ) => void;
 }
 
+const DATA_TYPE_ICONS = {
+  text: "T",
+  integer: "#",
+  decimal: "0.0",
+  datetime: "📅",
+  enum: "▼",
+  boolean: "◔",
+  imageurl: "🖼️",
+} as const;
+
 const TableHeader: React.FC<TableHeaderProps> = ({
   header,
   index,
@@ -65,6 +84,16 @@ const TableHeader: React.FC<TableHeaderProps> = ({
   handleMouseDown,
 }) => {
   const editingHeaderValue = useEditingHeaderValue(index);
+  const updateColumnDataType = useUpdateColumnDataType();
+  const getColumnDataType = useGetColumnDataType();
+  const getColumnEnumValues = useGetColumnEnumValues();
+
+  const currentDataType = getColumnDataType(header);
+  const currentEnumValues = getColumnEnumValues(header);
+
+  const handleDataTypeChange = (dataType: DataType, enumValues?: string[]) => {
+    updateColumnDataType(header, dataType, enumValues);
+  };
 
   return (
     <th
@@ -111,7 +140,7 @@ const TableHeader: React.FC<TableHeaderProps> = ({
           />
         ) : (
           <div
-            className="p-2 cursor-text flex-grow break-words flex items-center"
+            className="p-2 cursor-text flex-grow break-words flex items-center gap-2"
             onDoubleClick={() => {
               handleHeaderDoubleClick(index);
             }}
@@ -138,7 +167,10 @@ const TableHeader: React.FC<TableHeaderProps> = ({
               }
             }}
           >
-            {header}
+            <span className="text-xs opacity-60 font-mono">
+              {DATA_TYPE_ICONS[currentDataType]}
+            </span>
+            <span>{header}</span>
           </div>
         )}
         <DropdownMenu>
@@ -159,6 +191,12 @@ const TableHeader: React.FC<TableHeaderProps> = ({
             <DropdownMenuItem onSelect={() => sortByColumn(header, "desc")}>
               Sort Descending
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DataTypeSelector
+              currentDataType={currentDataType}
+              currentEnumValues={currentEnumValues}
+              onDataTypeChange={handleDataTypeChange}
+            />
           </DropdownMenuContent>
         </DropdownMenu>
         <div

@@ -19,7 +19,10 @@ import {
 
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 
-import type { LiveTableDoc } from "@/components/live-table/LiveTableDoc";
+import type {
+  DataType,
+  LiveTableDoc,
+} from "@/components/live-table/LiveTableDoc";
 import {
   deleteColumns,
   generateAndInsertColumns,
@@ -103,6 +106,15 @@ interface DataActions {
   sortByColumn: (header: string, direction: "asc" | "desc") => void;
   deleteColumns: (colIndices: number[]) => Promise<{ deletedCount: number }>;
   handleColumnResize: (header: string, newWidth: number) => void;
+
+  // column data types
+  updateColumnDataType: (
+    headerName: string,
+    dataType: DataType,
+    enumValues?: string[]
+  ) => void;
+  getColumnDataType: (headerName: string) => DataType;
+  getColumnEnumValues: (headerName: string) => string[] | undefined;
 
   // locked cells
   lockSelectedRange: (
@@ -341,6 +353,21 @@ export const DataStoreProvider = ({
         liveTableDoc.updateColumnWidth(header, newWidth);
       },
 
+      // column data types
+      updateColumnDataType: (
+        headerName: string,
+        dataType: DataType,
+        enumValues?: string[]
+      ) => {
+        liveTableDoc.updateColumnDataType(headerName, dataType, enumValues);
+      },
+      getColumnDataType: (headerName: string) => {
+        return liveTableDoc.getColumnDataType(headerName);
+      },
+      getColumnEnumValues: (headerName: string) => {
+        return liveTableDoc.getColumnEnumValues(headerName);
+      },
+
       // refs
       setTableRef: (ref: React.RefObject<HTMLTableElement | null>) => {
         set({ tableRef: ref });
@@ -478,6 +505,14 @@ export const useColumnWidths = () =>
   useDataStore((state) => state.columnWidths);
 export const useHandleColumnResize = () =>
   useDataStore((state) => state.handleColumnResize);
+
+// column data types
+export const useUpdateColumnDataType = () =>
+  useDataStore((state) => state.updateColumnDataType);
+export const useGetColumnDataType = () =>
+  useDataStore((state) => state.getColumnDataType);
+export const useGetColumnEnumValues = () =>
+  useDataStore((state) => state.getColumnEnumValues);
 
 // locked cells
 export const useLockedCells = () => useDataStore((state) => state.lockedCells);
