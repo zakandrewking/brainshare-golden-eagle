@@ -123,15 +123,15 @@ describe("LiveTableDisplay Cell Editing", () => {
       </TestDataStoreWrapper>
     );
 
-    const cellInputJohnDoe = screen.getByDisplayValue("John Doe");
-    expect(cellInputJohnDoe).toBeInTheDocument();
+    const cellJohnDoe = screen.getByText("John Doe");
+    expect(cellJohnDoe).toBeInTheDocument();
 
-    await user.click(cellInputJohnDoe); // Click the INPUT itself
+    await user.click(cellJohnDoe); // Click the text content
 
     expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
-    expect(cellInputJohnDoe).not.toHaveFocus(); // Original assertion
+    expect(cellJohnDoe).not.toHaveFocus(); // Original assertion
 
-    const tdJohnDoe = cellInputJohnDoe.closest("td");
+    const tdJohnDoe = cellJohnDoe.closest("td");
     expect(tdJohnDoe).toBeInTheDocument();
     await user.dblClick(tdJohnDoe!); // Then double click the TD
 
@@ -155,17 +155,17 @@ describe("LiveTableDisplay Cell Editing", () => {
 
     const editingTd = container.querySelector('td[data-editing="true"]');
     expect(editingTd).toBeInTheDocument();
-    const editingInput = editingTd!.querySelector(
-      'input[type="text"]'
-    ) as HTMLInputElement | null;
-    expect(editingInput).toBeInTheDocument();
-    expect(editingInput!.value).toBe("John Doe");
+    const editingTextarea = editingTd!.querySelector(
+      "textarea"
+    ) as HTMLTextAreaElement | null;
+    expect(editingTextarea).toBeInTheDocument();
+    expect(editingTextarea!.value).toBe("John Doe");
 
     // Mock useHandleCellChange for this specific part of the test
     // const mockHandleCellChangeScoped = vi.fn();
     // vi.mocked(useHandleCellChange).mockReturnValue(mockHandleCellChangeScoped);
 
-    fireEvent.change(editingInput!, { target: { value: "New Name" } });
+    fireEvent.change(editingTextarea!, { target: { value: "New Name" } });
     const headerNameForFirstCol = initialHeaders[0];
     expect(mockHandleCellChange).toHaveBeenCalledWith(
       // Assert the test-scoped mock
@@ -174,8 +174,8 @@ describe("LiveTableDisplay Cell Editing", () => {
       "New Name"
     );
 
-    const cellInputJaneSmith = screen.getByDisplayValue("Jane Smith");
-    await user.click(cellInputJaneSmith.closest("td")!); // Click another cell's TD
+    const cellJaneSmith = screen.getByText("Jane Smith");
+    await user.click(cellJaneSmith.closest("td")!); // Click another cell's TD
 
     expect(mockSelectionStartOrMove).toHaveBeenCalledWith(1, 0, false); // New selection should start
   });
@@ -201,7 +201,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     );
 
     // First select a cell by clicking on it
-    const cellToClick = screen.getByDisplayValue("John Doe");
+    const cellToClick = screen.getByText("John Doe");
     await user.click(cellToClick);
     expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
 
@@ -283,7 +283,7 @@ describe("LiveTableDisplay Cell Editing", () => {
     );
 
     // First select a cell by clicking on it
-    const cellToClickBackspace = screen.getByDisplayValue("John Doe");
+    const cellToClickBackspace = screen.getByText("John Doe");
     await user.click(cellToClickBackspace);
     expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
 
@@ -402,8 +402,10 @@ describe("LiveTableDisplay Cell Editing", () => {
       </TestDataStoreWrapper>
     );
 
-    // Select the (now empty) cell (0,0)
-    const cellToClickEmpty = screen.getByDisplayValue("");
+    // Select the (now empty) cell (0,0) - empty cells display non-breaking space in div
+    const cellToClickEmpty = container.querySelector(
+      '[data-row-index="0"][data-col-index="0"]'
+    ) as HTMLElement;
     await user.click(cellToClickEmpty);
     expect(mockSelectionStartOrMove).toHaveBeenCalledWith(0, 0, false);
 

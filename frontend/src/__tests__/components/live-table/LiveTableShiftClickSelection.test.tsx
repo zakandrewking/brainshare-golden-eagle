@@ -111,10 +111,8 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
       </TestDataStoreWrapper>
     );
 
-    const firstCellToClick = screen.getByDisplayValue("R1C1").closest("td");
-    const secondCellToShiftClick = screen
-      .getByDisplayValue("R2C2")
-      .closest("td");
+    const firstCellToClick = screen.getByText("R1C1").closest("td");
+    const secondCellToShiftClick = screen.getByText("R2C2").closest("td");
 
     if (!firstCellToClick || !secondCellToShiftClick) {
       throw new Error("Test cells not found");
@@ -170,8 +168,8 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
       </TestDataStoreWrapper>
     );
 
-    const firstCellToClick = screen.getByDisplayValue("R1C1").closest("td");
-    const secondCellToClick = screen.getByDisplayValue("R2C2").closest("td");
+    const firstCellToClick = screen.getByText("R1C1").closest("td");
+    const secondCellToClick = screen.getByText("R2C2").closest("td");
 
     if (!firstCellToClick || !secondCellToClick) {
       throw new Error("Test cells not found");
@@ -234,7 +232,7 @@ describe("LiveTableDisplay - Shift-Click Selection", () => {
       </TestDataStoreWrapper>
     );
 
-    const cellToShiftClick = screen.getByDisplayValue("R1C2").closest("td");
+    const cellToShiftClick = screen.getByText("R1C2").closest("td");
     if (!cellToShiftClick) {
       throw new Error("Test cell not found");
     }

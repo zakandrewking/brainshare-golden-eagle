@@ -378,12 +378,17 @@ const TableCell: React.FC<TableCellProps> = ({
       // First, set the editing state
       setEditingCell({ rowIndex, colIndex });
 
-      // Find and focus the input inside the current cell
+      // Find and focus the textarea inside the current cell
       const cell = event.currentTarget as HTMLElement;
       if (cell) {
-        const inputElement = cell.querySelector("input");
-        if (inputElement) {
-          inputElement.focus();
+        const textareaElement = cell.querySelector("textarea");
+        if (textareaElement) {
+          textareaElement.focus();
+          // Position cursor at the end of the text
+          textareaElement.setSelectionRange(
+            textareaElement.value.length,
+            textareaElement.value.length
+          );
         }
       }
     },
@@ -408,9 +413,8 @@ const TableCell: React.FC<TableCellProps> = ({
     [isCellLocked, imageData, handleCellChange, rowIndex, header]
   );
 
-  const inputElement = (
-    <input
-      type="text"
+  const cellContentElement = isEditing ? (
+    <textarea
       value={stringValue}
       onChange={(e) => {
         // Don't allow changes to locked cells
@@ -419,18 +423,36 @@ const TableCell: React.FC<TableCellProps> = ({
         }
       }}
       onBlur={() => {
-        if (isEditing) {
-          setEditingCell(null);
-        }
+        setEditingCell(null);
       }}
-      className={`w-full h-full p-2 border-none focus:outline-none text-base ${
+      className={`w-full h-full p-2 border-none focus:outline-none text-base resize-none ${
         isCellLocked
           ? "bg-gray-300 dark:bg-gray-700"
-          : isEditing
-          ? "focus:ring-2 focus:ring-yellow-400"
-          : "focus:ring-2 focus:ring-blue-300"
+          : "focus:ring-2 focus:ring-yellow-400"
       } bg-transparent`}
+      style={{
+        minHeight: "2.5rem",
+        wordBreak: "break-word",
+        overflowWrap: "break-word",
+        whiteSpace: "pre-wrap",
+      }}
+      autoFocus
     />
+  ) : (
+    <div
+      className={`w-full h-full p-2 text-base break-words whitespace-pre-wrap cursor-text ${
+        isCellLocked
+          ? "bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+          : "bg-transparent"
+      }`}
+      style={{
+        minHeight: "2.5rem",
+        wordBreak: "break-word",
+        overflowWrap: "break-word",
+      }}
+    >
+      {stringValue || "\u00A0"}
+    </div>
   );
 
   const imageElement = (
@@ -448,7 +470,7 @@ const TableCell: React.FC<TableCellProps> = ({
     </div>
   );
 
-  const cellContent = isImage ? imageElement : inputElement;
+  const cellContent = isImage ? imageElement : cellContentElement;
 
   return (
     <td

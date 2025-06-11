@@ -54,19 +54,19 @@ describe("TableCell Image Rendering", () => {
     expect(image).toHaveAttribute("alt", "Cell content");
   });
 
-  it("renders an input when cell contains non-image text", () => {
+  it("renders text content when cell contains non-image text", () => {
     const textValue = "Regular text value";
 
     render(
       <TableCell rowIndex={0} colIndex={0} header="text" value={textValue} />
     );
 
-    const input = screen.getByDisplayValue(textValue);
-    expect(input).toBeInTheDocument();
-    expect(input.tagName).toBe("INPUT");
+    const textContent = screen.getByText(textValue);
+    expect(textContent).toBeInTheDocument();
+    expect(textContent.tagName).toBe("DIV");
   });
 
-  it("renders an input when editing even if cell contains image URL", async () => {
+  it("renders a textarea when editing even if cell contains image URL", async () => {
     const imageUrl = "https://example.com/image.jpg";
 
     // Mock editing state for this specific test
@@ -80,9 +80,9 @@ describe("TableCell Image Rendering", () => {
       <TableCell rowIndex={0} colIndex={0} header="image" value={imageUrl} />
     );
 
-    const input = screen.getByDisplayValue(imageUrl);
-    expect(input).toBeInTheDocument();
-    expect(input.tagName).toBe("INPUT");
+    const textarea = screen.getByDisplayValue(imageUrl);
+    expect(textarea).toBeInTheDocument();
+    expect(textarea.tagName).toBe("TEXTAREA");
 
     // Should not render an image when editing
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
@@ -109,7 +109,7 @@ describe("TableCell Image Rendering", () => {
     });
   });
 
-  it("falls back to input when image fails to load", () => {
+  it("falls back to text display when image fails to load", () => {
     const imageUrl = "https://example.com/broken-image.jpg";
 
     render(
@@ -121,8 +121,8 @@ describe("TableCell Image Rendering", () => {
     // Simulate image load error
     fireEvent.error(image);
 
-    // After error, it should show the input instead
-    expect(screen.getByDisplayValue(imageUrl)).toBeInTheDocument();
+    // After error, it should show the text content instead
+    expect(screen.getByText(imageUrl)).toBeInTheDocument();
   });
 
   it("recognizes various image file extensions", () => {
@@ -168,7 +168,12 @@ describe("TableCell Image Rendering", () => {
       );
 
       expect(screen.queryByRole("img")).not.toBeInTheDocument();
-      expect(screen.getByRole("textbox")).toBeInTheDocument();
+      // For empty values, we just check the cell exists since empty cells show non-breaking space
+      if (value === "" || value === null || value === undefined) {
+        expect(screen.getByTestId("table-cell")).toBeInTheDocument();
+      } else {
+        expect(screen.getByText(String(value))).toBeInTheDocument();
+      }
       unmount();
     });
   });

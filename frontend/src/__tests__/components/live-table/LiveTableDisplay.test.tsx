@@ -141,14 +141,14 @@ describe("LiveTableDisplay (referred to as LiveTable in its own file)", () => {
         <LiveTableDisplay />
       </TestDataStoreWrapper>
     );
-    const inputElement = screen.getByDisplayValue("R1C1");
-    const cellElement = inputElement.closest("td");
+    const textElement = screen.getByText("R1C1");
+    const cellElement = textElement.closest("td");
     expect(cellElement).toBeInTheDocument();
 
     if (cellElement) {
       fireEvent.mouseDown(cellElement);
     } else {
-      throw new Error("Could not find parent TD for input with value R1C1");
+      throw new Error("Could not find parent TD for text with value R1C1");
     }
 
     expect(mockClearSelection).not.toHaveBeenCalled();

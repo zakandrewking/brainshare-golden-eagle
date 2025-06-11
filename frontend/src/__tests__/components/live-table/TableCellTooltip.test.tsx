@@ -180,10 +180,10 @@ describe("TableCell Tooltip", () => {
     const cell = screen.getByTestId("table-cell");
     expect(cell.tagName).toBe("TD");
 
-    // The input should be inside the td element
-    const input = cell.querySelector("input");
-    expect(input).toBeInTheDocument();
-    expect(input).toHaveValue("test value");
+    // The text content should be inside the td element
+    const textContent = cell.querySelector("div");
+    expect(textContent).toBeInTheDocument();
+    expect(textContent).toHaveTextContent("test value");
   });
 
   it("should have selectable tooltip text when cell is locked with a note", async () => {

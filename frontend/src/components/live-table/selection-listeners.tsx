@@ -125,7 +125,7 @@ export default function SelectionListeners() {
         return;
       }
 
-      // Don't handle if focus is on an input element (like header editing)
+      // Don't handle if focus is on an input or textarea element (like header editing or cell editing)
       if (
         document.activeElement &&
         (document.activeElement.tagName === "INPUT" ||
@@ -155,11 +155,11 @@ export default function SelectionListeners() {
         });
         handleCellChange(selectedCell.rowIndex, header, newValue);
 
-        // Focus the input after a brief delay to ensure it's rendered
+        // Focus the textarea after a brief delay to ensure it's rendered
         setTimeout(() => {
           const cellElement = tableRef?.current?.querySelector(
-            `td[data-row-index="${selectedCell.rowIndex}"][data-col-index="${selectedCell.colIndex}"] input`
-          ) as HTMLInputElement;
+            `td[data-row-index="${selectedCell.rowIndex}"][data-col-index="${selectedCell.colIndex}"] textarea`
+          ) as HTMLTextAreaElement;
           if (cellElement) {
             cellElement.focus();
             // Set cursor to end of text
@@ -187,11 +187,11 @@ export default function SelectionListeners() {
         });
         handleCellChange(selectedCell.rowIndex, header, newValue);
 
-        // Focus the input after a brief delay to ensure it's rendered
+        // Focus the textarea after a brief delay to ensure it's rendered
         setTimeout(() => {
           const cellElement = tableRef?.current?.querySelector(
-            `td[data-row-index="${selectedCell.rowIndex}"][data-col-index="${selectedCell.colIndex}"] input`
-          ) as HTMLInputElement;
+            `td[data-row-index="${selectedCell.rowIndex}"][data-col-index="${selectedCell.colIndex}"] textarea`
+          ) as HTMLTextAreaElement;
           if (cellElement) {
             cellElement.focus();
             // Set cursor to end of text
