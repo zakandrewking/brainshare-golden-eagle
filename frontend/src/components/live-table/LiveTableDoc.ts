@@ -7,7 +7,6 @@ import { getYjsProviderForRoom } from "@liveblocks/yjs";
 import { DEFAULT_COL_WIDTH } from "./config";
 
 export interface SortingConfig {
-  // key is the columnId (in V2) or header string (in V1)
   column: string;
   direction: "asc" | "desc";
 }
@@ -15,28 +14,35 @@ export interface SortingConfig {
 export type RowId = string;
 export type ColumnId = string;
 
-// can be extended later
 export type CellValue = string;
+
+export type DataType =
+  | "text"
+  | "integer"
+  | "decimal"
+  | "datetime"
+  | "enum"
+  | "boolean";
 
 export interface ColumnDefinition {
   id: ColumnId;
   name: string;
   width: number;
+  dataType: DataType;
+  enumValues?: string[];
 }
 
-// Lock-related types
 export interface CellLock {
   rowId: RowId;
   columnId: ColumnId;
 }
 
 export interface LockRange {
-  id: string; // Unique identifier for this lock
-  cells: CellLock[]; // Array of locked cells using stable IDs
+  id: string;
+  cells: CellLock[];
   note?: string;
 }
 
-// Awareness-related types
 export interface CellPosition {
   rowIndex: number;
   colIndex: number;
@@ -69,31 +75,18 @@ export interface CursorDataForCell {
 const CURRENT_SCHEMA_VERSION = 2;
 
 export class LiveTableDoc {
-  // top level yjs entities
   public yDoc: Y.Doc;
 
-  // -- V1 Schema Properties (may coexist during migration) --
-  // Array of rows, where each row is a Map keyed by header string
   public yTable: Y.Array<Y.Map<unknown>>;
-  // Array of header strings (defines column order and keys for yTable rows)
   public yHeaders: Y.Array<string>;
-  // Map keyed by header string to column width
   public yColWidths: Y.Map<number>;
 
-  // -- V2 Schema Properties --
-  // For schemaVersion and other metadata
   public yMeta: Y.Map<unknown>;
-  // Outer key: RowId, Inner key: ColumnId to cell value
   public yRowData: Y.Map<Y.Map<CellValue>>;
-  // Key: ColumnId
   public yColumnDefinitions: Y.Map<ColumnDefinition>;
-  // Array of ColumnIds, defines display order
   public yColumnOrder: Y.Array<ColumnId>;
-  // Array of RowIds, defines display order
   public yRowOrder: Y.Array<RowId>;
 
-  // -- Lock Properties --
-  // Map of lock ranges keyed by lock ID
   public yActiveLocks: Y.Map<LockRange>;
 
   public tableDataUpdateCallback:
@@ -107,7 +100,6 @@ export class LiveTableDoc {
     | ((lockedCells: Map<string, string | undefined>) => void)
     | undefined;
 
-  // Awareness-related callbacks
   public awarenessStatesUpdateCallback:
     | ((awarenessStates: Map<number, AwarenessState | null>) => void)
     | undefined;
@@ -115,35 +107,25 @@ export class LiveTableDoc {
     | ((cursorsData: CursorDataForCell[]) => void)
     | undefined;
 
-  // public editLocks: Y.Map<EditLock>;
-
-  // undo/redo manager
   public undoManager: UndoManager;
 
-  // persistent observer functions
   public updateTableStateObserver: () => void;
   public updateHeadersStateObserver: () => void;
   public updateColWidthsStateObserver: () => void;
-  // V2 Observers
   public updateV2TableDataObserver: () => void;
   public updateV2ColumnDefinitionsObserver: () => void;
   public updateV2ColumnOrderObserver: () => void;
   public updateV2RowOrderObserver: () => void;
-  // Lock Observers
   public updateLockedCellsObserver: () => void;
-  // Awareness Observers
   public updateAwarenessStateObserver: () => void;
 
   constructor(yDoc: Y.Doc) {
     this.yDoc = yDoc;
 
-    // Initialize all Yjs types (V1 and V2)
-    // V1
     this.yTable = yDoc.getArray<Y.Map<unknown>>("tableData");
     this.yHeaders = yDoc.getArray<string>("tableHeaders");
     this.yColWidths = yDoc.getMap<number>("colWidths");
 
-    // V2
     this.yMeta = yDoc.getMap<unknown>("metaData");
     this.yRowData = yDoc.getMap<Y.Map<CellValue>>("rowData");
     this.yColumnDefinitions =
@@ -151,12 +133,10 @@ export class LiveTableDoc {
     this.yColumnOrder = yDoc.getArray<ColumnId>("columnOrder");
     this.yRowOrder = yDoc.getArray<RowId>("rowOrder");
 
-    // Locks
     this.yActiveLocks = yDoc.getMap<LockRange>("activeLocks");
 
     this._migrateToV2IfNeeded();
 
-    // undo manager
     const itemsToTrack = [
       this.yRowData,
       this.yColumnDefinitions,
@@ -168,19 +148,17 @@ export class LiveTableDoc {
       captureTimeout: 500,
     });
 
-    // persistent observer functions
     this.updateTableStateObserver = this.updateTableState.bind(this);
     this.updateHeadersStateObserver = this.updateHeadersState.bind(this);
     this.updateColWidthsStateObserver = this.updateColWidthsState.bind(this);
 
-    // V2 observers also bound, then selectively attached based on schema version
-    this.updateV2TableDataObserver = this.updateTableState.bind(this); // Reuses updateTableState
+    this.updateV2TableDataObserver = this.updateTableState.bind(this);
     this.updateV2ColumnDefinitionsObserver = () => {
       this.updateHeadersState();
       this.updateColWidthsState();
-    }; // Reuses updateHeadersState for name changes
-    this.updateV2ColumnOrderObserver = this.updateHeadersState.bind(this); // Reuses updateHeadersState for order changes
-    this.updateV2RowOrderObserver = this.updateTableState.bind(this); // Reuses updateTableState for row order changes
+    };
+    this.updateV2ColumnOrderObserver = this.updateHeadersState.bind(this);
+    this.updateV2RowOrderObserver = this.updateTableState.bind(this);
 
     this.updateV2ColumnDefinitionsObserver = () => {
       this.updateHeadersState();
@@ -188,12 +166,8 @@ export class LiveTableDoc {
       this.updateTableState();
     };
 
-    // Lock observers
     this.updateLockedCellsObserver = this.updateLockedCellsState.bind(this);
-    // Awareness Observers
-    this.updateAwarenessStateObserver = () => {
-      // This will be implemented in LiveTableProvider where we have access to awareness
-    };
+    this.updateAwarenessStateObserver = () => {};
   }
 
   public _migrateToV2IfNeeded(force: boolean = false) {
@@ -236,6 +210,7 @@ export class LiveTableDoc {
           id: columnId,
           name: oldHeaderString,
           width: oldColWidths[oldHeaderString] ?? DEFAULT_COL_WIDTH,
+          dataType: "text",
         };
         this.yColumnDefinitions.set(columnId, definition);
         this.yColumnOrder.push([columnId]);
@@ -545,7 +520,8 @@ export class LiveTableDoc {
           const definition: ColumnDefinition = {
             id: columnId,
             name: colSpec.headerName,
-            width: DEFAULT_COL_WIDTH, // Or make configurable
+            width: DEFAULT_COL_WIDTH,
+            dataType: "text",
           };
           this.yColumnDefinitions.set(columnId, definition);
 
@@ -560,23 +536,17 @@ export class LiveTableDoc {
               rowMap.set(columnId, cellValue as CellValue);
             }
           });
-
-          // If table has no rows yet, but we are inserting columns,
-          // subsequent row insertions will handle cell creation.
-          // If columnsToInsert implies data for non-existent rows, that data is ignored.
         });
         this.yColumnOrder.insert(initialInsertIndex, newColumnIds);
 
-        // If table was empty and now has columns, add one empty row if no rows exist.
         if (this.yRowOrder.length === 0 && newColumnIds.length > 0) {
           const rowId = crypto.randomUUID() as RowId;
           const newRowYMap = new Y.Map<CellValue>();
           const assignedColumnIds: ColumnId[] = [];
           newColumnIds.forEach((columnId) => {
-            newRowYMap.set(columnId, ""); // Initialize with empty strings
+            newRowYMap.set(columnId, "");
             assignedColumnIds.push(columnId);
           });
-          // If there are other columns already, ensure they are also in this new row.
           this.yColumnOrder.forEach((existingColId) => {
             if (!assignedColumnIds.includes(existingColId)) {
               newRowYMap.set(existingColId, "");
@@ -612,7 +582,6 @@ export class LiveTableDoc {
           this.yColumnOrder.delete(colIndex, 1);
           this.yColumnDefinitions.delete(columnId);
 
-          // Delete data for this column from all rows
           this.yRowData.forEach((rowMap) => {
             rowMap.delete(columnId);
           });
@@ -624,6 +593,68 @@ export class LiveTableDoc {
   }
 
   /**
+   * Updates the data type of a specific column.
+   * @param headerName - The name of the column to update.
+   * @param newDataType - The new data type for the column.
+   * @param enumValues - The enum values if dataType is 'enum'.
+   */
+  updateColumnDataType(
+    headerName: string,
+    newDataType: DataType,
+    enumValues?: string[]
+  ): void {
+    this.yDoc.transact(() => {
+      let columnIdToUpdate: ColumnId | undefined;
+      for (const [id, def] of this.yColumnDefinitions) {
+        if (def.name === headerName) {
+          columnIdToUpdate = id;
+          break;
+        }
+      }
+
+      if (columnIdToUpdate) {
+        const definition = this.yColumnDefinitions.get(columnIdToUpdate);
+        if (definition) {
+          const updatedDefinition: ColumnDefinition = {
+            ...definition,
+            dataType: newDataType,
+            enumValues: newDataType === "enum" ? enumValues : undefined,
+          };
+          this.yColumnDefinitions.set(columnIdToUpdate, updatedDefinition);
+        }
+      }
+    });
+  }
+
+  /**
+   * Gets the data type of a specific column.
+   * @param headerName - The name of the column.
+   * @returns The data type of the column or 'text' if not found.
+   */
+  getColumnDataType(headerName: string): DataType {
+    for (const [_id, def] of this.yColumnDefinitions) {
+      if (def.name === headerName) {
+        return def.dataType;
+      }
+    }
+    return "text";
+  }
+
+  /**
+   * Gets the enum values of a specific column.
+   * @param headerName - The name of the column.
+   * @returns The enum values or undefined if not an enum column.
+   */
+  getColumnEnumValues(headerName: string): string[] | undefined {
+    for (const [_id, def] of this.yColumnDefinitions) {
+      if (def.name === headerName) {
+        return def.enumValues;
+      }
+    }
+    return undefined;
+  }
+
+  /**
    * Updates the width of a specific column.
    * @param headerName - The name of the column to update.
    * @param newWidth - The new width for the column.
@@ -631,7 +662,6 @@ export class LiveTableDoc {
   updateColumnWidth(headerName: string, newWidth: number): void {
     this.yDoc.transact(() => {
       let columnIdToUpdate: ColumnId | undefined;
-      // Find columnId by name
       for (const [id, def] of this.yColumnDefinitions) {
         if (def.name === headerName) {
           columnIdToUpdate = id;
@@ -679,9 +709,6 @@ export class LiveTableDoc {
 
       const yRowMap = this.yRowData.get(rowId);
       if (yRowMap) {
-        // Y.Map.set will handle create or update.
-        // For V1 compatibility where empty string meant delete, we don't do that here.
-        // CellValue is string, so empty string is a valid value.
         yRowMap.set(columnIdToUpdate, newValue);
       }
     });
@@ -709,14 +736,10 @@ export class LiveTableDoc {
         return;
       }
 
-      // Remove the column from its current position
       this.yColumnOrder.delete(fromIndex, 1);
 
-      // Calculate the correct insertion index
-      // If moving to the right, we need to account for the removal
       const insertIndex = toIndex > fromIndex ? toIndex : toIndex;
 
-      // Insert it at the calculated position
       this.yColumnOrder.insert(insertIndex, [columnId]);
     });
   }
@@ -754,7 +777,6 @@ export class LiveTableDoc {
         if (value === null) return true;
         const strValue = String(value).trim();
         if (strValue === "") return true;
-        // Remove commas before checking if it's a number
         const cleanedValue = strValue.replace(/,/g, "");
         const num = Number(cleanedValue);
         return !isNaN(num) && isFinite(num);
@@ -769,7 +791,6 @@ export class LiveTableDoc {
         if (aIsEmpty) return direction === "asc" ? -1 : 1;
         if (bIsEmpty) return direction === "asc" ? 1 : -1;
 
-        // Remove commas before converting to numbers
         const aNum = Number(String(a.value).replace(/,/g, ""));
         const bNum = Number(String(b.value).replace(/,/g, ""));
 
@@ -830,13 +851,11 @@ export class LiveTableDoc {
     endColIndex: number,
     note?: string
   ): string | null {
-    // Normalize the range
     const minRowIndex = Math.min(startRowIndex, endRowIndex);
     const maxRowIndex = Math.max(startRowIndex, endRowIndex);
     const minColIndex = Math.min(startColIndex, endColIndex);
     const maxColIndex = Math.max(startColIndex, endColIndex);
 
-    // Convert display indices to stable IDs
     const cells: CellLock[] = [];
     for (let rowIndex = minRowIndex; rowIndex <= maxRowIndex; rowIndex++) {
       const rowId = this.yRowOrder.get(rowIndex);
@@ -925,16 +944,13 @@ export class LiveTableDoc {
     const rowCount = this.yRowOrder.length;
     const colCount = this.yColumnOrder.length;
 
-    // Pre-compute cursors for all cells
     for (let r = 0; r < rowCount; r++) {
       for (let c = 0; c < colCount; c++) {
         const cellCursors: CursorInfo[] = [];
 
         awarenessStates.forEach((state) => {
-          // Skip null states (users who have left)
           if (!state) return;
 
-          // Check if this user has a selection that includes this cell
           if (this.isCellInUserSelection(r, c, state)) {
             cellCursors.push({
               user: state.user,
@@ -959,12 +975,10 @@ export class LiveTableDoc {
     colIndex: number,
     state: AwarenessState | null
   ): boolean {
-    // Handle null state (when users leave the room)
     if (!state) {
       return false;
     }
 
-    // Check single cell selection
     if (
       state.selectedCell &&
       state.selectedCell.rowIndex === rowIndex &&
@@ -973,7 +987,6 @@ export class LiveTableDoc {
       return true;
     }
 
-    // Check selection area
     if (state.selectionArea?.startCell && state.selectionArea?.endCell) {
       const { startCell, endCell } = state.selectionArea;
       const minRow = Math.min(startCell.rowIndex, endCell.rowIndex);

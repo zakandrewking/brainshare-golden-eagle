@@ -19,13 +19,16 @@ Add data type support to table columns with validation, AI integration, and type
 
 ## Technical Implementation Plan
 
-### Phase 1: Core Data Structure Updates
-- [ ] Update `ColumnDefinition` interface in `LiveTableDoc.ts`
+### Phase 1: Core Data Structure Updates ✅
+- [x] Update `ColumnDefinition` interface in `LiveTableDoc.ts`
   - Add `dataType: 'text' | 'integer' | 'decimal' | 'datetime' | 'enum' | 'boolean'` field
   - Set default to 'text' for backward compatibility
-- [ ] Update migration logic to handle existing columns
-- [ ] Add data type methods to `LiveTableDoc` class
-- [ ] Set up JavaScript Temporal API polyfill if needed
+- [x] Update migration logic to handle existing columns
+- [x] Add data type methods to `LiveTableDoc` class
+  - `updateColumnDataType()` - Updates column data type with enum values support
+  - `getColumnDataType()` - Gets current data type of a column
+  - `getColumnEnumValues()` - Gets enum values for enum columns
+- [x] Set up JavaScript Temporal API polyfill if needed
 
 ### Phase 2: UI Components
 - [ ] Update `TableHeader.tsx` dropdown menu
