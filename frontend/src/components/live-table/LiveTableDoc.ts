@@ -22,13 +22,14 @@ export type DataType =
   | "decimal"
   | "datetime"
   | "enum"
-  | "boolean";
+  | "boolean"
+  | "imageurl";
 
 export interface ColumnDefinition {
   id: ColumnId;
   name: string;
   width: number;
-  dataType: DataType;
+  dataType?: DataType;
   enumValues?: string[];
 }
 
@@ -634,7 +635,7 @@ export class LiveTableDoc {
   getColumnDataType(headerName: string): DataType {
     for (const [_id, def] of this.yColumnDefinitions) {
       if (def.name === headerName) {
-        return def.dataType;
+        return def.dataType || "text";
       }
     }
     return "text";
@@ -751,10 +752,12 @@ export class LiveTableDoc {
    */
   sortRowsByColumn(headerName: string, direction: "asc" | "desc") {
     let columnIdToSort: ColumnId | undefined;
+    let columnDataType: DataType = "text";
 
     for (const [id, def] of this.yColumnDefinitions) {
       if (def.name === headerName) {
         columnIdToSort = id;
+        columnDataType = def.dataType || "text";
         break;
       }
     }
@@ -771,37 +774,97 @@ export class LiveTableDoc {
       rowsWithValues.push({ id: rowId, value });
     });
 
-    const isNumericColumn =
-      rowsWithValues.length > 0 &&
-      rowsWithValues.every(({ value }) => {
-        if (value === null) return true;
-        const strValue = String(value).trim();
-        if (strValue === "") return true;
-        const cleanedValue = strValue.replace(/,/g, "");
-        const num = Number(cleanedValue);
-        return !isNaN(num) && isFinite(num);
-      });
+    // If no explicit data type is set, try to auto-detect numeric columns (backward compatibility)
+    if (columnDataType === "text") {
+      const isNumericColumn =
+        rowsWithValues.length > 0 &&
+        rowsWithValues.every(({ value }) => {
+          if (value === null) return true;
+          const strValue = String(value).trim();
+          if (strValue === "") return true;
+          const cleanedValue = strValue.replace(/,/g, "");
+          const num = Number(cleanedValue);
+          return !isNaN(num) && isFinite(num);
+        });
+
+      if (isNumericColumn) {
+        columnDataType = "integer";
+      }
+    }
 
     rowsWithValues.sort((a, b) => {
-      if (isNumericColumn) {
-        const aIsEmpty = a.value === null || String(a.value).trim() === "";
-        const bIsEmpty = b.value === null || String(b.value).trim() === "";
+      const aIsEmpty = a.value === null || String(a.value).trim() === "";
+      const bIsEmpty = b.value === null || String(b.value).trim() === "";
 
-        if (aIsEmpty && bIsEmpty) return 0;
-        if (aIsEmpty) return direction === "asc" ? -1 : 1;
-        if (bIsEmpty) return direction === "asc" ? 1 : -1;
-
-        const aNum = Number(String(a.value).replace(/,/g, ""));
-        const bNum = Number(String(b.value).replace(/,/g, ""));
-
-        return direction === "asc" ? aNum - bNum : bNum - aNum;
-      }
+      // Handle empty values first
+      if (aIsEmpty && bIsEmpty) return 0;
+      if (aIsEmpty) return direction === "asc" ? -1 : 1;
+      if (bIsEmpty) return direction === "asc" ? 1 : -1;
 
       const aVal = String(a.value);
       const bVal = String(b.value);
-      if (aVal < bVal) return direction === "asc" ? -1 : 1;
-      if (aVal > bVal) return direction === "asc" ? 1 : -1;
-      return 0;
+
+      let comparison = 0;
+
+      switch (columnDataType) {
+        case "integer": {
+          const aNum = Number(aVal.replace(/,/g, ""));
+          const bNum = Number(bVal.replace(/,/g, ""));
+          comparison = aNum - bNum;
+          break;
+        }
+        case "decimal": {
+          const aNum = parseFloat(aVal.replace(/[$,]/g, ""));
+          const bNum = parseFloat(bVal.replace(/[$,]/g, ""));
+          comparison = aNum - bNum;
+          break;
+        }
+        case "datetime": {
+          // Try to parse as ISO 8601 dates
+          const aDate = new Date(aVal);
+          const bDate = new Date(bVal);
+          if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
+            comparison = aDate.getTime() - bDate.getTime();
+          } else {
+            // Fallback to string comparison if not valid dates
+            comparison = aVal.localeCompare(bVal);
+          }
+          break;
+        }
+        case "boolean": {
+          // Convert to boolean values for comparison
+          const aBool = this.parseBooleanValue(aVal);
+          const bBool = this.parseBooleanValue(bVal);
+          comparison = (aBool ? 1 : 0) - (bBool ? 1 : 0);
+          break;
+        }
+        case "enum": {
+          // Get enum values for this column
+          const enumValues = this.getColumnEnumValues(headerName);
+          if (enumValues) {
+            const aIndex = enumValues.indexOf(aVal);
+            const bIndex = enumValues.indexOf(bVal);
+            // If both values are in enum, sort by enum order
+            if (aIndex !== -1 && bIndex !== -1) {
+              comparison = aIndex - bIndex;
+            } else {
+              // Fallback to string comparison
+              comparison = aVal.localeCompare(bVal);
+            }
+          } else {
+            comparison = aVal.localeCompare(bVal);
+          }
+          break;
+        }
+        case "imageurl":
+        case "text":
+        default: {
+          comparison = aVal.localeCompare(bVal);
+          break;
+        }
+      }
+
+      return direction === "asc" ? comparison : -comparison;
     });
 
     const sortedRowIds = rowsWithValues.map((r) => r.id);
@@ -810,6 +873,21 @@ export class LiveTableDoc {
       this.yRowOrder.delete(0, this.yRowOrder.length);
       this.yRowOrder.push(sortedRowIds);
     });
+  }
+
+  /**
+   * Helper method to parse boolean values from strings.
+   * @param value - The string value to parse as boolean.
+   * @returns Boolean representation of the value.
+   */
+  private parseBooleanValue(value: string): boolean {
+    const lowerValue = value.toLowerCase().trim();
+    return (
+      lowerValue === "true" ||
+      lowerValue === "yes" ||
+      lowerValue === "1" ||
+      lowerValue === "on"
+    );
   }
 
   /**

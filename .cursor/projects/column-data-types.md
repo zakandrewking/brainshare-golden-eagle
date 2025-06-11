@@ -4,7 +4,7 @@
 Add data type support to table columns with validation, AI integration, and type-aware sorting.
 
 ## Goals
-- Allow users to specify data types (Integer, Decimal, Text, Datetime, Enum, Boolean) for columns
+- Allow users to specify data types (Integer, Decimal, Text, Datetime, Enum, Boolean, Image URL) for columns
 - Validate cell values based on column data type
 - Integrate data types with AI operations for better generation
 - Implement type-aware sorting
@@ -16,18 +16,26 @@ Add data type support to table columns with validation, AI integration, and type
 - **Datetime**: Date and time values using ISO 8601 standard (handled via JavaScript Temporal API)
 - **Enum**: Predefined list of allowed values (dropdown options)
 - **Boolean**: True/false values (yes/no, true/false, 1/0, etc.)
+- **Image URL**: Valid URLs pointing to images (jpg, png, gif, webp, svg, etc.)
 
 ## Technical Implementation Plan
 
 ### Phase 1: Core Data Structure Updates ✅
 - [x] Update `ColumnDefinition` interface in `LiveTableDoc.ts`
-  - Add `dataType: 'text' | 'integer' | 'decimal' | 'datetime' | 'enum' | 'boolean'` field
+  - Add `dataType: 'text' | 'integer' | 'decimal' | 'datetime' | 'enum' | 'boolean' | 'imageurl'` field
   - Set default to 'text' for backward compatibility
 - [x] Update migration logic to handle existing columns
 - [x] Add data type methods to `LiveTableDoc` class
   - `updateColumnDataType()` - Updates column data type with enum values support
   - `getColumnDataType()` - Gets current data type of a column
   - `getColumnEnumValues()` - Gets enum values for enum columns
+- [x] Enhanced type-aware sorting in `sortRowsByColumn()` method
+  - Added support for all data types including imageurl
+  - Integer and decimal numeric sorting
+  - Datetime chronological sorting
+  - Boolean sorting (false before true)
+  - Enum sorting based on enumValues order
+  - Image URL and text alphabetical sorting
 - [x] Set up JavaScript Temporal API polyfill if needed
 
 ### Phase 2: UI Components
@@ -39,6 +47,7 @@ Add data type support to table columns with validation, AI integration, and type
 - [ ] Create datetime picker/input component using Temporal API
 - [ ] Update column header visual indicators
 - [ ] Add boolean toggle/dropdown for cell editing
+- [ ] Add image URL cell preview and editing component
 
 ### Phase 3: Validation System
 - [ ] Create validation utilities in `utils/validation.ts`
@@ -47,6 +56,7 @@ Add data type support to table columns with validation, AI integration, and type
   - Datetime validation (ISO 8601 and common formats, using Temporal API)
   - Enum validation (value must be in allowed list)
   - Boolean validation (various true/false representations)
+  - Image URL validation (valid URL format, image file extensions)
   - Text validation (always valid)
 - [ ] Integrate validation in cell editing
 - [ ] Add validation feedback UI
@@ -57,14 +67,16 @@ Add data type support to table columns with validation, AI integration, and type
 - [ ] Update AI prompts in `generateNewRows.ts`
 - [ ] Include data type context in all AI operations
 
-### Phase 5: Type-Aware Sorting
-- [ ] Update `sortRowsByColumn` method in `LiveTableDoc.ts`
-- [ ] Implement integer sorting (parse formatted whole numbers)
-- [ ] Implement decimal sorting (parse formatted floating-point numbers)
-- [ ] Implement datetime sorting (parse using Temporal API, ISO 8601 standard)
-- [ ] Implement enum sorting (based on enumValues order)
-- [ ] Implement boolean sorting (false before true)
-- [ ] Handle mixed/invalid data gracefully
+### Phase 5: Type-Aware Sorting ✅
+- [x] Update `sortRowsByColumn` method in `LiveTableDoc.ts`
+- [x] Implement integer sorting (parse formatted whole numbers)
+- [x] Implement decimal sorting (parse formatted floating-point numbers)
+- [x] Implement datetime sorting (parse using Temporal API, ISO 8601 standard)
+- [x] Implement enum sorting (based on enumValues order)
+- [x] Implement boolean sorting (false before true)
+- [x] Implement image URL sorting (alphabetical by URL)
+- [x] Handle mixed/invalid data gracefully
+- [x] Added backward compatibility with auto-detection for existing columns
 
 ### Phase 6: Data Store Integration
 - [ ] Update data store hooks to support data types
@@ -79,7 +91,7 @@ export interface ColumnDefinition {
   id: ColumnId;
   name: string;
   width: number;
-  dataType: 'text' | 'integer' | 'decimal' | 'datetime' | 'enum' | 'boolean'; // NEW
+  dataType: 'text' | 'integer' | 'decimal' | 'datetime' | 'enum' | 'boolean' | 'imageurl'; // NEW
   enumValues?: string[]; // NEW - for enum type only
 }
 ```
@@ -90,6 +102,7 @@ export interface ColumnDefinition {
 - **Datetime**: Accept ISO 8601 format and common formats, parse using Temporal API, store as ISO string
 - **Enum**: Value must be one of the predefined options
 - **Boolean**: Accept true/false, yes/no, 1/0, on/off (case-insensitive)
+- **Image URL**: Valid URL format with image file extensions (jpg, jpeg, png, gif, webp, svg, bmp, ico, tiff)
 - **Text**: No validation needed
 
 ### 3. Sorting Logic
@@ -98,12 +111,14 @@ export interface ColumnDefinition {
 - **Datetime**: Parse using Temporal API and compare chronologically (ISO 8601 standard)
 - **Enum**: Sort by the order defined in enumValues array
 - **Boolean**: Sort false values before true values
+- **Image URL**: Alphabetical comparison by URL string
 - **Text**: String comparison (current behavior)
 
 ### 4. AI Integration Points
 - Include column data types in system prompts
 - Guide AI to generate type-appropriate values
 - For datetime columns, specify ISO 8601 format requirements
+- For image URL columns, guide AI to generate valid image URLs with proper extensions
 - Validate AI-generated content against types
 
 ## Files to Modify
@@ -124,8 +139,10 @@ export interface ColumnDefinition {
 - `frontend/src/components/live-table/EnumValuesEditor.tsx`
 - `frontend/src/components/live-table/BooleanCellEditor.tsx`
 - `frontend/src/components/live-table/DatetimeCellEditor.tsx`
+- `frontend/src/components/live-table/ImageUrlCellEditor.tsx`
 - `frontend/src/utils/datetime-parsing.ts` (using Temporal API)
 - `frontend/src/utils/boolean-parsing.ts`
+- `frontend/src/utils/image-url-validation.ts`
 - `frontend/src/utils/temporal-polyfill.ts` (if needed)
 
 ## Testing Strategy
@@ -146,9 +163,10 @@ export interface ColumnDefinition {
 - [ ] Invalid values show clear error states
 - [ ] Boolean cells provide user-friendly input (toggles/dropdowns)
 - [ ] Enum cells provide dropdown selection from allowed values
+- [ ] Image URL cells display image previews and validate URLs
 - [ ] AI operations respect and generate type-appropriate data
-- [ ] Sorting works correctly for all data types
-- [ ] No regression in existing functionality
+- [x] Sorting works correctly for all data types
+- [x] No regression in existing functionality
 
 ## Timeline Estimate
 - Phase 1: 2-3 days
