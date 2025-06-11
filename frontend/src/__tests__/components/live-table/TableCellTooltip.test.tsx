@@ -8,7 +8,12 @@ import {
   vi,
 } from "vitest";
 
-import { render, screen } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import TableCell from "@/components/live-table/TableCell";
 
@@ -179,5 +184,60 @@ describe("TableCell Tooltip", () => {
     const input = cell.querySelector("input");
     expect(input).toBeInTheDocument();
     expect(input).toHaveValue("test value");
+  });
+
+  it("should have selectable tooltip text when cell is locked with a note", async () => {
+    const user = userEvent.setup();
+    const testNote = "This is a selectable lock note for testing";
+    mockUseIsCellLocked.mockReturnValue(true);
+    mockUseLockNoteForCell.mockReturnValue(testNote);
+
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <TableCell
+              rowIndex={0}
+              colIndex={0}
+              header="test"
+              value="test value"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    const cell = screen.getByTestId("table-cell");
+    expect(cell).toHaveAttribute("data-locked", "true");
+
+    // Hover over the cell to trigger the tooltip
+    await user.hover(cell);
+
+    // Wait for tooltip to appear
+    await waitFor(
+      async () => {
+        const tooltipContent = screen.queryByText(testNote);
+        if (tooltipContent) {
+          // Check that the tooltip text element has the correct CSS classes for text selection
+          const tooltipTextDiv = tooltipContent.closest(
+            'div[class*="select-text"]'
+          );
+          expect(tooltipTextDiv).toBeInTheDocument();
+          expect(tooltipTextDiv).toHaveClass("select-text");
+          expect(tooltipTextDiv).toHaveClass("cursor-text");
+
+          // Check that the tooltip content container has selectable styling
+          const tooltipContainer = tooltipContent.closest(
+            "[data-radix-tooltip-content]"
+          );
+          expect(tooltipContainer).toHaveClass("cursor-text");
+          expect(tooltipContainer).toHaveClass("select-text");
+
+          // Verify the tooltip has the expected styles for text selection
+          expect(tooltipContainer).toHaveStyle({ userSelect: "text" });
+        }
+      },
+      { timeout: 2000 }
+    );
   });
 });

@@ -35,11 +35,35 @@ function TextTooltip({
   children: React.ReactNode;
   text: string;
 }) {
+  const [open, setOpen] = React.useState(false);
+
   return (
     <TooltipProvider delayDuration={400}>
-      <Tooltip>
+      <Tooltip open={open} onOpenChange={setOpen}>
         <TooltipTrigger asChild>{children}</TooltipTrigger>
-        <TooltipContent>{text}</TooltipContent>
+        <TooltipContent
+          onPointerDownOutside={(event) => {
+            // Prevent closing when clicking inside the tooltip content
+            const target = event.target as Element;
+            if (target.closest("[data-radix-tooltip-content]")) {
+              event.preventDefault();
+            }
+          }}
+          onEscapeKeyDown={() => setOpen(false)}
+          className="max-w-xs cursor-text select-text"
+          style={{
+            userSelect: "text",
+            WebkitUserSelect: "text",
+          }}
+        >
+          <div
+            className="select-text cursor-text whitespace-pre-wrap break-words"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {text}
+          </div>
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
