@@ -2,6 +2,7 @@
 
 import React, {
   useCallback,
+  useRef,
   useState,
 } from "react";
 
@@ -70,6 +71,103 @@ function getDirectImageUrl(str: string): string {
 
   return str;
 }
+
+interface ResizableImageProps {
+  src: string;
+  alt: string;
+  onDoubleClick: (event: React.MouseEvent) => void;
+  onError: () => void;
+  onLoad: () => void;
+}
+
+const ResizableImage: React.FC<ResizableImageProps> = ({
+  src,
+  alt,
+  onDoubleClick,
+  onError,
+  onLoad,
+}) => {
+  const [dimensions, setDimensions] = useState({ width: 150, height: 100 });
+  const [isResizing, setIsResizing] = useState(false);
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  const handleResizeStart = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const startPosition = { x: event.clientX, y: event.clientY };
+      const startDims = dimensions;
+
+      setIsResizing(true);
+
+      const handleMouseMove = (e: MouseEvent) => {
+        const deltaX = e.clientX - startPosition.x;
+
+        // Calculate new dimensions maintaining aspect ratio
+        const aspectRatio = startDims.width / startDims.height;
+        let newWidth = Math.max(50, startDims.width + deltaX);
+        let newHeight = newWidth / aspectRatio;
+
+        // Apply constraints
+        newWidth = Math.min(400, Math.max(50, newWidth));
+        newHeight = Math.min(300, Math.max(30, newHeight));
+
+        setDimensions({ width: newWidth, height: newHeight });
+      };
+
+      const handleMouseUp = () => {
+        setIsResizing(false);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [dimensions]
+  );
+
+  return (
+    <div className="relative inline-block group">
+      <img
+        ref={imageRef}
+        src={src}
+        alt={alt}
+        className="object-contain rounded cursor-pointer"
+        style={{
+          width: `${dimensions.width}px`,
+          height: `${dimensions.height}px`,
+          maxWidth: "100%",
+          maxHeight: "100%",
+        }}
+        onError={onError}
+        onLoad={onLoad}
+        onDoubleClick={onDoubleClick}
+        draggable={false}
+      />
+      {/* Resize handle */}
+      <div
+        className={`absolute bottom-0 right-0 w-3 h-3 bg-blue-500 cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity ${
+          isResizing ? "opacity-100" : ""
+        }`}
+        style={{
+          background:
+            "linear-gradient(-45deg, transparent 30%, #3b82f6 30%, #3b82f6 70%, transparent 70%)",
+          borderRadius: "0 0 4px 0",
+        }}
+        onMouseDown={handleResizeStart}
+        title="Drag to resize"
+      />
+      {/* Visual feedback during resize */}
+      {isResizing && (
+        <div className="absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded pointer-events-none">
+          {Math.round(dimensions.width)}×{Math.round(dimensions.height)}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const TableCell: React.FC<TableCellProps> = ({
   rowIndex,
@@ -197,14 +295,9 @@ const TableCell: React.FC<TableCellProps> = ({
 
   const imageElement = (
     <div className="w-full h-full p-2 flex items-center justify-center">
-      <img
+      <ResizableImage
         src={getDirectImageUrl(stringValue)}
         alt="Cell content"
-        className="max-w-full max-h-full object-contain rounded"
-        style={{
-          maxHeight: "100px",
-          maxWidth: "150px",
-        }}
         onError={handleImageError}
         onLoad={handleImageLoad}
         onDoubleClick={handleCellDoubleClick}
@@ -234,7 +327,7 @@ const TableCell: React.FC<TableCellProps> = ({
           : hasOtherUserCursors
           ? `${firstUserColor}20` // 20 for low opacity
           : undefined,
-        minHeight: isImage ? "80px" : "auto",
+        minHeight: isImage ? "120px" : "auto",
       }}
       onMouseDown={handleCellMouseDown}
       onDoubleClick={handleCellDoubleClick}
