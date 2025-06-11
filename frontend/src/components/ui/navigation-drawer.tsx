@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Grid2x2Plus,
+  Home,
   Search,
   Settings,
 } from "lucide-react";
@@ -121,8 +122,11 @@ function NavigationButtonWithDrawer() {
               <NavButton
                 href="/"
                 match={new RegExp("^/?$")}
+                variant="outline"
+                className="justify-center"
                 setOpen={setWillOpen}
               >
+                <Home className="mr-2" size={16} />
                 Home
               </NavButton>
               {/* TODO: add a separator here */}
