@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, {
+  useCallback,
+  useState,
+} from "react";
 
 import { TextTooltip } from "@/components/ui/tooltip";
 import {
@@ -27,6 +30,47 @@ interface TableCellProps {
   value: string | unknown;
 }
 
+// Utility function to detect if a string is likely an image URL
+function isImageUrl(str: string): boolean {
+  if (!str || typeof str !== "string") return false;
+
+  // Check for URL pattern first
+  const urlPattern = /^https?:\/\/.+/i;
+  if (!urlPattern.test(str)) return false;
+
+  // Check for common image extensions (handles query params and fragments)
+  const imageExtensions =
+    /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff)(\?[^#]*)?(\#.*)?$/i;
+
+  // For direct image URLs
+  if (imageExtensions.test(str)) return true;
+
+  // For Wikipedia media URLs (special case)
+  const wikipediaMediaPattern =
+    /\/wiki\/.*#\/media\/File:.*\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff)/i;
+  if (wikipediaMediaPattern.test(str)) return true;
+
+  return false;
+}
+
+// Utility function to convert URLs to direct image URLs when possible
+function getDirectImageUrl(str: string): string {
+  // Handle Wikipedia media URLs
+  const wikipediaMediaMatch = str.match(
+    /\/wiki\/.*#\/media\/File:(.+\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff))/i
+  );
+  if (wikipediaMediaMatch) {
+    const fileName = wikipediaMediaMatch[1];
+    // Note: This is a best-effort approach. Wikipedia's actual image URLs require API calls
+    // to get the exact path, but this provides a fallback that often works
+    return `https://upload.wikimedia.org/wikipedia/commons/thumb/${fileName.charAt(
+      0
+    )}/${fileName.substring(0, 2)}/${fileName}/800px-${fileName}`;
+  }
+
+  return str;
+}
+
 const TableCell: React.FC<TableCellProps> = ({
   rowIndex,
   colIndex,
@@ -35,6 +79,7 @@ const TableCell: React.FC<TableCellProps> = ({
 }) => {
   const isCellLocked = useIsCellLocked(rowIndex, colIndex);
   const lockNote = useLockNoteForCell(rowIndex, colIndex);
+  const [imageError, setImageError] = useState(false);
 
   const editingCell = useEditingCell();
   const handleCellChange = useHandleCellChange();
@@ -49,6 +94,9 @@ const TableCell: React.FC<TableCellProps> = ({
 
   const isEditing =
     editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex;
+
+  const stringValue = String(value ?? "");
+  const isImage = !isEditing && !imageError && isImageUrl(stringValue);
 
   // Determine border color based on selection/cursors
   let borderColor = "transparent";
@@ -114,10 +162,18 @@ const TableCell: React.FC<TableCellProps> = ({
     [rowIndex, colIndex, setEditingCell, isCellLocked]
   );
 
+  const handleImageError = useCallback(() => {
+    setImageError(true);
+  }, []);
+
+  const handleImageLoad = useCallback(() => {
+    setImageError(false);
+  }, []);
+
   const inputElement = (
     <input
       type="text"
-      value={String(value ?? "")}
+      value={stringValue}
       onChange={(e) => {
         // Don't allow changes to locked cells
         if (!isCellLocked) {
@@ -139,6 +195,25 @@ const TableCell: React.FC<TableCellProps> = ({
     />
   );
 
+  const imageElement = (
+    <div className="w-full h-full p-2 flex items-center justify-center">
+      <img
+        src={getDirectImageUrl(stringValue)}
+        alt="Cell content"
+        className="max-w-full max-h-full object-contain rounded"
+        style={{
+          maxHeight: "100px",
+          maxWidth: "150px",
+        }}
+        onError={handleImageError}
+        onLoad={handleImageLoad}
+        onDoubleClick={handleCellDoubleClick}
+      />
+    </div>
+  );
+
+  const cellContent = isImage ? imageElement : inputElement;
+
   return (
     <td
       className="border p-0 relative"
@@ -159,15 +234,16 @@ const TableCell: React.FC<TableCellProps> = ({
           : hasOtherUserCursors
           ? `${firstUserColor}20` // 20 for low opacity
           : undefined,
+        minHeight: isImage ? "80px" : "auto",
       }}
       onMouseDown={handleCellMouseDown}
       onDoubleClick={handleCellDoubleClick}
     >
-      {/* If cell is locked and has a note, wrap input with tooltip */}
+      {/* If cell is locked and has a note, wrap content with tooltip */}
       {isCellLocked && lockNote ? (
-        <TextTooltip text={lockNote}>{inputElement}</TextTooltip>
+        <TextTooltip text={lockNote}>{cellContent}</TextTooltip>
       ) : (
-        inputElement
+        cellContent
       )}
     </td>
   );
