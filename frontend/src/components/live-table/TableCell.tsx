@@ -2,6 +2,7 @@
 
 import React, {
   useCallback,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -31,33 +32,64 @@ interface TableCellProps {
   value: string | unknown;
 }
 
+// Parse image data from cell value (URL or URL|WIDTHxHEIGHT format)
+function parseImageData(str: string): {
+  url: string;
+  width?: number;
+  height?: number;
+} | null {
+  if (!str || typeof str !== "string") return null;
+
+  // Check for URL|dimensions format
+  const dimensionMatch = str.match(/^(.+)\|(\d+)x(\d+)$/);
+  if (dimensionMatch) {
+    const [, url, width, height] = dimensionMatch;
+    return {
+      url: url.trim(),
+      width: parseInt(width, 10),
+      height: parseInt(height, 10),
+    };
+  }
+
+  // Just a URL without dimensions
+  return { url: str.trim() };
+}
+
 // Utility function to detect if a string is likely an image URL
 function isImageUrl(str: string): boolean {
-  if (!str || typeof str !== "string") return false;
+  const parsed = parseImageData(str);
+  if (!parsed) return false;
+
+  const url = parsed.url;
 
   // Check for URL pattern first
   const urlPattern = /^https?:\/\/.+/i;
-  if (!urlPattern.test(str)) return false;
+  if (!urlPattern.test(url)) return false;
 
   // Check for common image extensions (handles query params and fragments)
   const imageExtensions =
     /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff)(\?[^#]*)?(\#.*)?$/i;
 
   // For direct image URLs
-  if (imageExtensions.test(str)) return true;
+  if (imageExtensions.test(url)) return true;
 
   // For Wikipedia media URLs (special case)
   const wikipediaMediaPattern =
     /\/wiki\/.*#\/media\/File:.*\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff)/i;
-  if (wikipediaMediaPattern.test(str)) return true;
+  if (wikipediaMediaPattern.test(url)) return true;
 
   return false;
 }
 
 // Utility function to convert URLs to direct image URLs when possible
 function getDirectImageUrl(str: string): string {
+  const parsed = parseImageData(str);
+  if (!parsed) return str;
+
+  const url = parsed.url;
+
   // Handle Wikipedia media URLs
-  const wikipediaMediaMatch = str.match(
+  const wikipediaMediaMatch = url.match(
     /\/wiki\/.*#\/media\/File:(.+\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff))/i
   );
   if (wikipediaMediaMatch) {
@@ -69,27 +101,56 @@ function getDirectImageUrl(str: string): string {
     )}/${fileName.substring(0, 2)}/${fileName}/800px-${fileName}`;
   }
 
-  return str;
+  return url;
+}
+
+// Format image data back to string format
+function formatImageData(url: string, width?: number, height?: number): string {
+  if (width && height) {
+    return `${url}|${width}x${height}`;
+  }
+  return url;
 }
 
 interface ResizableImageProps {
   src: string;
   alt: string;
+  initialWidth?: number;
+  initialHeight?: number;
   onDoubleClick: (event: React.MouseEvent) => void;
   onError: () => void;
   onLoad: () => void;
+  onDimensionsChange: (width: number, height: number) => void;
 }
 
 const ResizableImage: React.FC<ResizableImageProps> = ({
   src,
   alt,
+  initialWidth = 150,
+  initialHeight = 100,
   onDoubleClick,
   onError,
   onLoad,
+  onDimensionsChange,
 }) => {
-  const [dimensions, setDimensions] = useState({ width: 150, height: 100 });
+  const [dimensions, setDimensions] = useState({
+    width: initialWidth,
+    height: initialHeight,
+  });
   const [isResizing, setIsResizing] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
+  const currentDimensionsRef = useRef(dimensions);
+
+  // Keep ref in sync with state
+  currentDimensionsRef.current = dimensions;
+
+  // Update dimensions when props change (from other users' updates)
+  useEffect(() => {
+    setDimensions({
+      width: initialWidth,
+      height: initialHeight,
+    });
+  }, [initialWidth, initialHeight]);
 
   const handleResizeStart = useCallback(
     (event: React.MouseEvent) => {
@@ -113,11 +174,18 @@ const ResizableImage: React.FC<ResizableImageProps> = ({
         newWidth = Math.min(400, Math.max(50, newWidth));
         newHeight = Math.min(300, Math.max(30, newHeight));
 
-        setDimensions({ width: newWidth, height: newHeight });
+        const newDimensions = { width: newWidth, height: newHeight };
+        currentDimensionsRef.current = newDimensions;
+        setDimensions(newDimensions);
       };
 
       const handleMouseUp = () => {
         setIsResizing(false);
+        // Call the callback with final dimensions from ref (rounded to avoid decimals)
+        onDimensionsChange(
+          Math.round(currentDimensionsRef.current.width),
+          Math.round(currentDimensionsRef.current.height)
+        );
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
       };
@@ -195,6 +263,7 @@ const TableCell: React.FC<TableCellProps> = ({
 
   const stringValue = String(value ?? "");
   const isImage = !isEditing && !imageError && isImageUrl(stringValue);
+  const imageData = isImage ? parseImageData(stringValue) : null;
 
   // Determine border color based on selection/cursors
   let borderColor = "transparent";
@@ -268,6 +337,16 @@ const TableCell: React.FC<TableCellProps> = ({
     setImageError(false);
   }, []);
 
+  const handleImageDimensionsChange = useCallback(
+    (width: number, height: number) => {
+      if (!isCellLocked && imageData) {
+        const newValue = formatImageData(imageData.url, width, height);
+        handleCellChange(rowIndex, header, newValue);
+      }
+    },
+    [isCellLocked, imageData, handleCellChange, rowIndex, header]
+  );
+
   const inputElement = (
     <input
       type="text"
@@ -298,9 +377,12 @@ const TableCell: React.FC<TableCellProps> = ({
       <ResizableImage
         src={getDirectImageUrl(stringValue)}
         alt="Cell content"
+        initialWidth={imageData?.width}
+        initialHeight={imageData?.height}
         onError={handleImageError}
         onLoad={handleImageLoad}
         onDoubleClick={handleCellDoubleClick}
+        onDimensionsChange={handleImageDimensionsChange}
       />
     </div>
   );

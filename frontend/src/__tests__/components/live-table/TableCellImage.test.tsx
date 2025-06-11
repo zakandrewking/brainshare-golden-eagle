@@ -240,4 +240,92 @@ describe("TableCell Image Rendering", () => {
     // End resize
     fireEvent.mouseUp(document);
   });
+
+  it("persists image dimensions after resize", async () => {
+    const mockHandleCellChange = vi.fn();
+    const dataStore = await import("@/stores/dataStore");
+    vi.mocked(dataStore.useHandleCellChange).mockReturnValue(
+      mockHandleCellChange
+    );
+
+    const imageUrl = "https://example.com/image.jpg";
+
+    render(
+      <TableCell rowIndex={0} colIndex={0} header="image" value={imageUrl} />
+    );
+
+    const image = screen.getByRole("img");
+    const resizeHandle = image.parentElement?.querySelector(
+      ".cursor-se-resize"
+    ) as HTMLElement;
+
+    // Start resize
+    fireEvent.mouseDown(resizeHandle, { clientX: 0, clientY: 0 });
+    // Move mouse to resize
+    fireEvent.mouseMove(document, { clientX: 100, clientY: 0 });
+    // End resize
+    fireEvent.mouseUp(document);
+
+    // Should call handleCellChange with the new dimensions format
+    expect(mockHandleCellChange).toHaveBeenCalledWith(
+      0,
+      "image",
+      expect.stringMatching(/^https:\/\/example\.com\/image\.jpg\|\d+x\d+$/)
+    );
+  });
+
+  it("loads image with persisted dimensions", () => {
+    const imageUrl = "https://example.com/image.jpg|200x150";
+
+    render(
+      <TableCell rowIndex={0} colIndex={0} header="image" value={imageUrl} />
+    );
+
+    const image = screen.getByRole("img");
+    expect(image).toHaveStyle({ width: "200px", height: "150px" });
+  });
+
+  it("falls back to default dimensions for URLs without size info", () => {
+    const imageUrl = "https://example.com/image.jpg";
+
+    render(
+      <TableCell rowIndex={0} colIndex={0} header="image" value={imageUrl} />
+    );
+
+    const image = screen.getByRole("img");
+    expect(image).toHaveStyle({ width: "150px", height: "100px" });
+  });
+
+  it("recognizes image URLs with dimension data", () => {
+    const imageUrl = "https://example.com/image.jpg|300x200";
+
+    render(
+      <TableCell rowIndex={0} colIndex={0} header="image" value={imageUrl} />
+    );
+
+    // Should render as image, not input
+    expect(screen.getByRole("img")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("reactively updates image dimensions when cell value changes", () => {
+    const initialUrl = "https://example.com/image.jpg|200x150";
+    const updatedUrl = "https://example.com/image.jpg|300x225";
+
+    const { rerender } = render(
+      <TableCell rowIndex={0} colIndex={0} header="image" value={initialUrl} />
+    );
+
+    // Should start with initial dimensions
+    const image = screen.getByRole("img");
+    expect(image).toHaveStyle({ width: "200px", height: "150px" });
+
+    // Update the cell value (simulating another user's change)
+    rerender(
+      <TableCell rowIndex={0} colIndex={0} header="image" value={updatedUrl} />
+    );
+
+    // Should update to new dimensions
+    expect(image).toHaveStyle({ width: "300px", height: "225px" });
+  });
 });
