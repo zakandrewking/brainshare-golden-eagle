@@ -126,18 +126,21 @@ interface ResizableImageProps {
 const ResizableImage: React.FC<ResizableImageProps> = ({
   src,
   alt,
-  initialWidth = 150,
-  initialHeight = 100,
+  initialWidth,
+  initialHeight,
   onDoubleClick,
   onError,
   onLoad,
   onDimensionsChange,
 }) => {
   const [dimensions, setDimensions] = useState({
-    width: initialWidth,
-    height: initialHeight,
+    width: initialWidth || 150,
+    height: initialHeight || 100,
   });
   const [isResizing, setIsResizing] = useState(false);
+  const [hasLoadedNaturalSize, setHasLoadedNaturalSize] = useState(
+    !!initialWidth && !!initialHeight
+  );
   const imageRef = useRef<HTMLImageElement>(null);
   const currentDimensionsRef = useRef(dimensions);
 
@@ -146,11 +149,69 @@ const ResizableImage: React.FC<ResizableImageProps> = ({
 
   // Update dimensions when props change (from other users' updates)
   useEffect(() => {
-    setDimensions({
-      width: initialWidth,
-      height: initialHeight,
-    });
+    if (initialWidth && initialHeight) {
+      setDimensions({
+        width: initialWidth,
+        height: initialHeight,
+      });
+      setHasLoadedNaturalSize(true);
+    }
   }, [initialWidth, initialHeight]);
+
+  // Calculate default dimensions based on natural image size
+  const handleImageLoad = useCallback(() => {
+    if (!hasLoadedNaturalSize && imageRef.current) {
+      const img = imageRef.current;
+      const naturalWidth = img.naturalWidth;
+      const naturalHeight = img.naturalHeight;
+
+      if (naturalWidth && naturalHeight) {
+        // Calculate dimensions that maintain aspect ratio while fitting in reasonable bounds
+        const maxWidth = 200;
+        const maxHeight = 150;
+
+        let newWidth = naturalWidth;
+        let newHeight = naturalHeight;
+
+        // Scale down if too large, maintaining aspect ratio
+        if (newWidth > maxWidth || newHeight > maxHeight) {
+          const widthRatio = maxWidth / newWidth;
+          const heightRatio = maxHeight / newHeight;
+          const ratio = Math.min(widthRatio, heightRatio);
+
+          newWidth = Math.round(newWidth * ratio);
+          newHeight = Math.round(newHeight * ratio);
+        }
+
+        // Ensure minimum size
+        const minWidth = 50;
+        const minHeight = 30;
+        if (newWidth < minWidth || newHeight < minHeight) {
+          const widthRatio = minWidth / newWidth;
+          const heightRatio = minHeight / newHeight;
+          const ratio = Math.max(widthRatio, heightRatio);
+
+          newWidth = Math.round(newWidth * ratio);
+          newHeight = Math.round(newHeight * ratio);
+        }
+
+        setDimensions({ width: newWidth, height: newHeight });
+        setHasLoadedNaturalSize(true);
+
+        // If this is the initial load without stored dimensions, save the calculated size
+        if (!initialWidth && !initialHeight) {
+          onDimensionsChange(newWidth, newHeight);
+        }
+      }
+    }
+    onLoad();
+  }, [
+    hasLoadedNaturalSize,
+    initialWidth,
+    initialHeight,
+    onLoad,
+    onDimensionsChange,
+  ]);
 
   const handleResizeStart = useCallback(
     (event: React.MouseEvent) => {
@@ -193,7 +254,7 @@ const ResizableImage: React.FC<ResizableImageProps> = ({
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [dimensions]
+    [dimensions, onDimensionsChange]
   );
 
   return (
@@ -210,7 +271,7 @@ const ResizableImage: React.FC<ResizableImageProps> = ({
           maxHeight: "100%",
         }}
         onError={onError}
-        onLoad={onLoad}
+        onLoad={handleImageLoad}
         onDoubleClick={onDoubleClick}
         draggable={false}
       />

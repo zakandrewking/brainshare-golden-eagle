@@ -328,4 +328,52 @@ describe("TableCell Image Rendering", () => {
     // Should update to new dimensions
     expect(image).toHaveStyle({ width: "300px", height: "225px" });
   });
+
+  it("calculates aspect ratio-aware default dimensions", async () => {
+    const mockHandleCellChange = vi.fn();
+    const dataStore = await import("@/stores/dataStore");
+    vi.mocked(dataStore.useHandleCellChange).mockReturnValue(
+      mockHandleCellChange
+    );
+
+    const imageUrl = "https://example.com/image.jpg";
+
+    render(
+      <TableCell rowIndex={0} colIndex={0} header="image" value={imageUrl} />
+    );
+
+    const img = screen.getByRole("img");
+
+    // Simulate the image loading with natural dimensions
+    Object.defineProperty(img, "naturalWidth", { value: 800, writable: false });
+    Object.defineProperty(img, "naturalHeight", {
+      value: 600,
+      writable: false,
+    });
+
+    // Trigger the load event
+    fireEvent.load(img);
+
+    // Should call handleCellChange with calculated dimensions that preserve aspect ratio
+    // 800x600 should be scaled down to fit within max bounds while preserving 4:3 ratio
+    expect(mockHandleCellChange).toHaveBeenCalledWith(
+      0,
+      "image",
+      expect.stringMatching(/^https:\/\/example\.com\/image\.jpg\|\d+x\d+$/)
+    );
+
+    // The call should contain dimensions that maintain the 4:3 aspect ratio
+    const lastCall =
+      mockHandleCellChange.mock.calls[
+        mockHandleCellChange.mock.calls.length - 1
+      ];
+    const dimensionMatch = lastCall[2].match(/\|(\d+)x(\d+)$/);
+    if (dimensionMatch) {
+      const width = parseInt(dimensionMatch[1]);
+      const height = parseInt(dimensionMatch[2]);
+      const ratio = width / height;
+      // Should be close to 4:3 (1.333...)
+      expect(ratio).toBeCloseTo(4 / 3, 2);
+    }
+  });
 });
