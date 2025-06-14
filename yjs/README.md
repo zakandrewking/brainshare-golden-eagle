@@ -4,10 +4,10 @@ For now, we're manually setting up a render.com service that builds based on
 a GitHub connection.
 
 Requires a Y_SWEET_PORT which I'm setting to 8080 in render, and S3_BUCKET_URL as deployed by pulumi
-(starts with `s3://`).
+(looks like `s3://<bucket-name>/`).
 
 and also:
-AWS_DEFAULT_REGION
+AWS_REGION
 AWS_SECRET_ACCESS_KEY
 AWS_ACCESS_KEY_ID
 
