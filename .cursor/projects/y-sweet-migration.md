@@ -1,7 +1,7 @@
 # Y-sweet Self-Hosting Migration Project Plan
 
 ## Project Overview
-Implement self-hosted Y-sweet as an alternative backend option alongside Liveblocks, enabling more control over the real-time collaboration infrastructure while maintaining existing functionality.
+Implement self-hosted Y-sweet as an alternative backend option alongside Liveblocks, enabling more control over the real-time collaboration infrastructure while maintaining existing functionality. The Y-sweet server will be deployed on Render.
 
 ## Current State Analysis
 - Using Liveblocks for real-time collaboration
@@ -16,23 +16,29 @@ Implement self-hosted Y-sweet as an alternative backend option alongside Liveblo
   - Document forking
 
 ## Goals
-- [ ] Set up self-hosted Y-sweet server
+- [ ] Deploy Y-sweet server on Render
 - [ ] Create abstraction layer to support both Liveblocks and Y-sweet
 - [ ] Implement secure WebSocket connections
 - [ ] Maintain all current functionality
 - [ ] Enable easy switching between backends
 
-## Phase 1: Y-sweet Server Setup (1-2 weeks)
+## Phase 1: Render Deployment Setup (1 week)
 
-### 1.1 Infrastructure Setup
-- [ ] Set up Y-sweet server infrastructure
-  - Docker containerization
-  - Kubernetes deployment (if needed)
-  - Load balancing configuration
-  - SSL/TLS setup
-- [ ] Configure environment variables
-- [ ] Set up monitoring and logging
-- [ ] Implement backup strategy
+### 1.1 Render Configuration
+- [ ] Create Render account and project
+- [ ] Set up environment variables in Render:
+  - `YSWEET_PORT`
+  - `YSWEET_HOST`
+  - `YSWEET_STORAGE_TYPE`
+  - `YSWEET_REDIS_URL`
+  - `YSWEET_JWT_SECRET`
+- [ ] Configure Render service:
+  - Use `y-sweet/server:latest` Docker image
+  - Set up automatic deployments
+  - Configure health checks
+  - Set up SSL/TLS
+- [ ] Set up Redis instance on Render
+- [ ] Configure monitoring and logging
 
 ### 1.2 Y-sweet Configuration
 ```typescript
@@ -41,13 +47,11 @@ interface YSweetConfig {
   host: string;
   ssl: {
     enabled: boolean;
-    certPath?: string;
-    keyPath?: string;
   };
   storage: {
-    type: 'memory' | 'redis' | 'postgres';
+    type: 'redis';
     config: {
-      // Storage-specific configuration
+      url: string;
     };
   };
   auth: {
@@ -139,15 +143,15 @@ const CollaborationProvider: React.FC<{
 
 ### 4.1 Security Implementation
 - [ ] Implement JWT authentication
-- [ ] Set up rate limiting
+- [ ] Set up rate limiting in Render
 - [ ] Configure CORS
 - [ ] Implement request validation
 
 ### 4.2 Performance Optimization
-- [ ] Implement connection pooling
+- [ ] Configure Render auto-scaling
 - [ ] Set up caching
 - [ ] Optimize WebSocket message handling
-- [ ] Configure load balancing
+- [ ] Configure load balancing in Render
 
 ## Phase 5: Testing and Validation (2 weeks)
 
@@ -165,28 +169,35 @@ const CollaborationProvider: React.FC<{
 
 ## Technical Implementation Details
 
-### Y-sweet Server Setup
-```bash
-# Example Docker Compose configuration
-version: '3.8'
+### Render Service Configuration
+```yaml
+# render.yaml
 services:
-  y-sweet:
+  - type: web
+    name: y-sweet
+    env: docker
     image: y-sweet/server:latest
-    ports:
-      - "8080:8080"
-    environment:
-      - YSWEET_PORT=8080
-      - YSWEET_HOST=your-domain.com
-      - YSWEET_STORAGE_TYPE=redis
-      - YSWEET_REDIS_URL=redis://redis:6379
-      - YSWEET_JWT_SECRET=your-secret-key
-    depends_on:
-      - redis
+    plan: standard
+    envVars:
+      - key: YSWEET_PORT
+        value: 8080
+      - key: YSWEET_HOST
+        sync: false
+      - key: YSWEET_STORAGE_TYPE
+        value: redis
+      - key: YSWEET_REDIS_URL
+        fromService:
+          type: redis
+          name: y-sweet-redis
+          property: connectionString
+      - key: YSWEET_JWT_SECRET
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
 
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
+  - type: redis
+    name: y-sweet-redis
+    plan: standard
 ```
 
 ### Backend Configuration
@@ -198,9 +209,7 @@ const backendConfig = {
     host: process.env.YSWEET_HOST,
     port: parseInt(process.env.YSWEET_PORT || '8080'),
     ssl: {
-      enabled: process.env.YSWEET_SSL === 'true',
-      certPath: process.env.YSWEET_CERT_PATH,
-      keyPath: process.env.YSWEET_KEY_PATH,
+      enabled: true, // Always enabled on Render
     },
     auth: {
       enabled: process.env.YSWEET_AUTH === 'true',
@@ -244,27 +253,27 @@ async function migrateDocument(
 
 ## Risk Mitigation
 
-1. **Server Reliability**
-   - Implement health checks
-   - Set up automatic failover
-   - Monitor server resources
-   - Implement backup strategies
+1. **Render Service Reliability**
+   - Monitor Render service health
+   - Set up alerts for service issues
+   - Implement automatic failover
+   - Regular backup of Redis data
 
 2. **Security**
    - Regular security audits
-   - Implement rate limiting
+   - Implement rate limiting in Render
    - Monitor for suspicious activity
    - Keep dependencies updated
 
 3. **Performance**
-   - Load testing
-   - Performance monitoring
-   - Resource optimization
-   - Caching strategies
+   - Monitor Render service metrics
+   - Configure auto-scaling
+   - Optimize Redis usage
+   - Implement caching strategies
 
 ## Timeline and Resources
 
-- Total estimated time: 9-12 weeks
+- Total estimated time: 7-10 weeks
 - Required resources:
   - 2-3 developers
   - 1 DevOps engineer
@@ -273,7 +282,7 @@ async function migrateDocument(
 
 ## Success Criteria
 
-1. Self-hosted Y-sweet server running reliably
+1. Y-sweet server running reliably on Render
 2. Both backends fully functional
 3. Seamless switching between backends
 4. No data loss during migration
@@ -283,6 +292,6 @@ async function migrateDocument(
 ## Next Steps
 
 1. Review and approve this project plan
-2. Set up development environment for Y-sweet testing
-3. Begin Phase 1 with server infrastructure setup
+2. Set up Render account and project
+3. Begin Phase 1 with Render deployment
 4. Create detailed technical specifications for each phase
