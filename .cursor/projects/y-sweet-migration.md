@@ -16,7 +16,7 @@ Implement self-hosted Y-sweet as an alternative backend option alongside Liveblo
   - Document forking
 
 ## Goals
-- [ ] Deploy Y-sweet server on Render
+- [x] Deploy Y-sweet server on Render
 - [ ] Create abstraction layer to support both Liveblocks and Y-sweet
 - [ ] Implement secure WebSocket connections
 - [ ] Maintain all current functionality
@@ -25,22 +25,11 @@ Implement self-hosted Y-sweet as an alternative backend option alongside Liveblo
 ## Phase 1: Render Deployment Setup (1 week)
 
 ### 1.1 Render Configuration
-- [ ] Create Render account and project
-- [ ] Set up environment variables in Render:
-  - `YSWEET_PORT`
-  - `YSWEET_HOST`
-  - `YSWEET_STORAGE_TYPE`
-  - `YSWEET_REDIS_URL`
-  - `YSWEET_JWT_SECRET`
-- [ ] Configure Render service:
-  - Use `y-sweet/server:latest` Docker image
-  - Set up automatic deployments
-  - Configure health checks
-  - Set up SSL/TLS
-- [ ] Set up Redis instance on Render
-- [ ] Configure monitoring and logging
+
+- [x] Create Render account and project (see `yjs/README.md`)
 
 ### 1.2 Y-sweet Configuration
+
 ```typescript
 interface YSweetConfig {
   port: number;
