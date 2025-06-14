@@ -3,8 +3,7 @@
 For now, we're manually setting up a render.com service that builds based on
 a GitHub connection.
 
-Requires a SESSION_BACKEND_KEY, which i'm setting to a random value for now, and
-PORT which I'm setting to 80 in render, and S3_BUCKET_URL as deployed by pulumi
+Requires a PORT which I'm setting to 80 in render, and S3_BUCKET_URL as deployed by pulumi
 (starts with `s3://`).
 
 and also:
