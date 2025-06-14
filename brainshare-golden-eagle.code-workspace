@@ -16,6 +16,9 @@
       "path": "backend"
     },
     {
+      "path": "yjs"
+    },
+    {
       "path": "pulumi"
     }
   ],
