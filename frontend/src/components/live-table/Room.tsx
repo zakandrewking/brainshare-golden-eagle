@@ -1,3 +1,7 @@
+/**
+ * LiveBlocks Room component.
+ */
+
 "use client";
 
 import { ReactNode } from "react";

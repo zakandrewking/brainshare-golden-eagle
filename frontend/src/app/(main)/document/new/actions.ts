@@ -1,3 +1,7 @@
+/**
+ * LiveBlocks server actions for the document/new page.
+ */
+
 "use server";
 
 import * as Y from "yjs";

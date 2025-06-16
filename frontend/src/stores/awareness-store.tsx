@@ -6,14 +6,10 @@ import {
   useState,
 } from "react";
 
-import {
-  createStore,
-  StoreApi,
-  useStore,
-} from "zustand";
+import { createStore, StoreApi, useStore } from "zustand";
 
-import { useSelf } from "@liveblocks/react";
-import { LiveblocksYjsProvider } from "@liveblocks/yjs";
+import { type LiveblocksYjsProvider } from "@liveblocks/yjs";
+import { type YSweetProvider } from "@y-sweet/react";
 
 import type {
   AwarenessState,
@@ -62,7 +58,7 @@ export const AwarenessStoreProvider = ({
 }: {
   children: React.ReactNode;
   liveTableDoc: LiveTableDoc;
-  yProvider: LiveblocksYjsProvider;
+  yProvider: LiveblocksYjsProvider | YSweetProvider;
 }) => {
   const [store] = useState(() =>
     createStore<AwarenessStore>()((set, get) => ({
@@ -83,7 +79,12 @@ export const AwarenessStoreProvider = ({
   );
 
   // Get user info and selection state for awareness
-  const self = useSelf();
+  const self = {
+    info: {
+      name: "Anonymous",
+      color: "#000000",
+    },
+  };
   const selectedCells = useSelectedCells();
   const selectionArea = useSelectionArea();
 

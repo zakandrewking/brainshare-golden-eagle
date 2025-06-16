@@ -1,6 +1,6 @@
 /**
- * This is the top-level provider for the LiveTable component. Sets up the
- * stores and syncing.
+ * This is the top-level provider for the LiveTable component with the LiveBlocks
+ * backend. Sets up the stores and syncing.
  */
 
 import React, { useMemo } from "react";

@@ -1,23 +1,11 @@
-/**
- * TODO move data, locks, editing, etc. to this store from LiveTableProvider
- */
-
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 import { toast } from "sonner";
 import { UndoManager } from "yjs";
-import {
-  createStore,
-  StoreApi,
-  useStore,
-} from "zustand";
+import { createStore, StoreApi, useStore } from "zustand";
 
-import { LiveblocksYjsProvider } from "@liveblocks/yjs";
+import { type LiveblocksYjsProvider } from "@liveblocks/yjs";
+import { type YSweetProvider } from "@y-sweet/react";
 
 import type {
   DataType,
@@ -229,7 +217,7 @@ export const DataStoreProvider = ({
 }: {
   children: React.ReactNode;
   liveTableDoc: LiveTableDoc;
-  yProvider: LiveblocksYjsProvider;
+  yProvider: LiveblocksYjsProvider | YSweetProvider;
   documentTitle: string;
   documentDescription: string;
   docId: string;
