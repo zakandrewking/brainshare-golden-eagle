@@ -6,8 +6,8 @@
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000",
-      // brew install homebrew/cask-versions/google-chrome-canary
-      "runtimeExecutable": "canary",
+      // brew install homebrew/cask-versions/google-chrome@beta
+      "runtimeExecutable": "beta",
       "preLaunchTask": "[npm] dev",
       "sourceMaps": true,
       "webRoot": "${workspaceFolder}/frontend"
@@ -16,9 +16,8 @@
       "name": "Frontend (prod db)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3000",
-      // brew install homebrew/cask-versions/google-chrome-canary
-      "runtimeExecutable": "canary",
+      "url": "http://localhost:3000/",
+      "runtimeExecutable": "beta",
       "preLaunchTask": "[npm] dev (prod db)",
       "sourceMaps": true,
       "webRoot": "${workspaceFolder}/frontend"
