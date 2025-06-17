@@ -130,6 +130,7 @@ export async function handleCreateRoomForm(
       .from("document")
       .insert({
         liveblocks_id: name,
+        // ysweet_id is set by a trigger to the id of the document
         title: name,
         type: docType,
         description: descriptionValue?.toString(),

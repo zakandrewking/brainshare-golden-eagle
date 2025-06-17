@@ -16,6 +16,7 @@ export type Database = {
           liveblocks_id: string
           title: string
           type: string
+          ysweet_id: string | null
         }
         Insert: {
           description?: string | null
@@ -23,6 +24,7 @@ export type Database = {
           liveblocks_id: string
           title: string
           type: string
+          ysweet_id?: string | null
         }
         Update: {
           description?: string | null
@@ -30,6 +32,7 @@ export type Database = {
           liveblocks_id?: string
           title?: string
           type?: string
+          ysweet_id?: string | null
         }
         Relationships: []
       }
