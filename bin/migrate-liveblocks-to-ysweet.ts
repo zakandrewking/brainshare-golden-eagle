@@ -51,6 +51,19 @@ interface MigrationLog {
 
 const migrationLogs: MigrationLog[] = [];
 
+function sanitizeDocumentId(originalId: string): string {
+  // Replace spaces with hyphens and encode special characters
+  return originalId
+    .trim()
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/[^\w\-._~]/g, (char) => {
+      // Encode special characters using percent-encoding
+      return encodeURIComponent(char);
+    })
+    .replace(/-+/g, "-") // Replace multiple consecutive hyphens with single hyphen
+    .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
+}
+
 async function createYSweetDocument(docId: string): Promise<boolean> {
   try {
     console.log(`Creating YSweet document: ${docId}`);
@@ -93,15 +106,25 @@ async function uploadYjsDataToYSweet(
 
 async function migrateRoom(room: any): Promise<MigrationLog> {
   const timestamp = new Date().toISOString();
+  const sanitizedDocId = skipSanitization
+    ? room.id
+    : sanitizeDocumentId(room.id);
   const log: MigrationLog = {
     timestamp,
     liveblocksRoomId: room.id,
-    ysweetDocId: room.id, // Use same ID for simplicity, could be customized
+    ysweetDocId: sanitizedDocId, // Use sanitized ID for YSweet (or original if --no-sanitize)
     status: "failed",
   };
 
   try {
     console.log(`\nMigrating room: ${room.id}`);
+    if (!skipSanitization && room.id !== sanitizedDocId) {
+      console.log(`📝 Sanitized doc ID: ${room.id} -> ${sanitizedDocId}`);
+    } else if (skipSanitization && /[\s]/.test(room.id)) {
+      console.log(
+        `⚠️  Warning: Room ID contains spaces - this may cause issues with YSweet`
+      );
+    }
 
     // Get YJS data from Liveblocks
     const yjsData = await liveblocks.getYjsDocumentAsBinaryUpdate(room.id);
@@ -248,6 +271,7 @@ async function migrateAllRooms(isSingleRoom = false) {
 // Add CLI argument parsing for dry run mode
 const isDryRun = process.argv.includes("--dry-run");
 const isSingleRoom = process.argv.includes("--single-room");
+const skipSanitization = process.argv.includes("--no-sanitize");
 
 // Add pattern filtering support
 function getPatternFromArgs(): string | null {
@@ -369,3 +393,7 @@ if (isDryRun) {
 // node migrate-liveblocks-to-ysweet.ts --filter "user-123"
 // node migrate-liveblocks-to-ysweet.ts --pattern "/^doc-\d+$/"
 // node migrate-liveblocks-to-ysweet.ts --dry-run --pattern "staging-"
+// node migrate-liveblocks-to-ysweet.ts --no-sanitize  // Keep original IDs (may fail with spaces/special chars)
+//
+// Note: By default, document IDs with spaces or special characters are sanitized
+// Example: "Airline companies" becomes "Airline-companies"
