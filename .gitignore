@@ -25,3 +25,5 @@ __debug*
 
 .vite/
 coverage/
+
+migration-logs/

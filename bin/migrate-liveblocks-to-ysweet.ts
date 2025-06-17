@@ -176,6 +176,12 @@ async function migrateAllRooms(isSingleRoom = false) {
       }
 
       for (const room of rooms) {
+        // Apply pattern filter
+        if (!matchesPattern(room.id, searchPattern)) {
+          console.log(`⏭️  Skipping room ${room.id} (doesn't match pattern)`);
+          continue;
+        }
+
         const log = await migrateRoom(room);
         migrationLogs.push(log);
 
@@ -243,9 +249,46 @@ async function migrateAllRooms(isSingleRoom = false) {
 const isDryRun = process.argv.includes("--dry-run");
 const isSingleRoom = process.argv.includes("--single-room");
 
+// Add pattern filtering support
+function getPatternFromArgs(): string | null {
+  const patternIndex = process.argv.findIndex(
+    (arg) => arg === "--pattern" || arg === "--filter"
+  );
+  if (patternIndex !== -1 && process.argv[patternIndex + 1]) {
+    return process.argv[patternIndex + 1];
+  }
+  return null;
+}
+
+const searchPattern = getPatternFromArgs();
+
+function matchesPattern(roomId: string, pattern: string | null): boolean {
+  if (!pattern) return true;
+
+  // Support both simple string matching and regex patterns
+  try {
+    // Try as regex first (if it starts and ends with /)
+    if (pattern.startsWith("/") && pattern.endsWith("/")) {
+      const regexPattern = pattern.slice(1, -1);
+      return new RegExp(regexPattern).test(roomId);
+    }
+    // Otherwise use simple string includes
+    return roomId.includes(pattern);
+  } catch (error) {
+    // If regex is invalid, fall back to string includes
+    return roomId.includes(pattern);
+  }
+}
+
 if (isDryRun) {
   console.log("🔍 DRY RUN MODE - No actual migration will be performed");
   console.log("This will only list the rooms that would be migrated\n");
+}
+
+if (searchPattern) {
+  console.log(
+    `🔍 PATTERN FILTER: Only processing rooms matching "${searchPattern}"\n`
+  );
 }
 
 async function dryRun() {
@@ -268,6 +311,12 @@ async function dryRun() {
       }
 
       for (const room of rooms) {
+        // Apply pattern filter
+        if (!matchesPattern(room.id, searchPattern)) {
+          console.log(`⏭️  Skipping room ${room.id} (doesn't match pattern)`);
+          continue;
+        }
+
         totalRooms++;
         console.log(`📋 Room: ${room.id}`);
 
@@ -312,3 +361,11 @@ if (isDryRun) {
 } else {
   migrateAllRooms(isSingleRoom);
 }
+
+// Usage examples:
+// node migrate-liveblocks-to-ysweet.ts --dry-run
+// node migrate-liveblocks-to-ysweet.ts --single-room
+// node migrate-liveblocks-to-ysweet.ts --pattern "test-"
+// node migrate-liveblocks-to-ysweet.ts --filter "user-123"
+// node migrate-liveblocks-to-ysweet.ts --pattern "/^doc-\d+$/"
+// node migrate-liveblocks-to-ysweet.ts --dry-run --pattern "staging-"
