@@ -7,7 +7,9 @@
   "devDependencies": {
     "@liveblocks/node": "^2.24.3",
     "@types/node": "^22.15.24",
+    "@y-sweet/sdk": "^0.8.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "yjs": "^13.6.20"
   }
 }

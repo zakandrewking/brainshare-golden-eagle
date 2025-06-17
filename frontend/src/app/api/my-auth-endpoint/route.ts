@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getOrCreateDocAndToken } from "@y-sweet/sdk";
+import { DocumentManager } from "@y-sweet/sdk";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,8 +12,9 @@ export async function POST(request: NextRequest) {
     }
 
     const connectionString = process.env.Y_SWEET_CONNECTION_STRING!;
+    const manager = new DocumentManager(connectionString);
 
-    const token = await getOrCreateDocAndToken(connectionString, docId);
+    const token = await manager.getOrCreateDocAndToken(docId);
 
     return NextResponse.json({
       ...token,

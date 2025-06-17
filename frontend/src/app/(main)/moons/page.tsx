@@ -13,7 +13,7 @@ export default function Moons() {
         tableId="moons"
         documentTitle={pageTitle}
         documentDescription={pageDescription}
-        docId="moons-fake-uuid"
+        docId="moons-ysweet-testing-fake-uuid"
         backend="ysweet"
       />
     </Container>

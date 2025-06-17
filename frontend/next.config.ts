@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_GIT_SHA: gitSha.slice(0, 7),
   },
   distDir: process.env.NODE_ENV === "production" ? ".next" : ".next-dev",
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "upload.wikimedia.org",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
