@@ -1,0 +1,35 @@
+[
+  {
+    "title": "Climate Change Statistics",
+    "description": "Global temperature and CO2 data requiring authoritative sources",
+    "tableData": [
+      {
+        "Year": "2020",
+        "Global Temp Anomaly (°C)": "1.02",
+        "CO2 Concentration (ppm)": "414.2"
+      },
+      {
+        "Year": "2021",
+        "Global Temp Anomaly (°C)": "0.84",
+        "CO2 Concentration (ppm)": "416.4"
+      },
+      {
+        "Year": "2022",
+        "Global Temp Anomaly (°C)": "0.89",
+        "CO2 Concentration (ppm)": "418.5"
+      }
+    ],
+    "headers": ["Year", "Global Temp Anomaly (°C)", "CO2 Concentration (ppm)"],
+    "selectedCells": [
+      { "rowIndex": 0, "colIndex": 1 },
+      { "rowIndex": 1, "colIndex": 1 },
+      { "rowIndex": 2, "colIndex": 1 }
+    ],
+    "selectedCellsData": [["1.02"], ["0.84"], ["0.89"]],
+    "expectedCitationTypes": [
+      "NOAA, NASA, or other official climate agencies",
+      "Academic papers on global temperature records",
+      "Government environmental reports"
+    ]
+  }
+]

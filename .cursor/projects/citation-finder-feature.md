@@ -25,12 +25,18 @@ Add a "Find citations" button to the lock dropdown in LiveTableToolbar that uses
 - [x] Ensure dialog content wraps horizontally and scrolls vertically. (Implemented with ScrollArea component)
 - [x] Add icons to all items in the lock dropdown menu for consistency. (Added Lock, FileText, and Trash2 icons)
 
-### Phase 2: API Integration
-- [ ] Create new server action `findCitations.ts` in `actions/` folder
-- [ ] Implement OpenAI web search API call
-- [ ] Define TypeScript interfaces for citation data
-- [ ] Handle API errors and rate limiting
-- [ ] Add unit tests for the `findCitations` server action, mocking the OpenAI API.
+### Phase 2: API Integration ✅ COMPLETE
+- [x] Create new server action `findCitations.ts` in `actions/` folder
+- [x] Implement OpenAI web search API call
+- [x] Define TypeScript interfaces for citation data
+- [x] Handle API errors and rate limiting
+- [x] Add unit tests for the `findCitations` server action, mocking the OpenAI
+  API.
+
+### Phase 2.5: Manual prompt testing
+- [x] Write a script for manually testing the prompt with different cell
+  selections.
+- [ ] test the prompts
 
 ### Phase 3: Citation Review UI
 - [ ] Design citation display components
