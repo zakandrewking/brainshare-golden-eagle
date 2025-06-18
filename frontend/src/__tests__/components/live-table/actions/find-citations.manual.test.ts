@@ -55,7 +55,7 @@ describe("findCitations Manual Testing", () => {
   // Load test cases from JSON file
   const loadedTestCases = loadTestCasesFromJSON();
 
-  const testCases = loadedTestCases.slice(0, 1);
+  const testCases = loadedTestCases;
 
   it(
     "should find authoritative citations for selected cells",
