@@ -167,7 +167,7 @@ const LiveTableToolbar: React.FC = () => {
   const zoomStore = useZoomStore(documentId);
   const zoomIn = zoomStore((state) => state.zoomIn);
   const zoomOut = zoomStore((state) => state.zoomOut);
-  const getZoomPercentage = zoomStore((state) => state.getZoomPercentage);
+  const zoomPercentage = zoomStore((state) => state.getZoomPercentage());
 
   const [isPending, startTransition] = useTransition();
   const [pendingOperation, setPendingOperation] =
@@ -184,7 +184,6 @@ const LiveTableToolbar: React.FC = () => {
 
   const isTableEmptyOfRows = !tableData || tableData.length === 0;
   const isAnyOperationPending = isPending && pendingOperation !== null;
-  const zoomPercentage = getZoomPercentage();
 
   const getUniqueSelectedColumnIndices = useCallback((): number[] => {
     if (!selectedCells || selectedCells.length === 0) {
