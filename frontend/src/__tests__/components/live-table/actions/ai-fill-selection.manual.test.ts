@@ -297,8 +297,8 @@ describe("generateSelectedCellsSuggestions AI Fill Selection", () => {
         console.log("✓ Basic validation passed");
       }
 
-      console.log("\n" + "🎉".repeat(50));
-      console.log("🎉".repeat(50));
+      console.log("\n" + "🎉".repeat(20));
+      console.log("🎉".repeat(20));
       console.log("\n🏁 AI Fill Selection Evaluation Complete! 🏁");
       console.log("\nManual Review Points:");
       console.log("- Check if suggestions are factually accurate");

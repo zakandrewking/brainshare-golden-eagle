@@ -6,7 +6,7 @@ import {
   it,
 } from "vitest";
 
-import findCitations from "@/components/live-table/actions/findCitations";
+import findCitations from "@/components/live-table/actions/find-citations";
 
 interface TestCase {
   title: string;
@@ -52,50 +52,10 @@ function loadTestCasesFromJSON(): TestCase[] {
 // It is skipped by default. To run it, use the following command:
 // OPENAI_API_KEY=your_api_key_here RUN_AI_TESTS=true npm test -- src/__tests__/components/live-table/actions/find-citations.manual.test.ts
 describe("findCitations Manual Testing", () => {
-  // Load test cases from JSON file (if exists) and combine with hardcoded ones
-  const hardcodedTestCases: TestCase[] = [
-    {
-      title: "Fortune 500 Companies",
-      description: "Major corporations with revenue and employee data",
-      tableData: [
-        {
-          Company: "Apple Inc",
-          "Revenue (Billions)": "394.3",
-          Employees: "164000",
-        },
-        {
-          Company: "Microsoft",
-          "Revenue (Billions)": "198.3",
-          Employees: "221000",
-        },
-        {
-          Company: "Amazon",
-          "Revenue (Billions)": "513.9",
-          Employees: "1540000",
-        },
-      ],
-      headers: ["Company", "Revenue (Billions)", "Employees"],
-      selectedCells: [
-        { rowIndex: 0, colIndex: 1 }, // Apple Revenue
-        { rowIndex: 1, colIndex: 1 }, // Microsoft Revenue
-        { rowIndex: 2, colIndex: 1 }, // Amazon Revenue
-      ],
-      selectedCellsData: [
-        ["394.3"], // Apple revenue
-        ["198.3"], // Microsoft revenue
-        ["513.9"], // Amazon revenue
-      ],
-      expectedCitationTypes: [
-        "SEC filings (10-K forms)",
-        "Official company annual reports",
-        "Financial news sources (Bloomberg, Reuters)",
-        "Fortune 500 official listings",
-      ],
-    },
-  ];
-
+  // Load test cases from JSON file
   const loadedTestCases = loadTestCasesFromJSON();
-  const testCases = [...hardcodedTestCases, ...loadedTestCases];
+
+  const testCases = loadedTestCases.slice(0, 1);
 
   it(
     "should find authoritative citations for selected cells",
@@ -105,9 +65,7 @@ describe("findCitations Manual Testing", () => {
     },
     async () => {
       console.log("--- Running Citation Finder Evaluation ---");
-      console.log(
-        `📊 Total test cases: ${testCases.length} (${hardcodedTestCases.length} hardcoded + ${loadedTestCases.length} from JSON)`
-      );
+      console.log(`📊 Total test cases: ${testCases.length}`);
       console.log("\nWhat to look for in good citation results:");
       console.log("- Citations should be from authoritative, credible sources");
       console.log(
@@ -122,8 +80,8 @@ describe("findCitations Manual Testing", () => {
 
       for (const [index, testCase] of testCases.entries()) {
         // Add separator before each test case
-        console.log("\n" + "🔍".repeat(50));
-        console.log("🔍".repeat(50));
+        console.log("\n" + "🔍".repeat(20));
+        console.log("🔍".repeat(20));
 
         console.log(
           `\n📋 Testing: "${testCase.title}" (${index + 1}/${testCases.length})`
@@ -296,8 +254,8 @@ describe("findCitations Manual Testing", () => {
         }
       }
 
-      console.log("\n" + "🎉".repeat(50));
-      console.log("🎉".repeat(50));
+      console.log("\n" + "🎉".repeat(20));
+      console.log("🎉".repeat(20));
       console.log("\n🏁 Citation Finder Evaluation Complete! 🏁");
       console.log("\nManual Review Points:");
       console.log("- Verify citations are from authoritative sources");

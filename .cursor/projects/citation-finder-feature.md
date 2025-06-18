@@ -26,11 +26,11 @@ Add a "Find citations" button to the lock dropdown in LiveTableToolbar that uses
 - [x] Add icons to all items in the lock dropdown menu for consistency. (Added Lock, FileText, and Trash2 icons)
 
 ### Phase 2: API Integration ✅ COMPLETE
-- [x] Create new server action `findCitations.ts` in `actions/` folder
+- [x] Create new server action `find-citations.ts` in `actions/` folder
 - [x] Implement OpenAI web search API call
 - [x] Define TypeScript interfaces for citation data
 - [x] Handle API errors and rate limiting
-- [x] Add unit tests for the `findCitations` server action, mocking the OpenAI
+- [x] Add unit tests for the `find-citations` server action, mocking the OpenAI
   API.
 
 ### Phase 2.5: Manual prompt testing
@@ -64,7 +64,7 @@ Add a "Find citations" button to the lock dropdown in LiveTableToolbar that uses
 ```
 frontend/src/components/live-table/
 ├── actions/
-│   └── findCitations.ts                 # ✅ Created
+│   └── find-citations.ts                 # ✅ Created
 ├── CitationFinderDialog.tsx             # ✅ Created
 ├── LockButton.tsx                       # ✅ Modified to add menu item
 └── LiveTableToolbar.tsx                 # No changes needed

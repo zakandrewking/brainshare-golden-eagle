@@ -31,5 +31,39 @@
       "Academic papers on global temperature records",
       "Government environmental reports"
     ]
+  },
+  {
+    "title": "Fortune 500 Companies",
+    "description": "Major corporations with revenue and employee data",
+    "tableData": [
+      {
+        "Company": "Apple Inc",
+        "Revenue (Billions)": "394.3",
+        "Employees": "164000"
+      },
+      {
+        "Company": "Microsoft",
+        "Revenue (Billions)": "198.3",
+        "Employees": "221000"
+      },
+      {
+        "Company": "Amazon",
+        "Revenue (Billions)": "513.9",
+        "Employees": "1540000"
+      }
+    ],
+    "headers": ["Company", "Revenue (Billions)", "Employees"],
+    "selectedCells": [
+      { "rowIndex": 0, "colIndex": 1 },
+      { "rowIndex": 1, "colIndex": 1 },
+      { "rowIndex": 2, "colIndex": 1 }
+    ],
+    "selectedCellsData": [["394.3"], ["198.3"], ["513.9"]],
+    "expectedCitationTypes": [
+      "SEC filings (10-K forms)",
+      "Official company annual reports",
+      "Financial news sources (Bloomberg, Reuters)",
+      "Fortune 500 official listings"
+    ]
   }
 ]
