@@ -13,28 +13,37 @@ Add a "Find citations" button to the lock dropdown in LiveTableToolbar that uses
 
 ## Technical Implementation Plan
 
-### Phase 1: UI Components ✅ COMPLETED
-- [ ] Add "Find citations" menu item to lock dropdown in `LockButton.tsx`
-- [ ] Create new `CitationFinderDialog.tsx` component
-- [ ] Add state management for dialog open/close
-- [ ] Integrate with existing selected cells logic
+### Phase 1: UI Components ✅ COMPLETE
+- [x] Add "Find citations" menu item to lock dropdown in `LockButton.tsx`
+- [x] Create new `CitationFinderDialog.tsx` component
+- [x] Add state management for dialog open/close
+- [x] Integrate with existing selected cells logic
+- [x] Add component tests to verify the dialog opens with the correct context.
 
-### Phase 2: API Integration ✅ COMPLETED
+#### Issues to look out for
+- [x] Fix selection clearing when interacting with the citation dialog. (Handled with data-preserve-selection attribute)
+- [x] Ensure dialog content wraps horizontally and scrolls vertically. (Implemented with ScrollArea component)
+- [x] Add icons to all items in the lock dropdown menu for consistency. (Added Lock, FileText, and Trash2 icons)
+
+### Phase 2: API Integration
 - [ ] Create new server action `findCitations.ts` in `actions/` folder
 - [ ] Implement OpenAI web search API call
 - [ ] Define TypeScript interfaces for citation data
 - [ ] Handle API errors and rate limiting
+- [ ] Add unit tests for the `findCitations` server action, mocking the OpenAI API.
 
-### Phase 3: Citation Review UI ✅ COMPLETED
+### Phase 3: Citation Review UI
 - [ ] Design citation display components
 - [ ] Add citation selection/deselection functionality
 - [ ] Implement preview of selected cells context
 - [ ] Add loading states and error handling
+- [ ] Add component tests for the citation review UI, including selection, loading, and error states.
 
-### Phase 4: Integration with Locking ✅ COMPLETED
+### Phase 4: Integration with Locking
 - [ ] Connect citation selection to existing lock functionality
 - [ ] Format citation as lock note
 - [ ] Test integration with existing lock system
+- [ ] Add integration tests for the end-to-end flow from finding to locking.
 
 ### Phase 5: Testing & Polish 🚧 IN PROGRESS
 - [ ] Add error handling for edge cases
@@ -43,6 +52,7 @@ Add a "Find citations" button to the lock dropdown in LiveTableToolbar that uses
 - [ ] Add appropriate loading indicators
 - [ ] Test and validate the prompt engineering. Citations should be relevant,
   precise, and trustworthy.
+- [ ] Add end-to-end tests for the entire feature.
 
 ## File Structure
 ```

@@ -1,6 +1,11 @@
 import React, { useState } from "react";
 
-import { ChevronDownIcon, Lock } from "lucide-react";
+import {
+  ChevronDownIcon,
+  FileText,
+  Lock,
+  Trash2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,10 +28,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import CitationFinderDialog from "./CitationFinderDialog";
 import LockWithNoteDialog from "./LockWithNoteDialog";
 
 export function LockButton() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCitationDialogOpen, setIsCitationDialogOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const unlockAll = useUnlockAll();
@@ -48,6 +55,13 @@ export function LockButton() {
     setIsDropdownOpen(false);
     requestAnimationFrame(() => {
       setIsDialogOpen(true);
+    });
+  };
+
+  const handleFindCitations = () => {
+    setIsDropdownOpen(false);
+    requestAnimationFrame(() => {
+      setIsCitationDialogOpen(true);
     });
   };
 
@@ -103,12 +117,26 @@ export function LockButton() {
               }}
               disabled={isLockDisabled}
             >
+              <Lock className="h-4 w-4 mr-2" />
               Lock with Note...
             </DropdownMenuItem>
+            {process.env.NODE_ENV === "development" && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleFindCitations();
+                }}
+                disabled={isLockDisabled}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Find Citations...
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={handleClearAllLocks}
               disabled={isClearAllDisabled}
             >
+              <Trash2 className="h-4 w-4 mr-2" />
               Clear All Locks
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -118,6 +146,13 @@ export function LockButton() {
       <LockWithNoteDialog
         isOpen={isDialogOpen}
         onOpenChange={setIsDialogOpen}
+        onLock={handleDialogLock}
+        selectedCells={selectedCells || []}
+      />
+
+      <CitationFinderDialog
+        isOpen={isCitationDialogOpen}
+        onOpenChange={setIsCitationDialogOpen}
         onLock={handleDialogLock}
         selectedCells={selectedCells || []}
       />
