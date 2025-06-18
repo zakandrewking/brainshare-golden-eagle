@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "fs";
+import JSON5 from "json5";
 import { join } from "path";
 import {
   describe,
@@ -21,7 +22,7 @@ interface TestCase {
 function loadTestCasesFromJSON(): TestCase[] {
   const testCasesPath = join(
     process.cwd(),
-    "src/__tests__/components/live-table/actions/find-citations-test-cases.json"
+    "src/__tests__/components/live-table/actions/find-citations-test-cases.json5"
   );
 
   if (!existsSync(testCasesPath)) {
@@ -31,7 +32,7 @@ function loadTestCasesFromJSON(): TestCase[] {
 
   try {
     const fileContent = readFileSync(testCasesPath, "utf-8");
-    const loadedCases = JSON.parse(fileContent);
+    const loadedCases = JSON5.parse(fileContent);
 
     if (!Array.isArray(loadedCases)) {
       console.warn("⚠️  Test cases file should contain an array of test cases");

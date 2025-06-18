@@ -1,5 +1,7 @@
 "use server";
 
+import { z } from "zod";
+
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 
@@ -20,39 +22,28 @@ export interface CellPosition {
   colIndex: number;
 }
 
-// Web search tool output interface
-interface WebSearchOutput {
-  type: string;
-  status: string;
-  content?: unknown;
-}
-
-// OpenAI response interface for web search
-interface OpenAIWebSearchResponse {
-  additional_kwargs?: {
-    tool_outputs?: WebSearchOutput[];
-  };
-  content?: Array<{
-    type: string;
-    annotations?: Array<{
-      type: string;
-      url?: string;
-      title?: string;
-    }>;
-    text?: string;
-  }>;
-}
-
-// Content block with annotations
-interface ContentBlock {
-  type: string;
-  text?: string;
-  annotations?: Array<{
-    type: string;
-    url?: string;
-    title?: string;
-  }>;
-}
+// Zod schema for structured web search output
+const webSearchSchema = z.object({
+  textSummary: z
+    .string()
+    .describe(
+      "A comprehensive summary of the research findings that supports or provides context for the selected data points"
+    ),
+  citationUrls: z
+    .array(
+      z.object({
+        url: z.string().describe("The URL of the citation source"),
+        title: z.string().describe("The title of the source"),
+        snippet: z
+          .string()
+          .describe(
+            "A relevant excerpt from the source that relates to the data"
+          ),
+        domain: z.string().describe("The domain name of the source"),
+      })
+    )
+    .describe("A list of authoritative citation sources with their details"),
+});
 
 // Rate limiting configuration
 const RATE_LIMIT_DELAY = 1000; // 1 second between calls
@@ -70,21 +61,58 @@ const rateLimitDelay = async (): Promise<void> => {
   lastCallTime = Date.now();
 };
 
-// Create ChatOpenAI instance with web search capability
+// Create ChatOpenAI instance for web search
 const createWebSearchModel = () => {
-  const baseModel = new ChatOpenAI({
+  return new ChatOpenAI({
     model: MODEL,
     temperature: 0.1, // Low temperature for more consistent results
     maxTokens: 4000,
   });
-
-  // Bind the web search tool
-  return baseModel.bindTools([
-    {
-      type: "web_search_preview",
-    },
-  ]);
 };
+
+// Parse structured output from the model response
+function parseStructuredOutput(responseText: string | undefined): {
+  textSummary: string;
+  citationUrls: Array<{
+    url: string;
+    title: string;
+    snippet: string;
+    domain: string;
+  }>;
+} {
+  try {
+    // Handle undefined or null input
+    if (!responseText || typeof responseText !== "string") {
+      console.warn("Invalid response text:", responseText);
+      return {
+        textSummary:
+          "Unable to parse structured response. Invalid response format.",
+        citationUrls: [],
+      };
+    }
+
+    // Try to extract JSON from the response
+    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[1]);
+      return webSearchSchema.parse(parsed);
+    }
+
+    // Fallback: Try to parse the entire response as JSON
+    const parsed = JSON.parse(responseText);
+    return webSearchSchema.parse(parsed);
+  } catch (error) {
+    console.error("Error parsing structured output:", error);
+
+    // Ultimate fallback: Create a basic structure
+    return {
+      textSummary:
+        "Unable to parse structured response. Raw response: " +
+        (responseText || "undefined"),
+      citationUrls: [],
+    };
+  }
+}
 
 export default async function findCitations(
   selectedCells: CellPosition[],
@@ -126,11 +154,10 @@ export default async function findCitations(
     documentTitle
   );
 
-  // Create system prompt for citation finding
-  const systemPrompt = `You are an expert research assistant specializing in finding high-quality, authoritative
-citations for data verification and fact-checking.
+  // Create system prompt for citation finding with structured output
+  const systemPrompt = `You are an expert research assistant with web search capabilities specializing in finding high-quality, authoritative citations for data verification and fact-checking.
 
-Your task is to find credible sources that support, verify, or provide context for the selected data from a table.
+Your task is to search the web and find credible sources that support, verify, or provide context for the selected data from a table.
 
 SEARCH CRITERIA:
 1. Prioritize academic papers, government sources, reputable news outlets, and official organizations
@@ -145,13 +172,25 @@ CITATION QUALITY REQUIREMENTS:
 - Ensure citations are factual and support the data claims
 
 COMPLETENESS REQUIREMENTS:
-- Every data points must be fully supported by a citation by exact match or by logical inference.
+- Every data point must be fully supported by a citation by exact match or by logical inference.
 - If logical inference is used, explain the reasoning in the citation.
-- If a data point is not fully supported, return that information at the end of the response.
+- If a data point is not fully supported, mention that in the text summary.
 
 Document Context: "${documentTitle}" - ${documentDescription}
 
-Return citations that would help verify, support, or provide authoritative context for the selected data points.`;
+You must return your response in the following JSON format wrapped in \`\`\`json and \`\`\` tags:
+
+{
+  "textSummary": "A comprehensive summary of your research findings that supports or provides context for the selected data points",
+  "citationUrls": [
+    {
+      "url": "https://example.com/source1",
+      "title": "Title of the source",
+      "snippet": "Relevant excerpt from the source that relates to the data",
+      "domain": "example.com"
+    }
+  ]
+}`;
 
   const userPrompt = `Find authoritative citations for the following selected data from a table:
 
@@ -169,22 +208,24 @@ ${cellsData
 
 SEARCH CONTEXT: ${searchContext}
 
-Please search for high-quality, authoritative sources that can verify, support, or provide context for this data. Focus on:
+Please search the web for high-quality, authoritative sources that can verify, support, or provide context for this data. Focus on:
 1. Academic or research sources for scientific claims
 2. Government or official statistics for numerical data
 3. Reputable news sources for current events or facts
 4. Professional or industry sources for specialized information
 
-For each citation found, provide:
-- A clear, relevant title
-- The source URL
-- A specific snippet that relates to the selected data
-- The domain name for quick credibility assessment
+Provide a comprehensive text summary of your research findings and include specific citation details with:
+- Clear, relevant titles
+- Source URLs
+- Specific snippets that relate to the selected data
+- Domain names for credibility assessment
+
+Return your response in the exact JSON format specified above, wrapped in \`\`\`json and \`\`\` tags.
 
 Prioritize quality over quantity - better to have fewer high-quality citations than many low-quality ones.`;
 
   try {
-    // Create model with web search capability
+    // Create model
     const model = createWebSearchModel();
 
     console.log("--------------------------------");
@@ -193,40 +234,43 @@ Prioritize quality over quantity - better to have fewer high-quality citations t
     console.log("userPrompt:", userPrompt);
     console.log("--------------------------------");
 
-    // Make the API call with web search
-    const response = (await model.invoke([
+    // Make the API call
+    const response = await model.invoke([
       new SystemMessage(systemPrompt),
       new HumanMessage(userPrompt),
-    ])) as OpenAIWebSearchResponse;
+    ]);
 
     console.log("--------------------------------");
-    console.log("response.content.text", response.content?.[0]?.text);
-    console.log("--------------------------------");
-    console.log("response", response);
+    console.log("response.content:", response.content);
     console.log("--------------------------------");
 
-    // Extract web search results from the response
-    const webSearchResults = extractWebSearchResults(response);
-
-    if (!webSearchResults || webSearchResults.length === 0) {
-      return {
-        error: "No web search results found. Please try a different search.",
-      };
-    }
-
-    // Process the web search results into citations
-    const citations = await processWebSearchResults(
-      webSearchResults,
-      searchContext
+    // Parse the structured response
+    const structuredOutput = parseStructuredOutput(
+      response.content as string | undefined
     );
 
+    console.log("--------------------------------");
+    console.log("structuredOutput.textSummary:", structuredOutput.textSummary);
+    console.log("--------------------------------");
+    console.log(
+      "structuredOutput.citationUrls:",
+      structuredOutput.citationUrls
+    );
+    console.log("--------------------------------");
+
+    // Process the structured response into Citation objects
+    const citations = processCitationUrls(structuredOutput.citationUrls);
+
     if (!citations || citations.length === 0) {
-      return { error: "No relevant citations found for the selected data." };
+      return {
+        error: "No relevant citations found for the selected data.",
+        searchContext: structuredOutput.textSummary,
+      };
     }
 
     return {
       citations: citations.slice(0, 10), // Limit to top 10 citations
-      searchContext: searchContext,
+      searchContext: structuredOutput.textSummary,
     };
   } catch (error) {
     console.error("Error calling OpenAI web search API:", error);
@@ -291,112 +335,48 @@ function buildSearchContext(
   return context;
 }
 
-// Helper function to extract web search results from OpenAI response
-function extractWebSearchResults(
-  response: OpenAIWebSearchResponse
-): WebSearchOutput[] {
-  try {
-    // Check if the response has web search tool outputs
-    if (response.additional_kwargs?.tool_outputs) {
-      const toolOutputs = response.additional_kwargs.tool_outputs;
-      const webSearchOutputs = toolOutputs.filter(
-        (output: WebSearchOutput) =>
-          output.type === "web_search_call" && output.status === "completed"
-      );
-      return webSearchOutputs;
-    }
-
-    // Fallback: extract from response content if structured differently
-    if (response.content && Array.isArray(response.content)) {
-      const searchContent = response.content.filter(
-        (block) => block.type === "text" && block.annotations
-      );
-      return searchContent.map((block) => ({
-        type: "web_search_call",
-        status: "completed",
-        content: block,
-      }));
-    }
-
-    return [];
-  } catch (error) {
-    console.error("Error extracting web search results:", error);
-    return [];
-  }
-}
-
-// Helper function to process web search results into Citation objects
-async function processWebSearchResults(
-  webSearchResults: WebSearchOutput[],
-  _searchContext: string
-): Promise<Citation[]> {
-  const citations: Citation[] = [];
-
-  try {
-    // Process each web search result
-    for (const result of webSearchResults) {
-      if (result.content) {
-        // Extract citations from content with annotations
-        const extractedCitations = extractCitationsFromContent(
-          result.content as ContentBlock[]
-        );
-        citations.push(...extractedCitations);
-      }
-    }
-
-    // Remove duplicates based on URL
-    const uniqueCitations = citations.filter(
-      (citation, index, self) =>
-        index === self.findIndex((c) => c.url === citation.url)
-    );
-
-    // Sort by relevance if scores are available
-    uniqueCitations.sort(
-      (a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0)
-    );
-
-    return uniqueCitations;
-  } catch (error) {
-    console.error("Error processing web search results:", error);
-    return [];
-  }
-}
-
-// Helper function to extract citations from OpenAI web search content
-function extractCitationsFromContent(
-  content: ContentBlock[] | ContentBlock
+// Helper function to process citation URLs into Citation objects
+function processCitationUrls(
+  citationUrls: {
+    url: string;
+    title: string;
+    snippet: string;
+    domain: string;
+  }[]
 ): Citation[] {
   const citations: Citation[] = [];
+  const seenUrls = new Set<string>();
 
-  try {
-    const contentArray = Array.isArray(content) ? content : [content];
+  citationUrls.forEach((citationUrl) => {
+    // Validate URL format (must start with http:// or https://)
+    if (
+      !citationUrl.url.startsWith("http://") &&
+      !citationUrl.url.startsWith("https://")
+    ) {
+      console.warn("Invalid URL format, skipping:", citationUrl.url);
+      return;
+    }
 
-    contentArray.forEach((block, index) => {
-      if (block.type === "text" && block.annotations) {
-        block.annotations.forEach((annotation, annotationIndex) => {
-          if (annotation.type === "url_citation" && annotation.url) {
-            try {
-              const domain = new URL(annotation.url).hostname;
+    // Skip duplicates by URL
+    if (seenUrls.has(citationUrl.url)) {
+      console.warn("Duplicate URL found, skipping:", citationUrl.url);
+      return;
+    }
 
-              citations.push({
-                id: `citation-${index}-${annotationIndex}`,
-                title: annotation.title || domain,
-                url: annotation.url,
-                snippet: block.text || "",
-                domain: domain,
-                relevanceScore: 0.8, // Default relevance score
-              });
-            } catch {
-              console.warn(`Invalid URL in citation: ${annotation.url}`);
-            }
-          }
-        });
-      }
+    seenUrls.add(citationUrl.url);
+
+    citations.push({
+      id: `citation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: citationUrl.title,
+      url: citationUrl.url,
+      snippet: citationUrl.snippet,
+      domain: citationUrl.domain,
+      relevanceScore: 0.8, // Default relevance score
     });
+  });
 
-    return citations;
-  } catch (error) {
-    console.error("Error extracting citations from content:", error);
-    return [];
-  }
+  // Sort by relevance score (higher first)
+  return citations.sort(
+    (a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0)
+  );
 }
