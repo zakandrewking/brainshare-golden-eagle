@@ -158,8 +158,14 @@ export class LiveTableDoc {
       this.updateHeadersState();
       this.updateColWidthsState();
     };
-    this.updateV2ColumnOrderObserver = this.updateHeadersState.bind(this);
-    this.updateV2RowOrderObserver = this.updateTableState.bind(this);
+    this.updateV2ColumnOrderObserver = () => {
+      this.updateHeadersState();
+      this.updateLockedCellsState();
+    };
+    this.updateV2RowOrderObserver = () => {
+      this.updateTableState();
+      this.updateLockedCellsState();
+    };
 
     this.updateV2ColumnDefinitionsObserver = () => {
       this.updateHeadersState();
