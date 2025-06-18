@@ -429,11 +429,7 @@ const TableCell: React.FC<TableCellProps> = ({
       onBlur={() => {
         setEditingCell(null);
       }}
-      className={`w-full h-full p-2 border-none focus:outline-none text-base resize-none ${
-        isCellLocked
-          ? "bg-gray-300 dark:bg-gray-700"
-          : "focus:ring-2 focus:ring-yellow-400"
-      } bg-transparent`}
+      className={`w-full h-full p-2 border-none focus:outline-none text-base resize-none`}
       style={{
         minHeight: "2.5rem",
         wordBreak: "break-word",
@@ -444,11 +440,7 @@ const TableCell: React.FC<TableCellProps> = ({
     />
   ) : (
     <div
-      className={`w-full h-full p-2 text-base break-words whitespace-pre-wrap cursor-text ${
-        isCellLocked
-          ? "bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-          : "bg-transparent"
-      }`}
+      className={`w-full h-full p-2 text-base break-words whitespace-pre-wrap cursor-text`}
       style={{
         minHeight: "2.5rem",
         wordBreak: "break-word",
@@ -487,14 +479,16 @@ const TableCell: React.FC<TableCellProps> = ({
       data-testid="table-cell"
       style={{
         boxShadow: `inset 0 0 0 ${borderWidth} ${borderColor}`,
-        backgroundColor: isCellLocked
-          ? "rgba(128, 128, 128, 0.2)"
-          : isEditing
+        backgroundColor: isEditing
           ? "rgba(255, 255, 200, 0.2)"
           : isInSelection
-          ? "rgba(59, 130, 246, 0.1)"
+          ? isCellLocked
+            ? "rgba(59, 130, 246, 0.3)"
+            : "rgba(59, 130, 246, 0.1)"
+          : isCellLocked
+          ? "rgba(128, 128, 128, 0.2)"
           : hasOtherUserCursors
-          ? `${firstUserColor}20` // 20 for low opacity
+          ? `${firstUserColor}05` // 20 for low opacity
           : undefined,
         minHeight: isImage ? "120px" : "auto",
       }}
