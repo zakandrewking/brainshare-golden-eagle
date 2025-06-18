@@ -26,6 +26,9 @@ alwaysApply: true
 
 - ALWAYS use frontend components from /components/ui when possible
 
+- if a shadcn ui component is not available in /components/ui, install it with
+  `npx shadcn@latest add component-name`
+
 - When testing async React components, use this pattern:
   render(await MyPage({params: Promise.resolve({ docId: mockDocId })}));
 
