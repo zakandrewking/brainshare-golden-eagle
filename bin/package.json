@@ -4,6 +4,9 @@
   "private": true,
   "description": "Top-level scripts",
   "type": "module",
+  "importSorter": {
+    "quoteMark": "double"
+  },
   "devDependencies": {
     "@liveblocks/node": "^2.24.3",
     "@types/node": "^22.15.24",

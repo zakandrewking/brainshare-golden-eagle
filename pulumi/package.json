@@ -1,13 +1,17 @@
 {
-    "name": "brainshare",
-    "main": "index.ts",
-    "devDependencies": {
-        "@types/node": "^18.19.87"
-    },
-    "dependencies": {
-        "@pulumi/aws": "^6.78.0",
-        "@pulumi/awsx": "^2.21.1",
-        "@pulumi/pulumi": "^3.165.0",
-        "typescript": "^5.8.3"
-    }
+  "name": "brainshare",
+  "main": "index.ts",
+  "importSorter": {
+    "quoteMark": "double"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.87"
+  },
+  "dependencies": {
+    "@pulumi/aws": "^6.78.0",
+    "@pulumi/awsx": "^2.21.1",
+    "@pulumi/pulumi": "^3.165.0",
+    "pulumi": "^0.0.1",
+    "typescript": "^5.8.3"
+  }
 }

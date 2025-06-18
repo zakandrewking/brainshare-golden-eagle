@@ -3,6 +3,9 @@ import * as pulumi from "@pulumi/pulumi";
 
 const ySweet = new aws.s3.Bucket("brainshare-y-sweet", {
   bucket: "brainshare-y-sweet-d7bac3e",
+  versioning: {
+    enabled: true,
+  },
 });
 
 const user = new aws.iam.User("ySweetUser", {
