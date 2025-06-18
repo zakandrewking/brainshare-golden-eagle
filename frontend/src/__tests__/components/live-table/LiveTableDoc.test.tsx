@@ -181,6 +181,65 @@ describe("LiveTableDoc - V2 Operations on Clean V2 State", () => {
       expect(liveTableDoc.yRowData.has(rowId1)).toBe(false);
       expect(liveTableDoc.yRowOrder.get(0)).toBe(rowId2);
     });
+
+    it("should update locked cells state after deleting rows", () => {
+      // First add a second row so we have rows 0 and 1
+      const rowId2 = crypto.randomUUID() as RowId;
+      const r2Map = new Y.Map<CellValue>();
+      r2Map.set(colId1, "r2a");
+      r2Map.set(colId2, "r2b");
+      yDoc.transact(() => {
+        liveTableDoc.yRowData.set(rowId2, r2Map);
+        liveTableDoc.yRowOrder.push([rowId2]);
+      });
+
+      // Lock a cell in row 1 (second row)
+      const lockId = liveTableDoc.lockCellRange(1, 1, 0, 0, "test lock");
+      expect(lockId).toBeTruthy();
+
+      // Setup callback to capture locked cells state
+      let capturedLockedCells: Map<string, string | undefined> = new Map();
+      liveTableDoc.lockedCellsUpdateCallback = (lockedCells) => {
+        capturedLockedCells = lockedCells;
+      };
+
+      // Initial state should have locked cell at position 1-0
+      liveTableDoc.updateLockedCellsState();
+      expect(capturedLockedCells.has("1-0")).toBe(true);
+      expect(capturedLockedCells.get("1-0")).toBe("test lock");
+
+      // Delete row 0 (first row), which should shift row 1 to position 0
+      const deletedCount = liveTableDoc.deleteRows([0]);
+      expect(deletedCount).toBe(1);
+
+      // After deletion, the locked cell should now be at position 0-0
+      expect(capturedLockedCells.has("0-0")).toBe(true);
+      expect(capturedLockedCells.get("0-0")).toBe("test lock");
+      expect(capturedLockedCells.has("1-0")).toBe(false);
+    });
+
+    it("should remove locked cells when their row is deleted", () => {
+      // Lock a cell in row 0 (first row)
+      const lockId = liveTableDoc.lockCellRange(0, 0, 0, 0, "test lock");
+      expect(lockId).toBeTruthy();
+
+      // Setup callback to capture locked cells state
+      let capturedLockedCells: Map<string, string | undefined> = new Map();
+      liveTableDoc.lockedCellsUpdateCallback = (lockedCells) => {
+        capturedLockedCells = lockedCells;
+      };
+
+      // Initial state should have locked cell at position 0-0
+      liveTableDoc.updateLockedCellsState();
+      expect(capturedLockedCells.has("0-0")).toBe(true);
+
+      // Delete row 0 (the locked row)
+      const deletedCount = liveTableDoc.deleteRows([0]);
+      expect(deletedCount).toBe(1);
+
+      // After deletion, the locked cell should be removed
+      expect(capturedLockedCells.has("0-0")).toBe(false);
+    });
   });
 
   describe("editHeader (V2)", () => {
@@ -229,6 +288,55 @@ describe("LiveTableDoc - V2 Operations on Clean V2 State", () => {
       const existingRowData = liveTableDoc.yRowData.get(rowId1);
       expect(existingRowData?.has(colIdToDelete)).toBe(false);
       expect(liveTableDoc.yColumnOrder.get(0)).toBe(colId2);
+    });
+
+    it("should update locked cells state after deleting columns", () => {
+      // Lock a cell in column 1 (second column)
+      const lockId = liveTableDoc.lockCellRange(0, 0, 1, 1, "test lock");
+      expect(lockId).toBeTruthy();
+
+      // Setup callback to capture locked cells state
+      let capturedLockedCells: Map<string, string | undefined> = new Map();
+      liveTableDoc.lockedCellsUpdateCallback = (lockedCells) => {
+        capturedLockedCells = lockedCells;
+      };
+
+      // Initial state should have locked cell at position 0-1
+      liveTableDoc.updateLockedCellsState();
+      expect(capturedLockedCells.has("0-1")).toBe(true);
+      expect(capturedLockedCells.get("0-1")).toBe("test lock");
+
+      // Delete column 0 (first column), which should shift column 1 to position 0
+      const deletedCount = liveTableDoc.deleteColumns([0]);
+      expect(deletedCount).toBe(1);
+
+      // After deletion, the locked cell should now be at position 0-0
+      expect(capturedLockedCells.has("0-0")).toBe(true);
+      expect(capturedLockedCells.get("0-0")).toBe("test lock");
+      expect(capturedLockedCells.has("0-1")).toBe(false);
+    });
+
+    it("should remove locked cells when their column is deleted", () => {
+      // Lock a cell in column 0 (first column)
+      const lockId = liveTableDoc.lockCellRange(0, 0, 0, 0, "test lock");
+      expect(lockId).toBeTruthy();
+
+      // Setup callback to capture locked cells state
+      let capturedLockedCells: Map<string, string | undefined> = new Map();
+      liveTableDoc.lockedCellsUpdateCallback = (lockedCells) => {
+        capturedLockedCells = lockedCells;
+      };
+
+      // Initial state should have locked cell at position 0-0
+      liveTableDoc.updateLockedCellsState();
+      expect(capturedLockedCells.has("0-0")).toBe(true);
+
+      // Delete column 0 (the locked column)
+      const deletedCount = liveTableDoc.deleteColumns([0]);
+      expect(deletedCount).toBe(1);
+
+      // After deletion, the locked cell should be removed
+      expect(capturedLockedCells.has("0-0")).toBe(false);
     });
   });
 

@@ -428,6 +428,9 @@ export class LiveTableDoc {
       this.yRowOrder.insert(initialInsertIndex, newRowIds);
     });
 
+    // Update locked cells state after insertion to recalculate display indices
+    this.updateLockedCellsState();
+
     return rowsData.length;
   }
 
@@ -465,6 +468,9 @@ export class LiveTableDoc {
       insertedCount = count;
     });
 
+    // Update locked cells state after insertion to recalculate display indices
+    this.updateLockedCellsState();
+
     return insertedCount;
   }
 
@@ -492,6 +498,10 @@ export class LiveTableDoc {
         }
       });
     });
+
+    // Update locked cells state after deletion to recalculate display indices
+    this.updateLockedCellsState();
+
     return deletedCount;
   }
 
@@ -557,6 +567,10 @@ export class LiveTableDoc {
           this.yRowOrder.push([rowId]);
         }
       });
+
+      // Update locked cells state after insertion to recalculate display indices
+      this.updateLockedCellsState();
+
       return columnsToInsert.length;
     } catch (error) {
       throw error instanceof Error ? error : new Error(String(error));
@@ -574,12 +588,15 @@ export class LiveTableDoc {
       return 0;
     }
     let deletedCount = 0;
+    const deletedColumnIds: ColumnId[] = [];
+
     this.yDoc.transact(() => {
       // Sort descending to handle index shifts correctly if not already sorted by caller
       const sortedIndices = [...colIndices].sort((a, b) => b - a);
       sortedIndices.forEach((colIndex) => {
         if (colIndex < this.yColumnOrder.length) {
           const columnId = this.yColumnOrder.get(colIndex);
+          deletedColumnIds.push(columnId);
           this.yColumnOrder.delete(colIndex, 1);
           this.yColumnDefinitions.delete(columnId);
 
@@ -589,7 +606,36 @@ export class LiveTableDoc {
           deletedCount++;
         }
       });
+
+      // Clean up locked cells that reference deleted columns
+      const locksToRemove: string[] = [];
+      this.yActiveLocks.forEach((lockRange, lockId) => {
+        const remainingCells = lockRange.cells.filter(
+          (cell) => !deletedColumnIds.includes(cell.columnId)
+        );
+
+        if (remainingCells.length === 0) {
+          // Remove lock entirely if all cells are in deleted columns
+          locksToRemove.push(lockId);
+        } else if (remainingCells.length !== lockRange.cells.length) {
+          // Update lock with remaining cells if some were removed
+          this.yActiveLocks.set(lockId, {
+            ...lockRange,
+            cells: remainingCells,
+          });
+        }
+      });
+
+      // Remove locks that have no remaining cells
+      locksToRemove.forEach((lockId) => {
+        this.yActiveLocks.delete(lockId);
+      });
     });
+
+    // Update locked cells state after deletion to recalculate display indices
+    // This needs to be called outside the transaction to ensure the callback is triggered
+    this.updateLockedCellsState();
+
     return deletedCount;
   }
 
@@ -743,6 +789,9 @@ export class LiveTableDoc {
 
       this.yColumnOrder.insert(insertIndex, [columnId]);
     });
+
+    // Update locked cells state after reordering to recalculate display indices
+    this.updateLockedCellsState();
   }
 
   /**

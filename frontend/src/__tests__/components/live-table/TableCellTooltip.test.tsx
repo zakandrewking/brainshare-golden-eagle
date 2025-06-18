@@ -240,4 +240,124 @@ describe("TableCell Tooltip", () => {
       { timeout: 2000 }
     );
   });
+
+  it("should update locked state when underlying data changes", () => {
+    // Initially not locked
+    mockUseIsCellLocked.mockReturnValue(false);
+    mockUseLockNoteForCell.mockReturnValue(undefined);
+
+    const { rerender } = render(
+      <table>
+        <tbody>
+          <tr>
+            <TableCell
+              rowIndex={0}
+              colIndex={0}
+              header="test"
+              value="test value"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    let cell = screen.getByTestId("table-cell");
+    expect(cell).toHaveAttribute("data-locked", "false");
+
+    // Update to locked state
+    mockUseIsCellLocked.mockReturnValue(true);
+    mockUseLockNoteForCell.mockReturnValue("Cell is now locked");
+
+    rerender(
+      <table>
+        <tbody>
+          <tr>
+            <TableCell
+              rowIndex={0}
+              colIndex={0}
+              header="test"
+              value="test value"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    cell = screen.getByTestId("table-cell");
+    expect(cell).toHaveAttribute("data-locked", "true");
+  });
+
+  it("should properly handle position changes after column/row operations", () => {
+    // Test scenario: Cell was locked at position (1, 1), but after column deletion,
+    // it should now be at position (1, 0) and still be locked
+    mockUseIsCellLocked.mockReturnValue(true);
+    mockUseLockNoteForCell.mockReturnValue("Moved cell lock");
+
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <td>Cell 0,0</td>
+            <TableCell
+              rowIndex={1}
+              colIndex={0}
+              header="test"
+              value="test value"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    const cell = screen.getByTestId("table-cell");
+    expect(cell).toHaveAttribute("data-locked", "true");
+    expect(cell).toHaveAttribute("data-row-index", "1");
+    expect(cell).toHaveAttribute("data-col-index", "0");
+  });
+
+  it("should unlock cell when it's no longer in locked state", () => {
+    // Initially locked
+    mockUseIsCellLocked.mockReturnValue(true);
+    mockUseLockNoteForCell.mockReturnValue("Locked cell");
+
+    const { rerender } = render(
+      <table>
+        <tbody>
+          <tr>
+            <TableCell
+              rowIndex={0}
+              colIndex={0}
+              header="test"
+              value="test value"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    let cell = screen.getByTestId("table-cell");
+    expect(cell).toHaveAttribute("data-locked", "true");
+
+    // Update to unlocked state (simulating when locked cell's row/column was deleted)
+    mockUseIsCellLocked.mockReturnValue(false);
+    mockUseLockNoteForCell.mockReturnValue(undefined);
+
+    rerender(
+      <table>
+        <tbody>
+          <tr>
+            <TableCell
+              rowIndex={0}
+              colIndex={0}
+              header="test"
+              value="test value"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    cell = screen.getByTestId("table-cell");
+    expect(cell).toHaveAttribute("data-locked", "false");
+  });
 });

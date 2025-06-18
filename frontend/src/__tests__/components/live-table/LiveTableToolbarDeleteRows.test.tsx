@@ -324,20 +324,16 @@ describe("LiveTableToolbar - Delete Rows", () => {
     expect(mockDeleteRows).not.toHaveBeenCalled();
   });
 
-  it("should not delete row if any cell in the row is locked, even if not selected", () => {
+  it("should not delete any row if any cell in the row is locked, even if not selected", () => {
     const selectedCellForTest = { rowIndex: 0, colIndex: 0 }; // Selecting unlocked cell
     const lockedCellPosition = { rowIndex: 0, colIndex: 1 }; // Another cell in same row is locked
 
+    const mockIsCellLocked = (r: number, c: number) =>
+      r === lockedCellPosition.rowIndex && c === lockedCellPosition.colIndex;
+
     vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
     vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
-    vi.mocked(useIsCellLockedFn).mockReturnValue(
-      (rowIndex: number, colIndex: number) => {
-        return (
-          rowIndex === lockedCellPosition.rowIndex &&
-          colIndex === lockedCellPosition.colIndex
-        );
-      }
-    );
+    vi.mocked(useIsCellLockedFn).mockReturnValue(mockIsCellLocked);
 
     render(
       <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
@@ -353,5 +349,151 @@ describe("LiveTableToolbar - Delete Rows", () => {
 
     fireEvent.mouseDown(deleteButton!);
     expect(mockDeleteRows).not.toHaveBeenCalled();
+  });
+
+  it("should update locked cell positions after deleting rows", () => {
+    // Lock a cell in row 2 (index 2)
+    const lockId = liveTableDocInstance.lockCellRange(2, 2, 0, 0, "test lock");
+    expect(lockId).toBeTruthy();
+
+    // Verify initial lock state
+    liveTableDocInstance.updateLockedCellsState();
+    let lockedCellsMap = new Map<string, string | undefined>();
+    const mockCallback = vi.fn((map) => {
+      lockedCellsMap = map;
+    });
+    liveTableDocInstance.lockedCellsUpdateCallback = mockCallback;
+    liveTableDocInstance.updateLockedCellsState();
+
+    expect(lockedCellsMap.has("2-0")).toBe(true);
+    expect(lockedCellsMap.get("2-0")).toBe("test lock");
+
+    // Delete row 1 (which should shift row 2 to index 1)
+    const rowIndexToDelete = 1;
+    const selectedCellForTest = { rowIndex: rowIndexToDelete, colIndex: 0 };
+    vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
+    vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
+    vi.mocked(useIsCellLockedFn).mockReturnValue(() => false);
+
+    // Mock the actual deletion
+    mockDeleteRows.mockImplementation(async (rowIndices) => {
+      const deletedCount = liveTableDocInstance.deleteRows(rowIndices);
+      return { deletedCount };
+    });
+
+    render(
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
+    );
+
+    const deleteButton = findDeleteRowButton();
+    fireEvent.mouseDown(deleteButton!);
+
+    // Verify that the locked cell has been moved to the correct new position
+    // Original row 2 should now be at row 1 after deleting row 1
+    expect(lockedCellsMap.has("1-0")).toBe(true);
+    expect(lockedCellsMap.get("1-0")).toBe("test lock");
+    expect(lockedCellsMap.has("2-0")).toBe(false);
+  });
+
+  it("should remove locked cells when their row is deleted", () => {
+    // Lock a cell in row 1 (index 1)
+    const lockId = liveTableDocInstance.lockCellRange(1, 1, 0, 0, "test lock");
+    expect(lockId).toBeTruthy();
+
+    // Verify initial lock state
+    let lockedCellsMap = new Map<string, string | undefined>();
+    const mockCallback = vi.fn((map) => {
+      lockedCellsMap = map;
+    });
+    liveTableDocInstance.lockedCellsUpdateCallback = mockCallback;
+    liveTableDocInstance.updateLockedCellsState();
+
+    expect(lockedCellsMap.has("1-0")).toBe(true);
+
+    // Delete row 1 (the locked row)
+    const rowIndexToDelete = 1;
+    const selectedCellForTest = { rowIndex: rowIndexToDelete, colIndex: 0 };
+    vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
+    vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
+    vi.mocked(useIsCellLockedFn).mockReturnValue(() => false);
+
+    // Mock the actual deletion
+    mockDeleteRows.mockImplementation(async (rowIndices) => {
+      const deletedCount = liveTableDocInstance.deleteRows(rowIndices);
+      return { deletedCount };
+    });
+
+    render(
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
+    );
+
+    const deleteButton = findDeleteRowButton();
+    fireEvent.mouseDown(deleteButton!);
+
+    // Verify that the locked cell has been removed since its row was deleted
+    expect(lockedCellsMap.has("1-0")).toBe(false);
+  });
+
+  it("should handle multiple locked cells correctly when deleting rows", () => {
+    // Lock cells in multiple rows
+    const lockId1 = liveTableDocInstance.lockCellRange(0, 0, 0, 0, "lock 1");
+    const lockId2 = liveTableDocInstance.lockCellRange(2, 2, 1, 1, "lock 2");
+    const lockId3 = liveTableDocInstance.lockCellRange(3, 3, 0, 0, "lock 3");
+    expect(lockId1).toBeTruthy();
+    expect(lockId2).toBeTruthy();
+    expect(lockId3).toBeTruthy();
+
+    // Verify initial lock state
+    let lockedCellsMap = new Map<string, string | undefined>();
+    const mockCallback = vi.fn((map) => {
+      lockedCellsMap = map;
+    });
+    liveTableDocInstance.lockedCellsUpdateCallback = mockCallback;
+    liveTableDocInstance.updateLockedCellsState();
+
+    expect(lockedCellsMap.has("0-0")).toBe(true); // lock 1
+    expect(lockedCellsMap.has("2-1")).toBe(true); // lock 2
+    expect(lockedCellsMap.has("3-0")).toBe(true); // lock 3
+
+    // Delete row 1 (should shift rows 2,3 to positions 1,2)
+    const rowIndexToDelete = 1;
+    const selectedCellForTest = { rowIndex: rowIndexToDelete, colIndex: 0 };
+    vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
+    vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
+    vi.mocked(useIsCellLockedFn).mockReturnValue(() => false);
+
+    // Mock the actual deletion
+    mockDeleteRows.mockImplementation(async (rowIndices) => {
+      const deletedCount = liveTableDocInstance.deleteRows(rowIndices);
+      return { deletedCount };
+    });
+
+    render(
+      <TestDataStoreWrapper>
+        <TooltipProvider>
+          <LiveTableToolbar />
+        </TooltipProvider>
+      </TestDataStoreWrapper>
+    );
+
+    const deleteButton = findDeleteRowButton();
+    fireEvent.mouseDown(deleteButton!);
+
+    // Verify that locked cells have been updated to correct positions
+    expect(lockedCellsMap.has("0-0")).toBe(true); // lock 1 unchanged
+    expect(lockedCellsMap.has("1-1")).toBe(true); // lock 2 shifted from row 2 to 1
+    expect(lockedCellsMap.has("2-0")).toBe(true); // lock 3 shifted from row 3 to 2
+
+    // Old positions should no longer exist
+    expect(lockedCellsMap.has("2-1")).toBe(false);
+    expect(lockedCellsMap.has("3-0")).toBe(false);
   });
 });

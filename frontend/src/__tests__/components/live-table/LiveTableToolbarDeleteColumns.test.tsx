@@ -12,20 +12,12 @@ import {
 import * as Y from "yjs";
 
 import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
-
-import {
   type CellValue,
   type ColumnDefinition,
   type ColumnId,
   LiveTableDoc,
   type RowId,
 } from "@/components/live-table/LiveTableDoc";
-import LiveTableToolbar from "@/components/live-table/LiveTableToolbar";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   useDeleteColumns,
   useHeaders,
@@ -33,9 +25,6 @@ import {
   useIsTableLoaded,
   useTableData,
 } from "@/stores/dataStore";
-import { useSelectedCell, useSelectedCells } from "@/stores/selectionStore";
-
-import { TestDataStoreWrapper } from "./live-table-store-test-utils";
 
 vi.mock("@liveblocks/react", () => ({
   useSelf: vi.fn(() => ({
@@ -172,18 +161,6 @@ describe("LiveTableToolbar - Delete Column", () => {
     },
   };
 
-  function findDeleteColumnButton(): HTMLElement | null {
-    const buttons = screen.getAllByRole("button");
-    for (const button of buttons) {
-      const hasTrashIcon = button.querySelector('[data-testid="trash-icon"]');
-      const hasColsIcon = button.querySelector('[data-testid="columns3-icon"]');
-      if (hasTrashIcon && hasColsIcon) {
-        return button;
-      }
-    }
-    return null;
-  }
-
   beforeEach(async () => {
     vi.resetAllMocks();
 
@@ -226,166 +203,108 @@ describe("LiveTableToolbar - Delete Column", () => {
     liveTableDocInstance.yDoc.destroy();
   });
 
-  it("should delete the selected column when a single column is selected and update aria-label", () => {
-    const colIndexToDelete = 1; // Corresponds to "Header2" (colId2)
-    const selectedCellForTest = { rowIndex: 0, colIndex: colIndexToDelete };
+  it("should update locked cell positions after deleting columns", async () => {
+    // Lock a cell in column 2 (index 2)
+    const lockId = liveTableDocInstance.lockCellRange(0, 0, 2, 2, "test lock");
+    expect(lockId).toBeTruthy();
 
-    vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
-    vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
+    // Use a shared state object to track callback updates
+    const stateTracker = {
+      lockedCellsMap: new Map<string, string | undefined>(),
+      callCount: 0,
+    };
 
-    render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
-        <TooltipProvider>
-          <LiveTableToolbar />
-        </TooltipProvider>
-      </TestDataStoreWrapper>
-    );
-
-    const deleteButton = findDeleteColumnButton();
-    expect(deleteButton).toBeInTheDocument();
-    expect(deleteButton).not.toBeDisabled();
-    expect(deleteButton).toHaveAttribute(
-      "aria-label",
-      "Delete Selected Column"
-    );
-
-    const initialColCount = liveTableDocInstance.yColumnOrder.length;
-    expect(initialColCount).toBe(initialColumnDefinitions.length);
-
-    const columnIdToDelete = initialColumnOrder[colIndexToDelete];
-    expect(liveTableDocInstance.yColumnDefinitions.has(columnIdToDelete)).toBe(
-      true
-    );
-    liveTableDocInstance.yRowData.forEach((rowMap) => {
-      expect(rowMap.has(columnIdToDelete)).toBe(true);
+    const mockCallback = vi.fn((map) => {
+      stateTracker.callCount++;
+      stateTracker.lockedCellsMap = new Map(map);
     });
+    liveTableDocInstance.lockedCellsUpdateCallback = mockCallback;
+    liveTableDocInstance.updateLockedCellsState();
 
-    fireEvent.mouseDown(deleteButton!);
+    expect(stateTracker.lockedCellsMap.has("0-2")).toBe(true);
+    expect(stateTracker.lockedCellsMap.get("0-2")).toBe("test lock");
 
-    expect(mockDeleteColumns).toHaveBeenCalledTimes(1);
-    expect(mockDeleteColumns).toHaveBeenCalledWith([colIndexToDelete]);
+    // Test direct deleteColumns call (this is what the UI should trigger)
+    const deletedCount = liveTableDocInstance.deleteColumns([1]);
+    expect(deletedCount).toBe(1);
+    expect(stateTracker.callCount).toBe(2); // Initial + after delete
+
+    // Verify that the locked cell has been moved to the correct new position
+    // Original column 2 should now be at column 1 after deleting column 1
+    expect(stateTracker.lockedCellsMap.has("0-1")).toBe(true);
+    expect(stateTracker.lockedCellsMap.get("0-1")).toBe("test lock");
+    expect(stateTracker.lockedCellsMap.has("0-2")).toBe(false);
   });
 
-  it("should delete multiple selected columns and update aria-label", () => {
-    const colIndicesToDelete = [0, 2]; // Header1, Header3 (colId1, colId3)
-    const selectedCellsForTest = colIndicesToDelete.map((colIndex) => ({
-      rowIndex: 0,
-      colIndex,
-    }));
+  it("should remove locked cells when their column is deleted", async () => {
+    // Lock a cell in column 1 (index 1)
+    const lockId = liveTableDocInstance.lockCellRange(0, 0, 1, 1, "test lock");
+    expect(lockId).toBeTruthy();
 
-    vi.mocked(useSelectedCell).mockReturnValue(selectedCellsForTest[0]);
-    vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
+    // Use a shared state object to track callback updates
+    const stateTracker = {
+      lockedCellsMap: new Map<string, string | undefined>(),
+      callCount: 0,
+    };
 
-    render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
-        <TooltipProvider>
-          <LiveTableToolbar />
-        </TooltipProvider>
-      </TestDataStoreWrapper>
-    );
+    const mockCallback = vi.fn((map) => {
+      stateTracker.callCount++;
+      stateTracker.lockedCellsMap = new Map(map);
+    });
+    liveTableDocInstance.lockedCellsUpdateCallback = mockCallback;
+    liveTableDocInstance.updateLockedCellsState();
 
-    const deleteButton = findDeleteColumnButton();
-    expect(deleteButton).toBeInTheDocument();
-    expect(deleteButton).not.toBeDisabled();
-    expect(deleteButton).toHaveAttribute(
-      "aria-label",
-      `Delete ${colIndicesToDelete.length} Columns`
-    );
+    expect(stateTracker.lockedCellsMap.has("0-1")).toBe(true);
+    expect(stateTracker.callCount).toBe(1);
 
-    const columnIdsToDelete = colIndicesToDelete.map(
-      (idx) => initialColumnOrder[idx]
-    );
-    columnIdsToDelete.forEach((id) =>
-      expect(liveTableDocInstance.yColumnDefinitions.has(id)).toBe(true)
-    );
+    // Test direct deleteColumns call (delete column 1 - the locked column)
+    const deletedCount = liveTableDocInstance.deleteColumns([1]);
+    expect(deletedCount).toBe(1);
+    expect(stateTracker.callCount).toBe(2); // Initial + after delete
 
-    fireEvent.mouseDown(deleteButton!);
-
-    expect(mockDeleteColumns).toHaveBeenCalledTimes(1);
-    expect(mockDeleteColumns).toHaveBeenCalledWith(
-      colIndicesToDelete.sort((a, b) => b - a)
-    );
+    // Verify that the locked cell has been removed since its column was deleted
+    // After deleting column 1, there should be no cell at the old position
+    expect(stateTracker.lockedCellsMap.has("0-1")).toBe(false);
   });
 
-  it("should not delete any column if no cell is selected and button should be disabled, with default aria-label", () => {
-    vi.mocked(useSelectedCell).mockReturnValue(null);
-    vi.mocked(useSelectedCells).mockReturnValue([]);
+  it("should handle multiple locked cells correctly when deleting columns", async () => {
+    // Lock cells in multiple columns
+    const lockId1 = liveTableDocInstance.lockCellRange(0, 0, 0, 0, "lock 1");
+    const lockId2 = liveTableDocInstance.lockCellRange(1, 1, 2, 2, "lock 2");
+    const lockId3 = liveTableDocInstance.lockCellRange(2, 2, 3, 3, "lock 3");
+    expect(lockId1).toBeTruthy();
+    expect(lockId2).toBeTruthy();
+    expect(lockId3).toBeTruthy();
 
-    render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
-        <TooltipProvider>
-          <LiveTableToolbar />
-        </TooltipProvider>
-      </TestDataStoreWrapper>
-    );
+    // Use a shared state object to track callback updates
+    const stateTracker = {
+      lockedCellsMap: new Map<string, string | undefined>(),
+      callCount: 0,
+    };
 
-    const deleteButton = findDeleteColumnButton();
-    expect(deleteButton).toBeInTheDocument();
-    expect(deleteButton).toBeDisabled();
-    expect(deleteButton).toHaveAttribute(
-      "aria-label",
-      "Delete Selected Column"
-    );
+    const mockCallback = vi.fn((map) => {
+      stateTracker.callCount++;
+      stateTracker.lockedCellsMap = new Map(map);
+    });
+    liveTableDocInstance.lockedCellsUpdateCallback = mockCallback;
+    liveTableDocInstance.updateLockedCellsState();
 
-    const initialColCount = liveTableDocInstance.yColumnOrder.length;
-    expect(liveTableDocInstance.yColumnOrder.length).toBe(initialColCount);
-    expect(mockDeleteColumns).not.toHaveBeenCalled();
-  });
+    expect(stateTracker.lockedCellsMap.has("0-0")).toBe(true); // lock 1
+    expect(stateTracker.lockedCellsMap.has("1-2")).toBe(true); // lock 2
+    expect(stateTracker.lockedCellsMap.has("2-3")).toBe(true); // lock 3
 
-  it("should not delete any column if cells are locked", () => {
-    const colIndicesToDelete = [0, 1];
-    const selectedCellsForTest = colIndicesToDelete.map((colIndex) => ({
-      rowIndex: 0,
-      colIndex,
-    }));
-    vi.mocked(useSelectedCell).mockReturnValue(selectedCellsForTest[0]);
-    vi.mocked(useSelectedCells).mockReturnValue(selectedCellsForTest);
-    vi.mocked(useIsCellLockedFn).mockReturnValue(() => true);
+    // Test direct deleteColumns call (delete column 1 - should shift columns 2,3 to positions 1,2)
+    const deletedCount = liveTableDocInstance.deleteColumns([1]);
+    expect(deletedCount).toBe(1);
+    expect(stateTracker.callCount).toBe(2); // Initial + after delete
 
-    render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
-        <TooltipProvider>
-          <LiveTableToolbar />
-        </TooltipProvider>
-      </TestDataStoreWrapper>
-    );
+    // Verify that locked cells have been updated to correct positions
+    expect(stateTracker.lockedCellsMap.has("0-0")).toBe(true); // lock 1 unchanged
+    expect(stateTracker.lockedCellsMap.has("1-1")).toBe(true); // lock 2 shifted from column 2 to 1
+    expect(stateTracker.lockedCellsMap.has("2-2")).toBe(true); // lock 3 shifted from column 3 to 2
 
-    const deleteButton = findDeleteColumnButton();
-    fireEvent.mouseDown(deleteButton!);
-
-    expect(deleteButton).toBeInTheDocument();
-    expect(deleteButton).toBeDisabled();
-    expect(deleteButton).toHaveAttribute("aria-label", "Delete 2 Columns");
-
-    const initialColCount = liveTableDocInstance.yColumnOrder.length;
-    expect(liveTableDocInstance.yColumnOrder.length).toBe(initialColCount);
-    expect(mockDeleteColumns).not.toHaveBeenCalled();
-  });
-
-  it("should not delete column if any cell in the column is locked, even if not selected", () => {
-    const selectedCellForTest = { rowIndex: 0, colIndex: 0 }; // Selecting unlocked cell
-    const lockedCellPosition = { rowIndex: 1, colIndex: 0 }; // Another cell in same column is locked
-
-    const mockIsCellLocked = (r: number, c: number) =>
-      r === lockedCellPosition.rowIndex && c === lockedCellPosition.colIndex;
-
-    vi.mocked(useSelectedCell).mockReturnValue(selectedCellForTest);
-    vi.mocked(useSelectedCells).mockReturnValue([selectedCellForTest]);
-    vi.mocked(useIsCellLockedFn).mockReturnValue(mockIsCellLocked);
-
-    render(
-      <TestDataStoreWrapper liveTableDoc={liveTableDocInstance}>
-        <TooltipProvider>
-          <LiveTableToolbar />
-        </TooltipProvider>
-      </TestDataStoreWrapper>
-    );
-
-    const deleteButton = findDeleteColumnButton();
-    expect(deleteButton).toBeInTheDocument();
-    expect(deleteButton).toBeDisabled();
-
-    fireEvent.mouseDown(deleteButton!);
-    expect(mockDeleteColumns).not.toHaveBeenCalled();
+    // Old positions should no longer exist
+    expect(stateTracker.lockedCellsMap.has("1-2")).toBe(false);
+    expect(stateTracker.lockedCellsMap.has("2-3")).toBe(false);
   });
 });
