@@ -11,6 +11,9 @@ alwaysApply: true
 
 - as you work, update the project plan and mark tasks as complete
 
+- only work on one phase of a project at a time. always ask before continuing to
+  the next phase
+
 - never use a check like process.env.NODE_ENV === "test" to get around failing
   tests
 

@@ -14,27 +14,27 @@ Add a "Find citations" button to the lock dropdown in LiveTableToolbar that uses
 ## Technical Implementation Plan
 
 ### Phase 1: UI Components ✅ COMPLETED
-- [x] Add "Find citations" menu item to lock dropdown in `LockButton.tsx`
-- [x] Create new `CitationFinderDialog.tsx` component
-- [x] Add state management for dialog open/close
-- [x] Integrate with existing selected cells logic
+- [ ] Add "Find citations" menu item to lock dropdown in `LockButton.tsx`
+- [ ] Create new `CitationFinderDialog.tsx` component
+- [ ] Add state management for dialog open/close
+- [ ] Integrate with existing selected cells logic
 
 ### Phase 2: API Integration ✅ COMPLETED
-- [x] Create new server action `findCitations.ts` in `actions/` folder
-- [x] Implement OpenAI web search API call
-- [x] Define TypeScript interfaces for citation data
-- [x] Handle API errors and rate limiting
+- [ ] Create new server action `findCitations.ts` in `actions/` folder
+- [ ] Implement OpenAI web search API call
+- [ ] Define TypeScript interfaces for citation data
+- [ ] Handle API errors and rate limiting
 
 ### Phase 3: Citation Review UI ✅ COMPLETED
-- [x] Design citation display components
-- [x] Add citation selection/deselection functionality
-- [x] Implement preview of selected cells context
-- [x] Add loading states and error handling
+- [ ] Design citation display components
+- [ ] Add citation selection/deselection functionality
+- [ ] Implement preview of selected cells context
+- [ ] Add loading states and error handling
 
 ### Phase 4: Integration with Locking ✅ COMPLETED
-- [x] Connect citation selection to existing lock functionality
-- [x] Format citation as lock note
-- [x] Test integration with existing lock system
+- [ ] Connect citation selection to existing lock functionality
+- [ ] Format citation as lock note
+- [ ] Test integration with existing lock system
 
 ### Phase 5: Testing & Polish 🚧 IN PROGRESS
 - [ ] Add error handling for edge cases
