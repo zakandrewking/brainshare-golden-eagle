@@ -10,7 +10,11 @@
       "runtimeExecutable": "beta",
       "preLaunchTask": "[npm] dev",
       "sourceMaps": true,
-      "webRoot": "${workspaceFolder}/frontend"
+      "webRoot": "${workspaceFolder}/frontend",
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**/*.js"
+      ]
     },
     {
       "name": "Frontend (prod db)",
@@ -20,7 +24,11 @@
       "runtimeExecutable": "beta",
       "preLaunchTask": "[npm] dev (prod db)",
       "sourceMaps": true,
-      "webRoot": "${workspaceFolder}/frontend"
+      "webRoot": "${workspaceFolder}/frontend",
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**/*.js"
+      ]
     },
     {
       "name": "Backend",

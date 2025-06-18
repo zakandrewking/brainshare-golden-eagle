@@ -15,6 +15,7 @@ interface Document {
   id: string;
   title: string;
   liveblocks_id: string;
+  ysweet_id: string;
   description: string | null;
 }
 
@@ -72,10 +73,11 @@ export default function DocumentPageClient({
         onUpdate={handleUpdate}
       />
       <LiveTable
-        tableId={document.liveblocks_id}
+        tableId={document.ysweet_id}
+        backend="ysweet"
         documentTitle={documentTitleForPrompt}
         documentDescription={pageDescription}
-        docId={docId}
+        docId={document.ysweet_id}
       />
     </Container>
   );

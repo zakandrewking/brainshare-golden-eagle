@@ -70,11 +70,6 @@ interface DeleteRoomResultError {
 }
 type DeleteRoomResult = DeleteRoomResultSuccess | DeleteRoomResultError;
 
-// Initialize Liveblocks Node client
-const liveblocks = new Liveblocks({
-  secret: process.env.LIVEBLOCKS_SECRET_KEY!,
-});
-
 // --- Form Action for Create Document Page ---
 const CreateRoomFormSchema = z.object({
   name: z.string().trim().min(1, "Document name cannot be empty."),
@@ -100,7 +95,7 @@ export interface HandleCreateRoomFormState {
 }
 
 export async function handleCreateRoomForm(
-  prevState: HandleCreateRoomFormState | null,
+  _prevState: HandleCreateRoomFormState | null,
   formData: FormData
 ): Promise<HandleCreateRoomFormState> {
   const supabase = await createClient();
@@ -230,8 +225,13 @@ export async function getLiveblocksRooms(): Promise<GetRoomsResult> {
     return { success: false, error: "Server configuration error." };
   }
 
+  const liveblocks = new Liveblocks({
+    secret: process.env.LIVEBLOCKS_SECRET_KEY,
+  });
+
   try {
     // Fetch rooms using the Node client. It throws on error.
+
     const roomsPage = await liveblocks.getRooms();
 
     // Check if roomsPage itself or roomsPage.data is null/undefined
@@ -271,6 +271,10 @@ export async function createLiveblocksRoom(
     console.error("LIVEBLOCKS_SECRET_KEY is not set.");
     return { success: false, error: "Server configuration error." };
   }
+
+  const liveblocks = new Liveblocks({
+    secret: process.env.LIVEBLOCKS_SECRET_KEY,
+  });
 
   let newRoom: RoomData;
   try {
@@ -438,6 +442,10 @@ export async function forkLiveblocksRoom(
     return { success: false, error: "Server configuration error." };
   }
 
+  const liveblocks = new Liveblocks({
+    secret: process.env.LIVEBLOCKS_SECRET_KEY,
+  });
+
   let originalYjsDataBuffer: ArrayBuffer;
 
   // 1. Get Yjs data from the original room
@@ -525,6 +533,10 @@ export async function nukeAllLiveblocksRooms(): Promise<NukeRoomsResult> {
     };
   }
 
+  const liveblocks = new Liveblocks({
+    secret: process.env.LIVEBLOCKS_SECRET_KEY,
+  });
+
   let allRooms: RoomData[] = [];
   try {
     // Attempt to fetch rooms - assuming getRooms fetches all or enough for typical use cases.
@@ -582,6 +594,10 @@ export async function deleteLiveblocksRoom(
     console.error("LIVEBLOCKS_SECRET_KEY is not set.");
     return { success: false, error: "Server configuration error." };
   }
+
+  const liveblocks = new Liveblocks({
+    secret: process.env.LIVEBLOCKS_SECRET_KEY,
+  });
 
   if (!roomId) {
     return { success: false, error: "Room ID is required." };

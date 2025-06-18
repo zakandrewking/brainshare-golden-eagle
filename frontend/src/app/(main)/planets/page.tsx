@@ -21,9 +21,10 @@ export default function Planets() {
       <FlexTitle title={pageTitle} description={pageDescription} />
       <LiveTable
         tableId="planet-editor"
+        docId="planet-editor"
         documentTitle={pageTitle}
         documentDescription={pageDescription}
-        docId="planets-fake-uuid"
+        backend="ysweet"
       />
     </Container>
   );

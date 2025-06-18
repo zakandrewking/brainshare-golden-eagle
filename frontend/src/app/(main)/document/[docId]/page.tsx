@@ -5,9 +5,7 @@ interface DocumentPageProps {
   params: Promise<{ docId: string }>;
 }
 
-export default async function DocumentPage({
-  params,
-}: DocumentPageProps) {
+export default async function DocumentPage({ params }: DocumentPageProps) {
   const { docId } = await params;
 
   let document = null;
@@ -17,5 +15,18 @@ export default async function DocumentPage({
     console.error("Failed to fetch document:", error);
   }
 
-  return <DocumentPageClient docId={docId} initialDocument={document} />;
+  const ysweet_id = document?.ysweet_id;
+  if (!ysweet_id || !document) {
+    return <div>Document not found</div>;
+  }
+
+  return (
+    <DocumentPageClient
+      docId={docId}
+      initialDocument={{
+        ...document,
+        ysweet_id,
+      }}
+    />
+  );
 }
