@@ -41,9 +41,16 @@ const webSearchSchema = z.object({
             "A relevant excerpt from the source that relates to the data"
           ),
         domain: z.string().describe("The domain name of the source"),
+        cellIndices: z
+          .array(z.number())
+          .describe(
+            "Array of cell indices (0-based) that this citation supports"
+          ),
       })
     )
-    .describe("A list of authoritative citation sources with their details"),
+    .describe(
+      "A list of authoritative citation sources with their details - must include at least one citation for each selected cell"
+    ),
 });
 
 // Rate limiting configuration
@@ -82,6 +89,7 @@ function parseStructuredOutput(
     title: string;
     snippet: string;
     domain: string;
+    cellIndices: number[];
   }>;
 } {
   try {
@@ -176,6 +184,7 @@ COMPLETENESS REQUIREMENTS:
 - Every data point must be fully supported by a citation by exact match or by logical inference.
 - If logical inference is used, explain the reasoning in the citation.
 - If a data point is not fully supported, mention that in the text summary.
+- CRITICAL: You must provide at least one citation for EACH selected cell. If multiple cells have the same data, you can reuse citations but each cell must be covered.
 
 Document Context: "${documentTitle}" - ${documentDescription}
 
@@ -188,7 +197,8 @@ You must return your response in the following JSON format wrapped in \`\`\`json
       "url": "https://example.com/source1",
       "title": "Title of the source",
       "snippet": "Relevant excerpt from the source that relates to the data",
-      "domain": "example.com"
+      "domain": "example.com",
+      "cellIndices": [0, 1]
     }
   ]
 }`;
@@ -242,10 +252,30 @@ Provide a comprehensive text summary of your research findings and include speci
 - Source URLs
 - Specific snippets that relate to the selected data
 - Domain names for credibility assessment
+- Cell indices array indicating which selected cells (0-based index) each citation supports
+
+CRITICAL REQUIREMENT: Each citation must include a "cellIndices" array that lists which selected cells it supports. You must ensure that every selected cell (indices 0 through ${
+    selectedCells.length - 1
+  }) appears in at least one citation's cellIndices array.
+
+For reference, the selected cells are indexed as follows:
+${selectedCells
+  .map((cell, index) => {
+    const rowIndex = cell.rowIndex;
+    const colIndex = cell.colIndex;
+    const cellValue = cellsData[rowIndex]?.[colIndex] || "N/A";
+    const headerName = headers[colIndex] || `Column ${colIndex + 1}`;
+    return `- Index ${index}: ${headerName}: "${cellValue}" (Row ${
+      rowIndex + 1
+    })`;
+  })
+  .join("\n")}
 
 Return your response in the exact JSON format specified above, wrapped in \`\`\`json and \`\`\` tags.
 
-Prioritize quality over quantity - better to have fewer high-quality citations than many low-quality ones.`;
+You may reuse citations for multiple cells if they support the same or related data, but every cell index (0-${
+    selectedCells.length - 1
+  }) must appear in at least one citation's cellIndices array.`;
 
   try {
     // Create model
@@ -347,8 +377,40 @@ Prioritize quality over quantity - better to have fewer high-quality citations t
       console.log("--------------------------------");
     }
 
+    // Validate that all selected cells are covered by citations
+    const coveredCellIndices = new Set<number>();
+    structuredOutput.citationUrls.forEach((citation) => {
+      if (citation.cellIndices && Array.isArray(citation.cellIndices)) {
+        citation.cellIndices.forEach((index) => coveredCellIndices.add(index));
+      }
+    });
+
+    const expectedIndices = Array.from(
+      { length: selectedCells.length },
+      (_, i) => i
+    );
+    const uncoveredIndices = expectedIndices.filter(
+      (index) => !coveredCellIndices.has(index)
+    );
+
+    if (uncoveredIndices.length > 0) {
+      if (debug) {
+        console.warn(
+          `Warning: The following cell indices are not covered by citations: ${uncoveredIndices.join(
+            ", "
+          )}`
+        );
+        console.warn("Expected indices:", expectedIndices);
+        console.warn("Covered indices:", Array.from(coveredCellIndices));
+      }
+    }
+
     // Process the structured response into Citation objects
-    const citations = processCitationUrls(structuredOutput.citationUrls, debug);
+    const citations = processCitationUrls(
+      structuredOutput.citationUrls,
+      debug,
+      selectedCells.length
+    );
 
     if (!citations || citations.length === 0) {
       return {
@@ -397,8 +459,10 @@ function processCitationUrls(
     title: string;
     snippet: string;
     domain: string;
+    cellIndices: number[];
   }[],
-  debug = false
+  debug = false,
+  selectedCellsLength?: number
 ): Citation[] {
   const citations: Citation[] = [];
   const seenUrls = new Set<string>();

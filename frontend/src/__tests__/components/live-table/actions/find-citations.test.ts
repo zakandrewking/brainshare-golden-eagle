@@ -79,7 +79,8 @@ describe("findCitations", () => {
       "url": "https://www.apple.com",
       "title": "Apple Inc - Official Website",
       "snippet": "Apple is a leading technology company",
-      "domain": "apple.com"
+      "domain": "apple.com",
+      "cellIndices": [0, 1]
     }
   ]
 }
@@ -275,6 +276,7 @@ describe("findCitations", () => {
         title: `Example ${i}`,
         snippet: `Citation ${i}`,
         domain: `example${i}.com`,
+        cellIndices: [i % 2], // Alternate between cell indices 0 and 1
       }));
 
       const mockResponse = {
@@ -426,7 +428,8 @@ describe("findCitations", () => {
       "url": "https://www.apple.com",
       "title": "Apple Inc - Official Website",
       "snippet": "Apple is a leading technology company",
-      "domain": "apple.com"
+      "domain": "apple.com",
+      "cellIndices": [0, 1]
     }
   ]
 }
@@ -479,13 +482,15 @@ describe("findCitations", () => {
       "url": "https://www.apple.com",
       "title": "Apple Inc",
       "snippet": "Apple is a technology company",
-      "domain": "apple.com"
+      "domain": "apple.com",
+      "cellIndices": [0]
     },
     {
       "url": "invalid-url",
       "title": "Invalid",
       "snippet": "This should be filtered out",
-      "domain": "invalid.com"
+      "domain": "invalid.com",
+      "cellIndices": [1]
     }
   ]
 }
@@ -517,7 +522,8 @@ describe("findCitations", () => {
       "url": "https://www.microsoft.com",
       "title": "Microsoft",
       "snippet": "Microsoft is a software company",
-      "domain": "microsoft.com"
+      "domain": "microsoft.com",
+      "cellIndices": [0, 1]
     }
   ]
 }
@@ -550,13 +556,15 @@ describe("findCitations", () => {
       "url": "https://www.apple.com",
       "title": "Apple Inc",
       "snippet": "Apple info 1",
-      "domain": "apple.com"
+      "domain": "apple.com",
+      "cellIndices": [0]
     },
     {
       "url": "https://www.apple.com",
       "title": "Apple Inc - Different Title",
       "snippet": "Apple info 2",
-      "domain": "apple.com"
+      "domain": "apple.com",
+      "cellIndices": [1]
     }
   ]
 }
@@ -586,13 +594,15 @@ describe("findCitations", () => {
       "url": "https://www.apple.com",
       "title": "Apple Inc",
       "snippet": "Apple info",
-      "domain": "apple.com"
+      "domain": "apple.com",
+      "cellIndices": [0]
     },
     {
       "url": "https://www.microsoft.com",
       "title": "Microsoft",
       "snippet": "Microsoft info",
-      "domain": "microsoft.com"
+      "domain": "microsoft.com",
+      "cellIndices": [1]
     }
   ]
 }
@@ -662,7 +672,8 @@ describe("findCitations", () => {
       "url": "https://www.apple.com",
       "title": "Apple Inc - Official Website",
       "snippet": "Apple is a leading technology company",
-      "domain": "apple.com"
+      "domain": "apple.com",
+      "cellIndices": [0, 1]
     }
   ]
 }
