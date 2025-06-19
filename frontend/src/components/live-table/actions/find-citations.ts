@@ -320,19 +320,13 @@ Focus on finding real, authoritative sources that contain relevant information a
 
     // Calculate accurate input token count using tiktoken
     const encoding = encoding_for_model("gpt-4");
-    const systemPromptLength = systemPrompt.length;
-    const userPromptLength = userPrompt.length;
-    const totalInputLength = systemPromptLength + userPromptLength;
 
     const systemPromptTokens = encoding.encode(systemPrompt).length;
     const userPromptTokens = encoding.encode(userPrompt).length;
     const totalInputTokens = systemPromptTokens + userPromptTokens;
 
     if (debug) {
-      console.log("TOKEN COUNTS - INPUT:");
-      console.log(`- System Prompt Length: ${systemPromptLength} chars`);
-      console.log(`- User Prompt Length: ${userPromptLength} chars`);
-      console.log(`- Total Input Length: ${totalInputLength} chars`);
+      console.log("--------------------------------");
       console.log(`- System Prompt Tokens: ${systemPromptTokens}`);
       console.log(`- User Prompt Tokens: ${userPromptTokens}`);
       console.log(`- Total Input Tokens: ${totalInputTokens}`);
@@ -353,16 +347,11 @@ Focus on finding real, authoritative sources that contain relevant information a
 
     // Log token usage information using tiktoken for accuracy
     const responseContent = (response.content as string) || "";
-    const responseLength = responseContent.length;
     const actualOutputTokens = encoding.encode(responseContent).length;
 
     if (debug) {
-      console.log("TOKEN COUNTS - OUTPUT:");
-      console.log(`- Response Length: ${responseLength} chars`);
-      console.log(`- Actual Output Tokens: ${actualOutputTokens}`);
-      console.log(
-        `- Total Actual Tokens: ${totalInputTokens + actualOutputTokens}`
-      );
+      console.log("--------------------------------");
+      console.log(`- Output Tokens: ${actualOutputTokens}`);
 
       // Log usage metadata if available in response
       if (response.response_metadata?.tokenUsage) {
