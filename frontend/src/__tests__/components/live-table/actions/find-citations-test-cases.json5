@@ -32,8 +32,8 @@
       "Government environmental reports",
     ],
     expectedCitedValues: [
-      { rowIndex: 0, colIndex: 1, value: "0.98" },
-      { rowIndex: 1, colIndex: 1, value: "0.84" },
+      { rowIndex: 0, colIndex: 1, value: "1.02" },
+      { rowIndex: 1, colIndex: 1, value: "0.85" },
       { rowIndex: 2, colIndex: 1, value: "0.89" }
     ],
   },

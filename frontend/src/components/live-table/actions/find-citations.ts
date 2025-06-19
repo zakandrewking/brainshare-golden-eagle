@@ -1,11 +1,11 @@
 "use server";
 
-import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
-import { encoding_for_model } from "tiktoken";
 import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
-import { defaultModel } from "@/llm-config";
+import { GoogleGenAI } from "@google/genai";
+
+import { geminiModel } from "@/llm-config";
 
 // TypeScript interfaces for citation data
 export interface Citation {
@@ -58,6 +58,9 @@ const webSearchSchema = z.object({
         Cells can be included multiple times if they are supported by multiple
         citations.`),
 });
+
+// Type for the structured response from Gemini
+type WebSearchResponse = z.infer<typeof webSearchSchema>;
 
 // Rate limiting configuration
 const RATE_LIMIT_DELAY = 1000; // 1 second between calls
@@ -211,11 +214,14 @@ IMPORTANT:
 - Cells can be included multiple times if they are supported by multiple citations.
 `;
 
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set");
+  }
+
   try {
-    // Create OpenAI client
-    const openai = new OpenAI({
-      dangerouslyAllowBrowser: debug,
-    });
+    // Create Gemini client
+    const ai = new GoogleGenAI({ apiKey });
 
     if (debug) {
       console.log("--------------------------------");
@@ -225,36 +231,64 @@ IMPORTANT:
       console.log("--------------------------------");
     }
 
-    // Calculate accurate input token count using tiktoken
-    const encoding = encoding_for_model("gpt-4");
+    // Define the grounding tool for web search
+    const groundingTool = {
+      googleSearch: {},
+    };
 
-    const systemPromptTokens = encoding.encode(systemPrompt).length;
-    const userPromptTokens = encoding.encode(userPrompt).length;
-    const totalInputTokens = systemPromptTokens + userPromptTokens;
+    // Convert Zod schema to JSON Schema for Gemini
+    const responseSchema = zodToJsonSchema(webSearchSchema, {
+      name: "webSearchResult",
+      $refStrategy: "none", // Inline definitions instead of using $ref
+    });
+
+    // Configure generation settings with thinking, web search, and structured output
+    const config = {
+      tools: [groundingTool],
+      thinkingConfig: {
+        // Turn on dynamic thinking:
+        thinkingBudget: -1,
+      },
+      // responseMimeType: "application/json" as const,
+      responseJsonSchema: responseSchema,
+    };
+
+    // Combine system and user prompts for Gemini
+    const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+
+    // Make the API call with structured output
+    const response = await ai.models.generateContent({
+      model: geminiModel,
+      contents: combinedPrompt,
+      config,
+    });
 
     if (debug) {
       console.log("--------------------------------");
-      console.log(`- System Prompt Tokens: ${systemPromptTokens}`);
-      console.log(`- User Prompt Tokens: ${userPromptTokens}`);
-      console.log(`- Total Input Tokens: ${totalInputTokens}`);
+      if (response.usageMetadata?.thoughtsTokenCount) {
+        console.log(
+          `Thoughts tokens: ${response.usageMetadata.thoughtsTokenCount}`
+        );
+      }
+      if (response.usageMetadata?.candidatesTokenCount) {
+        console.log(
+          `Output tokens: ${response.usageMetadata.candidatesTokenCount}`
+        );
+      }
       console.log("--------------------------------");
     }
 
-    // Make the API call with structured output
-    const response = await openai.responses.parse({
-      model: defaultModel,
-      input: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      text: {
-        format: zodTextFormat(webSearchSchema, "webSearchResult"),
-      },
-      tools: [{ type: "web_search_preview", search_context_size: "high" }],
-      tool_choice: { type: "web_search_preview" },
-    });
+    // Parse the structured output directly
+    const responseText = response.text;
+    if (!responseText) {
+      throw new Error("No response text received from API");
+    }
 
-    const structuredOutput = response.output_parsed;
+    const strippedResponse = responseText
+      .replace(/^```json/, "")
+      .replace(/```\n*$/, "");
+
+    const structuredOutput: WebSearchResponse = JSON.parse(strippedResponse);
 
     // Handle null response
     if (!structuredOutput) {
@@ -268,24 +302,6 @@ IMPORTANT:
       console.log("response.structuredOutput:", structuredOutput);
       console.log("--------------------------------");
     }
-
-    // Log token usage information using tiktoken for accuracy
-    const responseContent = JSON.stringify(structuredOutput);
-    const actualOutputTokens = encoding.encode(responseContent).length;
-
-    if (debug) {
-      console.log("--------------------------------");
-      console.log(`- Output Tokens: ${actualOutputTokens}`);
-
-      // Log usage metadata if available in response
-      if (response.usage) {
-        console.log("- Actual Token Usage:", response.usage);
-      }
-      console.log("--------------------------------");
-    }
-
-    // Free the encoding to prevent memory leaks
-    encoding.free();
 
     // Log citation relevance coverage for debugging
     if (debug) {
@@ -347,7 +363,7 @@ IMPORTANT:
       searchContext: structuredOutput.textSummary,
     };
   } catch (error) {
-    if (debug) console.error("Error calling OpenAI web search API:", error);
+    if (debug) console.error("Error calling Gemini API:", error);
 
     // Handle specific error types
     if (error instanceof Error) {
