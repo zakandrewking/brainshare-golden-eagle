@@ -1,12 +1,11 @@
 "use server";
 
+import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
 import { encoding_for_model } from "tiktoken";
 import { z } from "zod";
 
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { ChatOpenAI } from "@langchain/openai";
-
-import { researchModel } from "@/llm-config";
+import { defaultModel } from "@/llm-config";
 
 // TypeScript interfaces for citation data
 export interface Citation {
@@ -67,62 +66,6 @@ const rateLimitDelay = async (): Promise<void> => {
 
   lastCallTime = Date.now();
 };
-
-// Create ChatOpenAI instance for web search
-const createWebSearchModel = () => {
-  return new ChatOpenAI({
-    model: researchModel,
-    maxTokens: 4000,
-  });
-};
-
-// Parse structured output from the model response
-function parseStructuredOutput(
-  responseText: string | undefined,
-  debug = false
-): {
-  textSummary: string;
-  citations: Array<{
-    cellIndex: number;
-    citationUrl: string;
-    citationTitle: string;
-    citationSnippet: string;
-    citedValue: string;
-  }>;
-} {
-  try {
-    // Handle undefined or null input
-    if (!responseText || typeof responseText !== "string") {
-      if (debug) console.warn("Invalid response text:", responseText);
-      return {
-        textSummary:
-          "Unable to parse structured response. Invalid response format.",
-        citations: [],
-      };
-    }
-
-    // Try to extract JSON from the response
-    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[1]);
-      return webSearchSchema.parse(parsed);
-    }
-
-    // Fallback: Try to parse the entire response as JSON
-    const parsed = JSON.parse(responseText);
-    return webSearchSchema.parse(parsed);
-  } catch (error) {
-    if (debug) console.error("Error parsing structured output:", error);
-
-    // Ultimate fallback: Create a basic structure
-    return {
-      textSummary:
-        "Unable to parse structured response. Raw response: " +
-        (responseText || "undefined"),
-      citations: [],
-    };
-  }
-}
 
 export default async function findCitations(
   selectedCells: CellPosition[],
@@ -264,8 +207,10 @@ ${selectedCells
 `;
 
   try {
-    // Create model
-    const model = createWebSearchModel();
+    // Create OpenAI client
+    const openai = new OpenAI({
+      dangerouslyAllowBrowser: debug,
+    });
 
     if (debug) {
       console.log("--------------------------------");
@@ -290,20 +235,37 @@ ${selectedCells
       console.log("--------------------------------");
     }
 
-    // Make the API call
-    const response = await model.invoke([
-      new SystemMessage(systemPrompt),
-      new HumanMessage(userPrompt),
-    ]);
+    // Make the API call with structured output
+    const response = await openai.responses.parse({
+      model: defaultModel,
+      input: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      text: {
+        format: zodTextFormat(webSearchSchema, "webSearchResult"),
+      },
+      tools: [{ type: "web_search_preview" }],
+      tool_choice: { type: "web_search_preview" },
+    });
+
+    const structuredOutput = response.output_parsed;
+
+    // Handle null response
+    if (!structuredOutput) {
+      return {
+        error: "Failed to parse structured response from API.",
+      };
+    }
 
     if (debug) {
       console.log("--------------------------------");
-      console.log("response.content:", response.content);
+      console.log("response.output_parsed:", structuredOutput);
       console.log("--------------------------------");
     }
 
     // Log token usage information using tiktoken for accuracy
-    const responseContent = (response.content as string) || "";
+    const responseContent = JSON.stringify(structuredOutput);
     const actualOutputTokens = encoding.encode(responseContent).length;
 
     if (debug) {
@@ -311,43 +273,14 @@ ${selectedCells
       console.log(`- Output Tokens: ${actualOutputTokens}`);
 
       // Log usage metadata if available in response
-      if (response.response_metadata?.tokenUsage) {
-        console.log(
-          "- Actual Token Usage:",
-          response.response_metadata.tokenUsage
-        );
-      } else if (response.usage_metadata) {
-        console.log("- Actual Token Usage:", response.usage_metadata);
-      } else if (
-        "additional_kwargs" in response &&
-        response.additional_kwargs &&
-        typeof response.additional_kwargs === "object" &&
-        "usage" in response.additional_kwargs
-      ) {
-        console.log("- Actual Token Usage:", response.additional_kwargs.usage);
+      if (response.usage) {
+        console.log("- Actual Token Usage:", response.usage);
       }
       console.log("--------------------------------");
     }
 
     // Free the encoding to prevent memory leaks
     encoding.free();
-
-    // Parse the structured response
-    const structuredOutput = parseStructuredOutput(
-      response.content as string | undefined,
-      debug
-    );
-
-    if (debug) {
-      console.log("--------------------------------");
-      console.log(
-        "structuredOutput.textSummary:",
-        structuredOutput.textSummary
-      );
-      console.log("--------------------------------");
-      console.log("structuredOutput.citations:", structuredOutput.citations);
-      console.log("--------------------------------");
-    }
 
     // Log citation relevance coverage for debugging
     if (debug) {
@@ -431,7 +364,6 @@ function processCitationUrls(
   debug = false
 ): Citation[] {
   const citations: Citation[] = [];
-  const seenUrls = new Set<string>();
 
   citationData.forEach((citation) => {
     // Validate URL format (must start with http:// or https://)
@@ -443,15 +375,6 @@ function processCitationUrls(
         console.warn("Invalid URL format, skipping:", citation.citationUrl);
       return;
     }
-
-    // Skip duplicates by URL
-    if (seenUrls.has(citation.citationUrl)) {
-      if (debug)
-        console.warn("Duplicate URL found, skipping:", citation.citationUrl);
-      return;
-    }
-
-    seenUrls.add(citation.citationUrl);
 
     citations.push({
       title: citation.citationTitle,

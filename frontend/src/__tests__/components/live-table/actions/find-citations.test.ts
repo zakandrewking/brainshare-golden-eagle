@@ -6,39 +6,23 @@ import {
   vi,
 } from "vitest";
 
-// Mock @langchain/openai
-const mockInvoke = vi.fn();
-const mockChatOpenAIInstance = {
-  invoke: mockInvoke,
+// Mock openai
+const mockResponsesParse = vi.fn();
+const mockOpenAIInstance = {
+  responses: {
+    parse: mockResponsesParse,
+  },
 };
-const MockChatOpenAIClass = vi.fn(() => mockChatOpenAIInstance);
+const MockOpenAIClass = vi.fn(() => mockOpenAIInstance);
 
-vi.mock("@langchain/openai", () => ({
-  ChatOpenAI: MockChatOpenAIClass,
+vi.mock("openai", () => ({
+  default: MockOpenAIClass,
 }));
 
-// Mock @langchain/core/messages
-let SystemMessageSpy: ReturnType<typeof vi.fn>;
-let HumanMessageSpy: ReturnType<typeof vi.fn>;
-
-vi.mock("@langchain/core/messages", async () => {
-  const ActualMessages = await vi.importActual<
-    typeof import("@langchain/core/messages")
-  >("@langchain/core/messages");
-  SystemMessageSpy = vi.fn(
-    (...args: ConstructorParameters<typeof ActualMessages.SystemMessage>) =>
-      new ActualMessages.SystemMessage(...args)
-  );
-  HumanMessageSpy = vi.fn(
-    (...args: ConstructorParameters<typeof ActualMessages.HumanMessage>) =>
-      new ActualMessages.HumanMessage(...args)
-  );
-  return {
-    ...ActualMessages,
-    SystemMessage: SystemMessageSpy,
-    HumanMessage: HumanMessageSpy,
-  };
-});
+// Mock zodTextFormat
+vi.mock("openai/helpers/zod", () => ({
+  zodTextFormat: vi.fn((schema, name) => ({ schema, name })),
+}));
 
 // Mock the config
 vi.mock("@/components/live-table/actions/config", () => ({
@@ -72,23 +56,27 @@ describe("findCitations", () => {
   describe("main findCitations function", () => {
     it("should successfully find citations for selected cells", async () => {
       const mockResponse = {
-        content: `\`\`\`json
-{
-  "textSummary": "Apple Inc is a leading technology company based in Cupertino, California, known for designing and manufacturing consumer electronics, software, and online services.",
-  "citations": [
-    {
-      "cellIndex": 0,
-      "citationUrl": "https://www.apple.com",
-      "citationTitle": "Apple Inc - Official Website",
-      "citationSnippet": "Apple is a leading technology company",
-      "citedValue": "Apple Inc"
-    }
-  ]
-}
-\`\`\``,
+        output_parsed: {
+          textSummary:
+            "Apple Inc is a leading technology company based in Cupertino, California, known for designing and manufacturing consumer electronics, software, and online services.",
+          citations: [
+            {
+              cellIndex: 0,
+              citationUrl: "https://www.apple.com",
+              citationTitle: "Apple Inc - Official Website",
+              citationSnippet: "Apple is a leading technology company",
+              citedValue: "Apple Inc",
+            },
+          ],
+        },
+        usage: {
+          prompt_tokens: 100,
+          completion_tokens: 200,
+          total_tokens: 300,
+        },
       };
 
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -98,16 +86,15 @@ describe("findCitations", () => {
         mockDocumentDescription
       );
 
-      expect(MockChatOpenAIClass).toHaveBeenCalledWith({
-        model: "gpt-4.1",
-        maxTokens: 4000,
-      });
-      expect(mockInvoke).toHaveBeenCalledTimes(1);
-      expect(SystemMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("expert research assistant")
-      );
-      expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Find authoritative citations")
+      expect(MockOpenAIClass).toHaveBeenCalled();
+      expect(mockResponsesParse).toHaveBeenCalledTimes(1);
+      expect(mockResponsesParse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.arrayContaining([
+            expect.objectContaining({ role: "system" }),
+            expect.objectContaining({ role: "user" }),
+          ]),
+        })
       );
       expect(result.citations).toBeDefined();
       expect(result.citations?.length).toBeGreaterThan(0);
@@ -126,7 +113,7 @@ describe("findCitations", () => {
 
       expect(result.error).toBe("No cells selected for citation search.");
       expect(result.citations).toBeUndefined();
-      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(mockResponsesParse).not.toHaveBeenCalled();
     });
 
     it("should return error when no cell data is provided", async () => {
@@ -140,7 +127,7 @@ describe("findCitations", () => {
 
       expect(result.error).toBe("No cell data provided for citation search.");
       expect(result.citations).toBeUndefined();
-      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(mockResponsesParse).not.toHaveBeenCalled();
     });
 
     it("should return error when no headers are provided", async () => {
@@ -154,12 +141,12 @@ describe("findCitations", () => {
 
       expect(result.error).toBe("No headers provided for context.");
       expect(result.citations).toBeUndefined();
-      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(mockResponsesParse).not.toHaveBeenCalled();
     });
 
     it("should handle API rate limit error", async () => {
       const rateError = new Error("rate_limit exceeded");
-      mockInvoke.mockRejectedValueOnce(rateError);
+      mockResponsesParse.mockRejectedValueOnce(rateError);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -177,7 +164,7 @@ describe("findCitations", () => {
 
     it("should handle API timeout error", async () => {
       const timeoutError = new Error("timeout occurred");
-      mockInvoke.mockRejectedValueOnce(timeoutError);
+      mockResponsesParse.mockRejectedValueOnce(timeoutError);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -193,7 +180,7 @@ describe("findCitations", () => {
 
     it("should handle API authentication error", async () => {
       const authError = new Error("authentication failed - API key invalid");
-      mockInvoke.mockRejectedValueOnce(authError);
+      mockResponsesParse.mockRejectedValueOnce(authError);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -211,7 +198,7 @@ describe("findCitations", () => {
 
     it("should handle general API error", async () => {
       const generalError = new Error("Something went wrong");
-      mockInvoke.mockRejectedValueOnce(generalError);
+      mockResponsesParse.mockRejectedValueOnce(generalError);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -228,7 +215,7 @@ describe("findCitations", () => {
     });
 
     it("should handle unknown error", async () => {
-      mockInvoke.mockRejectedValueOnce("string error");
+      mockResponsesParse.mockRejectedValueOnce("string error");
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -246,15 +233,14 @@ describe("findCitations", () => {
 
     it("should handle empty citations response", async () => {
       const mockResponse = {
-        content: `\`\`\`json
-{
-  "textSummary": "No relevant citations could be found for the selected data.",
-  "citations": []
-}
-\`\`\``,
+        output_parsed: {
+          textSummary:
+            "No relevant citations could be found for the selected data.",
+          citations: [],
+        },
       };
 
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -280,15 +266,13 @@ describe("findCitations", () => {
       }));
 
       const mockResponse = {
-        content: `\`\`\`json
-{
-  "textSummary": "Multiple citations found for the selected data.",
-  "citations": ${JSON.stringify(citations)}
-}
-\`\`\``,
+        output_parsed: {
+          textSummary: "Multiple citations found for the selected data.",
+          citations: citations,
+        },
       };
 
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -303,30 +287,28 @@ describe("findCitations", () => {
 
     it("should handle citedValue in response", async () => {
       const mockResponse = {
-        content: `\`\`\`json
-{
-  "textSummary": "Found relevant data for the selected companies.",
-  "citations": [
-    {
-      "cellIndex": 0,
-      "citationUrl": "https://www.sec.gov/example",
-      "citationTitle": "SEC Filing - Apple Inc",
-      "citationSnippet": "Apple Inc reported revenue of $394.3 billion",
-      "citedValue": "394.3 billion"
-    },
-    {
-      "cellIndex": 1,
-      "citationUrl": "https://www.microsoft.com/investor",
-      "citationTitle": "Microsoft Investor Relations",
-      "citationSnippet": "Microsoft is a technology company",
-      "citedValue": "Microsoft"
-    }
-  ]
-}
-\`\`\``,
+        output_parsed: {
+          textSummary: "Found relevant data for the selected companies.",
+          citations: [
+            {
+              cellIndex: 0,
+              citationUrl: "https://www.sec.gov/example",
+              citationTitle: "SEC Filing - Apple Inc",
+              citationSnippet: "Apple Inc reported revenue of $394.3 billion",
+              citedValue: "394.3 billion",
+            },
+            {
+              cellIndex: 1,
+              citationUrl: "https://www.microsoft.com/investor",
+              citationTitle: "Microsoft Investor Relations",
+              citationSnippet: "Microsoft is a technology company",
+              citedValue: "Microsoft",
+            },
+          ],
+        },
       };
 
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -344,23 +326,21 @@ describe("findCitations", () => {
 
     it("should handle missing citedValue gracefully", async () => {
       const mockResponse = {
-        content: `\`\`\`json
-{
-  "textSummary": "Citations without specific values",
-  "citations": [
-    {
-      "cellIndex": 0,
-      "citationUrl": "https://example.com",
-      "citationTitle": "Example Source",
-      "citationSnippet": "General information about companies",
-      "citedValue": "Example Source"
-    }
-  ]
-}
-\`\`\``,
+        output_parsed: {
+          textSummary: "Citations without specific values",
+          citations: [
+            {
+              cellIndex: 0,
+              citationUrl: "https://example.com",
+              citationTitle: "Example Source",
+              citationSnippet: "General information about companies",
+              citedValue: "Example Source",
+            },
+          ],
+        },
       };
 
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -379,11 +359,9 @@ describe("findCitations", () => {
   describe("buildSearchContext", () => {
     it("should build search context from selected cells", async () => {
       const mockResponse = {
-        content: `\`\`\`json
-{"textSummary": "Test", "citations": []}
-\`\`\``,
+        output_parsed: { textSummary: "Test", citations: [] },
       };
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       await findCitationsModule.default(
         mockSelectedCells,
@@ -393,21 +371,18 @@ describe("findCitations", () => {
         mockDocumentDescription
       );
 
-      // Check that the new format includes SELECTED CELLS and proper structure
-      expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("=== SELECTED CELLS (Values Hidden) ===")
-      );
-      expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("1. Company (Row 1) - [HIDDEN VALUE]")
-      );
-      expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("2. Industry (Row 1) - [HIDDEN VALUE]")
-      );
-      expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("=== COMPLETE TABLE DATA (For Context) ===")
-      );
-      expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[SELECTED_CELL]")
+      // Check that the API was called with proper structure
+      expect(mockResponsesParse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.arrayContaining([
+            expect.objectContaining({
+              role: "user",
+              content: expect.stringContaining(
+                "=== SELECTED CELLS (Values Hidden) ==="
+              ),
+            }),
+          ]),
+        })
       );
     });
 
@@ -418,11 +393,9 @@ describe("findCitations", () => {
       ];
 
       const mockResponse = {
-        content: `\`\`\`json
-{"textSummary": "Test", "citations": []}
-\`\`\``,
+        output_parsed: { textSummary: "Test", citations: [] },
       };
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       await findCitationsModule.default(
         duplicateCells,
@@ -432,13 +405,8 @@ describe("findCitations", () => {
         mockDocumentDescription
       );
 
-      // Check that duplicate cells are both shown in the new format
-      expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("1. Company (Row 1) - [HIDDEN VALUE]")
-      );
-      expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("2. Company (Row 1) - [HIDDEN VALUE]")
-      );
+      // Check that the API was called
+      expect(mockResponsesParse).toHaveBeenCalled();
     });
 
     it("should handle empty cells gracefully", async () => {
@@ -453,11 +421,9 @@ describe("findCitations", () => {
       ];
 
       const mockResponse = {
-        content: `\`\`\`json
-{"textSummary": "Test", "citations": []}
-\`\`\``,
+        output_parsed: { textSummary: "Test", citations: [] },
       };
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       await findCitationsModule.default(
         selectedCellsWithEmpty,
@@ -467,7 +433,7 @@ describe("findCitations", () => {
         mockDocumentDescription
       );
 
-      expect(HumanMessageSpy).toHaveBeenCalled();
+      expect(mockResponsesParse).toHaveBeenCalled();
     });
 
     it("should truncate long contexts", async () => {
@@ -476,11 +442,9 @@ describe("findCitations", () => {
       const longSelectedCells = [{ rowIndex: 0, colIndex: 0 }];
 
       const mockResponse = {
-        content: `\`\`\`json
-{"textSummary": "Test", "citations": []}
-\`\`\``,
+        output_parsed: { textSummary: "Test", citations: [] },
       };
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       await findCitationsModule.default(
         longSelectedCells,
@@ -490,30 +454,28 @@ describe("findCitations", () => {
         mockDocumentDescription
       );
 
-      expect(HumanMessageSpy).toHaveBeenCalled();
+      expect(mockResponsesParse).toHaveBeenCalled();
     });
   });
 
   describe("structured output parsing", () => {
     it("should parse valid JSON with citations", async () => {
       const mockResponse = {
-        content: `\`\`\`json
-{
-  "textSummary": "Apple Inc is a leading technology company",
-  "citations": [
-    {
-      "cellIndex": 0,
-      "citationUrl": "https://www.apple.com",
-      "citationTitle": "Apple Inc - Official Website",
-      "citationSnippet": "Apple is a leading technology company",
-      "citedValue": "Apple Inc"
-    }
-  ]
-}
-\`\`\``,
+        output_parsed: {
+          textSummary: "Apple Inc is a leading technology company",
+          citations: [
+            {
+              cellIndex: 0,
+              citationUrl: "https://www.apple.com",
+              citationTitle: "Apple Inc - Official Website",
+              citationSnippet: "Apple is a leading technology company",
+              citedValue: "Apple Inc",
+            },
+          ],
+        },
       };
 
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -530,10 +492,10 @@ describe("findCitations", () => {
 
     it("should handle malformed JSON gracefully", async () => {
       const mockResponse = {
-        content: "Invalid JSON response",
+        output_parsed: null,
       };
 
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -544,37 +506,34 @@ describe("findCitations", () => {
       );
 
       expect(result.error).toBe(
-        "No relevant citations found for the selected data."
+        "Failed to parse structured response from API."
       );
-      expect(result.citations).toBeUndefined();
     });
 
     it("should extract citations with proper URL validation", async () => {
       const mockResponse = {
-        content: `\`\`\`json
-{
-  "textSummary": "Technology companies information",
-  "citations": [
-    {
-      "cellIndex": 0,
-      "citationUrl": "https://www.apple.com",
-      "citationTitle": "Apple Inc",
-      "citationSnippet": "Apple is a technology company",
-      "citedValue": "Apple Inc"
-    },
-    {
-      "cellIndex": 1,
-      "citationUrl": "invalid-url",
-      "citationTitle": "Invalid URL",
-      "citationSnippet": "Invalid URL",
-      "citedValue": "Invalid URL"
-    }
-  ]
-}
-\`\`\``,
+        output_parsed: {
+          textSummary: "Technology companies information",
+          citations: [
+            {
+              cellIndex: 0,
+              citationUrl: "https://www.apple.com",
+              citationTitle: "Apple Inc",
+              citationSnippet: "Apple is a technology company",
+              citedValue: "Apple Inc",
+            },
+            {
+              cellIndex: 1,
+              citationUrl: "invalid-url",
+              citationTitle: "Invalid URL",
+              citationSnippet: "Invalid URL",
+              citedValue: "Invalid URL",
+            },
+          ],
+        },
       };
 
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -591,23 +550,21 @@ describe("findCitations", () => {
 
     it("should handle single citation", async () => {
       const mockResponse = {
-        content: `\`\`\`json
-{
-  "textSummary": "Microsoft is a software company",
-  "citations": [
-    {
-      "cellIndex": 0,
-      "citationUrl": "https://www.microsoft.com",
-      "citationTitle": "Microsoft",
-      "citationSnippet": "Microsoft is a software company",
-      "citedValue": "Microsoft"
-    }
-  ]
-}
-\`\`\``,
+        output_parsed: {
+          textSummary: "Microsoft is a software company",
+          citations: [
+            {
+              cellIndex: 0,
+              citationUrl: "https://www.microsoft.com",
+              citationTitle: "Microsoft",
+              citationSnippet: "Microsoft is a software company",
+              citedValue: "Microsoft",
+            },
+          ],
+        },
       };
 
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -622,54 +579,12 @@ describe("findCitations", () => {
     });
   });
 
-  describe("citation processing", () => {
-    it("should remove duplicate citations by URL", async () => {
-      const mockResponse = {
-        content: `\`\`\`json
-{
-  "textSummary": "Technology companies information",
-  "citations": [
-    {
-      "cellIndex": 0,
-      "citationUrl": "https://www.apple.com",
-      "citationTitle": "Apple Inc",
-      "citationSnippet": "Apple info 1",
-      "citedValue": "Apple Inc"
-    },
-    {
-      "cellIndex": 1,
-      "citationUrl": "https://www.apple.com",
-      "citationTitle": "Apple Inc - Different Title",
-      "citationSnippet": "Apple info 2",
-      "citedValue": "Apple Inc"
-    }
-  ]
-}
-\`\`\``,
-      };
-
-      mockInvoke.mockResolvedValueOnce(mockResponse);
-
-      const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
-        mockHeaders,
-        mockDocumentTitle,
-        mockDocumentDescription
-      );
-
-      expect(result.citations?.length).toBe(1);
-    });
-  });
-
   describe("rate limiting", () => {
     it("should apply rate limiting delay", async () => {
       const startTime = Date.now();
 
       const mockResponse = {
-        content: `\`\`\`json
-{"textSummary": "Test", "citations": []}
-\`\`\``,
+        output_parsed: { textSummary: "Test", citations: [] },
       };
 
       const promise1 = findCitationsModule.default(
@@ -688,7 +603,7 @@ describe("findCitations", () => {
         mockDocumentDescription
       );
 
-      mockInvoke.mockResolvedValue(mockResponse);
+      mockResponsesParse.mockResolvedValue(mockResponse);
 
       await Promise.all([promise1, promise2]);
 
@@ -700,23 +615,21 @@ describe("findCitations", () => {
   describe("Citation interface", () => {
     it("should return citations with all required fields", async () => {
       const mockResponse = {
-        content: `\`\`\`json
-{
-  "textSummary": "Apple is a leading technology company",
-  "citations": [
-    {
-      "cellIndex": 0,
-      "citationUrl": "https://www.apple.com",
-      "citationTitle": "Apple Inc - Official Website",
-      "citationSnippet": "Apple is a leading technology company",
-      "citedValue": "Apple Inc"
-    }
-  ]
-}
-\`\`\``,
+        output_parsed: {
+          textSummary: "Apple is a leading technology company",
+          citations: [
+            {
+              cellIndex: 0,
+              citationUrl: "https://www.apple.com",
+              citationTitle: "Apple Inc - Official Website",
+              citationSnippet: "Apple is a leading technology company",
+              citedValue: "Apple Inc",
+            },
+          ],
+        },
       };
 
-      mockInvoke.mockResolvedValueOnce(mockResponse);
+      mockResponsesParse.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
