@@ -181,7 +181,8 @@ describe("findCitations Manual Testing", () => {
           ),
           testCase.headers,
           testCase.title,
-          testCase.description
+          testCase.description,
+          { debug: true }
         );
 
         console.log("\n📚 CITATION RESULTS:");

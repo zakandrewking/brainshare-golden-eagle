@@ -302,8 +302,6 @@ describe("findCitations", () => {
 
   describe("buildSearchContext", () => {
     it("should build search context from selected cells", async () => {
-      const expectedContext = `${mockDocumentTitle} - Company: Apple Inc, Industry: Technology`;
-
       const mockResponse = {
         content: `\`\`\`json
 {"textSummary": "Test", "citationUrls": []}
@@ -319,8 +317,18 @@ describe("findCitations", () => {
         mockDocumentDescription
       );
 
+      // Check that the new format includes SELECTED CELLS and proper structure
       expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining(expectedContext)
+        expect.stringContaining("=== SELECTED CELLS (Primary Focus) ===")
+      );
+      expect(HumanMessageSpy).toHaveBeenCalledWith(
+        expect.stringContaining('1. Company: "Apple Inc" (Row 1)')
+      );
+      expect(HumanMessageSpy).toHaveBeenCalledWith(
+        expect.stringContaining('2. Industry: "Technology" (Row 1)')
+      );
+      expect(HumanMessageSpy).toHaveBeenCalledWith(
+        expect.stringContaining("=== TABLE CONTEXT (For Reference) ===")
       );
     });
 
@@ -345,8 +353,12 @@ describe("findCitations", () => {
         mockDocumentDescription
       );
 
+      // Check that duplicate cells are both shown in the new format
       expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Company: Apple Inc")
+        expect.stringContaining('1. Company: "Apple Inc" (Row 1)')
+      );
+      expect(HumanMessageSpy).toHaveBeenCalledWith(
+        expect.stringContaining('2. Company: "Apple Inc" (Row 1)')
       );
     });
 

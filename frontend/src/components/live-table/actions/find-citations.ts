@@ -1,5 +1,6 @@
 "use server";
 
+import { encoding_for_model } from "tiktoken";
 import { z } from "zod";
 
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
@@ -71,7 +72,10 @@ const createWebSearchModel = () => {
 };
 
 // Parse structured output from the model response
-function parseStructuredOutput(responseText: string | undefined): {
+function parseStructuredOutput(
+  responseText: string | undefined,
+  debug = false
+): {
   textSummary: string;
   citationUrls: Array<{
     url: string;
@@ -83,7 +87,7 @@ function parseStructuredOutput(responseText: string | undefined): {
   try {
     // Handle undefined or null input
     if (!responseText || typeof responseText !== "string") {
-      console.warn("Invalid response text:", responseText);
+      if (debug) console.warn("Invalid response text:", responseText);
       return {
         textSummary:
           "Unable to parse structured response. Invalid response format.",
@@ -102,7 +106,7 @@ function parseStructuredOutput(responseText: string | undefined): {
     const parsed = JSON.parse(responseText);
     return webSearchSchema.parse(parsed);
   } catch (error) {
-    console.error("Error parsing structured output:", error);
+    if (debug) console.error("Error parsing structured output:", error);
 
     // Ultimate fallback: Create a basic structure
     return {
@@ -119,12 +123,17 @@ export default async function findCitations(
   cellsData: string[][],
   headers: string[],
   documentTitle: string,
-  documentDescription: string
+  documentDescription: string,
+  options?: {
+    debug?: boolean;
+  }
 ): Promise<{
   citations?: Citation[];
   searchContext?: string;
   error?: string;
 }> {
+  const debug = options?.debug ?? false;
+
   // Validate inputs
   if (!selectedCells || selectedCells.length === 0) {
     return { error: "No cells selected for citation search." };
@@ -142,17 +151,9 @@ export default async function findCitations(
   try {
     await rateLimitDelay();
   } catch (error) {
-    console.error("Rate limiting error:", error);
+    if (debug) console.error("Rate limiting error:", error);
     return { error: "Rate limiting failed. Please try again." };
   }
-
-  // Build search context from selected cells
-  const searchContext = buildSearchContext(
-    selectedCells,
-    cellsData,
-    headers,
-    documentTitle
-  );
 
   // Create system prompt for citation finding with structured output
   const systemPrompt = `You are an expert research assistant with web search capabilities specializing in finding high-quality, authoritative citations for data verification and fact-checking.
@@ -192,27 +193,49 @@ You must return your response in the following JSON format wrapped in \`\`\`json
   ]
 }`;
 
-  const userPrompt = `Find authoritative citations for the following selected data from a table:
+  const userPrompt = `Find authoritative citations for the following data:
 
-HEADERS: ${headers.join(", ")}
+=== SELECTED CELLS (Primary Focus) ===
+${selectedCells
+  .map((cell, index) => {
+    const rowIndex = cell.rowIndex;
+    const colIndex = cell.colIndex;
+    const cellValue = cellsData[rowIndex]?.[colIndex] || "N/A";
+    const headerName = headers[colIndex] || `Column ${colIndex + 1}`;
+    return `${index + 1}. ${headerName}: "${cellValue}" (Row ${rowIndex + 1})`;
+  })
+  .join("\n")}
 
-SELECTED CELLS DATA:
+=== TABLE CONTEXT (For Reference) ===
+Document: "${documentTitle}"
+Description: ${documentDescription}
+
+Complete Table Data:
+Headers: ${headers.join(" | ")}
 ${cellsData
   .map(
-    (row, i) =>
-      `Row ${i + 1}: ${row
-        .map((cell, j) => `${headers[j] || `Column ${j + 1}`}: "${cell}"`)
-        .join(", ")}`
+    (row, rowIndex) =>
+      `Row ${rowIndex + 1}: ${row
+        .map(
+          (cell, colIndex) =>
+            `${headers[colIndex] || `Col${colIndex + 1}`}: "${cell}"`
+        )
+        .join(" | ")}`
   )
   .join("\n")}
 
-SEARCH CONTEXT: ${searchContext}
+Table Summary:
+- Total Rows: ${cellsData.length}
+- Total Columns: ${headers.length}
+- Selected Cells Count: ${selectedCells.length}
 
-Please search the web for high-quality, authoritative sources that can verify, support, or provide context for this data. Focus on:
+Please search the web for high-quality, authoritative sources that can verify, support, or provide context for the SELECTED CELLS data above. Focus on:
 1. Academic or research sources for scientific claims
 2. Government or official statistics for numerical data
 3. Reputable news sources for current events or facts
 4. Professional or industry sources for specialized information
+
+IMPORTANT: Your citations should directly relate to the specific data values in the SELECTED CELLS section, not just the general table topic. Use the complete table context above to understand the broader dataset and find more relevant citations.
 
 Provide a comprehensive text summary of your research findings and include specific citation details with:
 - Clear, relevant titles
@@ -228,11 +251,34 @@ Prioritize quality over quantity - better to have fewer high-quality citations t
     // Create model
     const model = createWebSearchModel();
 
-    console.log("--------------------------------");
-    console.log("systemPrompt:", systemPrompt);
-    console.log("--------------------------------");
-    console.log("userPrompt:", userPrompt);
-    console.log("--------------------------------");
+    if (debug) {
+      console.log("--------------------------------");
+      console.log("systemPrompt:", systemPrompt);
+      console.log("--------------------------------");
+      console.log("userPrompt:", userPrompt);
+      console.log("--------------------------------");
+    }
+
+    // Calculate accurate input token count using tiktoken
+    const encoding = encoding_for_model("gpt-4");
+    const systemPromptLength = systemPrompt.length;
+    const userPromptLength = userPrompt.length;
+    const totalInputLength = systemPromptLength + userPromptLength;
+
+    const systemPromptTokens = encoding.encode(systemPrompt).length;
+    const userPromptTokens = encoding.encode(userPrompt).length;
+    const totalInputTokens = systemPromptTokens + userPromptTokens;
+
+    if (debug) {
+      console.log("TOKEN COUNTS - INPUT:");
+      console.log(`- System Prompt Length: ${systemPromptLength} chars`);
+      console.log(`- User Prompt Length: ${userPromptLength} chars`);
+      console.log(`- Total Input Length: ${totalInputLength} chars`);
+      console.log(`- System Prompt Tokens: ${systemPromptTokens}`);
+      console.log(`- User Prompt Tokens: ${userPromptTokens}`);
+      console.log(`- Total Input Tokens: ${totalInputTokens}`);
+      console.log("--------------------------------");
+    }
 
     // Make the API call
     const response = await model.invoke([
@@ -240,26 +286,69 @@ Prioritize quality over quantity - better to have fewer high-quality citations t
       new HumanMessage(userPrompt),
     ]);
 
-    console.log("--------------------------------");
-    console.log("response.content:", response.content);
-    console.log("--------------------------------");
+    if (debug) {
+      console.log("--------------------------------");
+      console.log("response.content:", response.content);
+      console.log("--------------------------------");
+    }
+
+    // Log token usage information using tiktoken for accuracy
+    const responseContent = (response.content as string) || "";
+    const responseLength = responseContent.length;
+    const actualOutputTokens = encoding.encode(responseContent).length;
+
+    if (debug) {
+      console.log("TOKEN COUNTS - OUTPUT:");
+      console.log(`- Response Length: ${responseLength} chars`);
+      console.log(`- Actual Output Tokens: ${actualOutputTokens}`);
+      console.log(
+        `- Total Actual Tokens: ${totalInputTokens + actualOutputTokens}`
+      );
+
+      // Log usage metadata if available in response
+      if (response.response_metadata?.tokenUsage) {
+        console.log(
+          "- Actual Token Usage:",
+          response.response_metadata.tokenUsage
+        );
+      } else if (response.usage_metadata) {
+        console.log("- Actual Token Usage:", response.usage_metadata);
+      } else if (
+        "additional_kwargs" in response &&
+        response.additional_kwargs &&
+        typeof response.additional_kwargs === "object" &&
+        "usage" in response.additional_kwargs
+      ) {
+        console.log("- Actual Token Usage:", response.additional_kwargs.usage);
+      }
+      console.log("--------------------------------");
+    }
+
+    // Free the encoding to prevent memory leaks
+    encoding.free();
 
     // Parse the structured response
     const structuredOutput = parseStructuredOutput(
-      response.content as string | undefined
+      response.content as string | undefined,
+      debug
     );
 
-    console.log("--------------------------------");
-    console.log("structuredOutput.textSummary:", structuredOutput.textSummary);
-    console.log("--------------------------------");
-    console.log(
-      "structuredOutput.citationUrls:",
-      structuredOutput.citationUrls
-    );
-    console.log("--------------------------------");
+    if (debug) {
+      console.log("--------------------------------");
+      console.log(
+        "structuredOutput.textSummary:",
+        structuredOutput.textSummary
+      );
+      console.log("--------------------------------");
+      console.log(
+        "structuredOutput.citationUrls:",
+        structuredOutput.citationUrls
+      );
+      console.log("--------------------------------");
+    }
 
     // Process the structured response into Citation objects
-    const citations = processCitationUrls(structuredOutput.citationUrls);
+    const citations = processCitationUrls(structuredOutput.citationUrls, debug);
 
     if (!citations || citations.length === 0) {
       return {
@@ -273,7 +362,7 @@ Prioritize quality over quantity - better to have fewer high-quality citations t
       searchContext: structuredOutput.textSummary,
     };
   } catch (error) {
-    console.error("Error calling OpenAI web search API:", error);
+    if (debug) console.error("Error calling OpenAI web search API:", error);
 
     // Handle specific error types
     if (error instanceof Error) {
@@ -301,40 +390,6 @@ Prioritize quality over quantity - better to have fewer high-quality citations t
   }
 }
 
-// Helper function to build search context from selected cells
-function buildSearchContext(
-  selectedCells: CellPosition[],
-  cellsData: string[][],
-  headers: string[],
-  documentTitle: string
-): string {
-  const uniqueValues = new Set<string>();
-  const contextParts: string[] = [];
-
-  // Extract unique values from selected cells
-  selectedCells.forEach((cell) => {
-    if (cellsData[cell.rowIndex] && cellsData[cell.rowIndex][cell.colIndex]) {
-      const value = cellsData[cell.rowIndex][cell.colIndex].trim();
-      if (value && value !== "" && !uniqueValues.has(value)) {
-        uniqueValues.add(value);
-        const header = headers[cell.colIndex] || `Column ${cell.colIndex + 1}`;
-        contextParts.push(`${header}: ${value}`);
-      }
-    }
-  });
-
-  // Build a concise search context
-  const context = `${documentTitle} - ${contextParts.join(", ")}`;
-
-  // Truncate if too long while preserving meaning
-  if (context.length > 200) {
-    const truncated = context.substring(0, 197) + "...";
-    return truncated;
-  }
-
-  return context;
-}
-
 // Helper function to process citation URLs into Citation objects
 function processCitationUrls(
   citationUrls: {
@@ -342,7 +397,8 @@ function processCitationUrls(
     title: string;
     snippet: string;
     domain: string;
-  }[]
+  }[],
+  debug = false
 ): Citation[] {
   const citations: Citation[] = [];
   const seenUrls = new Set<string>();
@@ -353,13 +409,14 @@ function processCitationUrls(
       !citationUrl.url.startsWith("http://") &&
       !citationUrl.url.startsWith("https://")
     ) {
-      console.warn("Invalid URL format, skipping:", citationUrl.url);
+      if (debug) console.warn("Invalid URL format, skipping:", citationUrl.url);
       return;
     }
 
     // Skip duplicates by URL
     if (seenUrls.has(citationUrl.url)) {
-      console.warn("Duplicate URL found, skipping:", citationUrl.url);
+      if (debug)
+        console.warn("Duplicate URL found, skipping:", citationUrl.url);
       return;
     }
 
