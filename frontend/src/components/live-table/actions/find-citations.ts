@@ -16,6 +16,7 @@ export interface Citation {
   snippet: string;
   domain: string;
   relevanceScore?: number;
+  citedValue?: string;
 }
 
 export interface CellPosition {
@@ -46,11 +47,15 @@ const webSearchSchema = z.object({
           .describe(
             "Array of cell indices (0-based) that this citation supports"
           ),
+        citedValue: z
+          .string()
+          .optional()
+          .describe(
+            "The specific value or data point mentioned in this source that relates to the data categories. If no specific value is mentioned, leave empty."
+          ),
       })
     )
-    .describe(
-      "A list of authoritative citation sources with their details - must include at least one citation for each selected cell"
-    ),
+    .describe("A list of authoritative citation sources with their details"),
 });
 
 // Rate limiting configuration
@@ -90,6 +95,7 @@ function parseStructuredOutput(
     snippet: string;
     domain: string;
     cellIndices: number[];
+    citedValue?: string;
   }>;
 } {
   try {
@@ -179,12 +185,13 @@ CITATION QUALITY REQUIREMENTS:
 - Citations should be from trustworthy domains (.edu, .gov, reputable news, academic journals)
 - Provide context about why each source is relevant to the selected data
 - Ensure citations are factual and support the data claims
+- Extract specific values or data points from the source when available (for comparison with hidden values)
 
-COMPLETENESS REQUIREMENTS:
-- Every data point must be fully supported by a citation by exact match or by logical inference.
-- If logical inference is used, explain the reasoning in the citation.
-- If a data point is not fully supported, mention that in the text summary.
-- CRITICAL: You must provide at least one citation for EACH selected cell. If multiple cells have the same data, you can reuse citations but each cell must be covered.
+RELEVANCE REQUIREMENTS:
+- Find citations that contain information, data, or context relevant to the selected data categories
+- Citations should be topically relevant even if they don't contain the exact same data values
+- Focus on authoritative sources that provide insights about the same domain or subject matter
+- Quality and authenticity of sources is more important than exact data matching
 
 Document Context: "${documentTitle}" - ${documentDescription}
 
@@ -198,84 +205,106 @@ You must return your response in the following JSON format wrapped in \`\`\`json
       "title": "Title of the source",
       "snippet": "Relevant excerpt from the source that relates to the data",
       "domain": "example.com",
-      "cellIndices": [0, 1]
+      "cellIndices": [0, 1],
+      "citedValue": "The specific value or data point mentioned in this source (optional)"
     }
   ]
 }`;
 
-  const userPrompt = `Find authoritative citations for the following data:
+  const userPrompt = `Find authoritative citations related to the following research topic and data:
 
-=== SELECTED CELLS (Primary Focus) ===
-${selectedCells
-  .map((cell, index) => {
-    const rowIndex = cell.rowIndex;
-    const colIndex = cell.colIndex;
-    const cellValue = cellsData[rowIndex]?.[colIndex] || "N/A";
-    const headerName = headers[colIndex] || `Column ${colIndex + 1}`;
-    return `${index + 1}. ${headerName}: "${cellValue}" (Row ${rowIndex + 1})`;
-  })
-  .join("\n")}
-
-=== TABLE CONTEXT (For Reference) ===
+=== RESEARCH CONTEXT ===
 Document: "${documentTitle}"
 Description: ${documentDescription}
 
-Complete Table Data:
+=== COMPLETE TABLE DATA (For Context) ===
 Headers: ${headers.join(" | ")}
+
 ${cellsData
-  .map(
-    (row, rowIndex) =>
-      `Row ${rowIndex + 1}: ${row
-        .map(
-          (cell, colIndex) =>
-            `${headers[colIndex] || `Col${colIndex + 1}`}: "${cell}"`
-        )
-        .join(" | ")}`
-  )
+  .map((row, rowIndex) => {
+    const maskedRow = row.map((cell, colIndex) => {
+      // Check if this cell is in the selected cells
+      const isSelected = selectedCells.some(
+        (selectedCell) =>
+          selectedCell.rowIndex === rowIndex &&
+          selectedCell.colIndex === colIndex
+      );
+
+      if (isSelected) {
+        return "[SELECTED_CELL]"; // Mask the selected cell values
+      }
+      return cell; // Keep other cell values visible
+    });
+
+    return `Row ${rowIndex + 1}: ${maskedRow
+      .map(
+        (cell, colIndex) =>
+          `${headers[colIndex] || `Col${colIndex + 1}`}: "${cell}"`
+      )
+      .join(" | ")}`;
+  })
   .join("\n")}
 
-Table Summary:
-- Total Rows: ${cellsData.length}
-- Total Columns: ${headers.length}
-- Selected Cells Count: ${selectedCells.length}
+=== SELECTED CELLS (Values Hidden) ===
+The user has selected ${
+    selectedCells.length
+  } specific data points (marked as [SELECTED_CELL] above) for citation:
 
-Please search the web for high-quality, authoritative sources that can verify, support, or provide context for the SELECTED CELLS data above. Focus on:
-1. Academic or research sources for scientific claims
-2. Government or official statistics for numerical data
-3. Reputable news sources for current events or facts
-4. Professional or industry sources for specialized information
-
-IMPORTANT: Your citations should directly relate to the specific data values in the SELECTED CELLS section, not just the general table topic. Use the complete table context above to understand the broader dataset and find more relevant citations.
-
-Provide a comprehensive text summary of your research findings and include specific citation details with:
-- Clear, relevant titles
-- Source URLs
-- Specific snippets that relate to the selected data
-- Domain names for credibility assessment
-- Cell indices array indicating which selected cells (0-based index) each citation supports
-
-CRITICAL REQUIREMENT: Each citation must include a "cellIndices" array that lists which selected cells it supports. You must ensure that every selected cell (indices 0 through ${
-    selectedCells.length - 1
-  }) appears in at least one citation's cellIndices array.
-
-For reference, the selected cells are indexed as follows:
 ${selectedCells
   .map((cell, index) => {
-    const rowIndex = cell.rowIndex;
     const colIndex = cell.colIndex;
-    const cellValue = cellsData[rowIndex]?.[colIndex] || "N/A";
+    const rowIndex = cell.rowIndex;
     const headerName = headers[colIndex] || `Column ${colIndex + 1}`;
-    return `- Index ${index}: ${headerName}: "${cellValue}" (Row ${
-      rowIndex + 1
-    })`;
+    return `${index + 1}. ${headerName} (Row ${rowIndex + 1}) - [HIDDEN VALUE]`;
+  })
+  .join("\n")}
+
+=== SEARCH OBJECTIVE ===
+Using the complete table data above as context (while ignoring the specific [SELECTED_CELL] values), please search the web for high-quality, authoritative sources that contain relevant data, statistics, or information about:
+
+${headers
+  .filter((_, index) => selectedCells.some((cell) => cell.colIndex === index))
+  .map((header) => `- ${header}`)
+  .join("\n")}
+
+In the context of: ${documentTitle}
+
+The complete table data gives you context about the domain, topic, and type of information we're working with. Use this context to find relevant authoritative sources, but do NOT attempt to find sources that match the hidden [SELECTED_CELL] values.
+
+SEARCH CRITERIA:
+1. Academic or research sources for scientific claims and data
+2. Government or official statistics for numerical data
+3. Reputable news sources for current events or factual information
+4. Professional or industry sources for specialized domain knowledge
+5. Official reports, white papers, or authoritative publications
+
+IMPORTANT: Focus on finding authentic sources that provide information about the same domain/topic as shown in the table context, but do not try to match the specific hidden values.
+
+Provide a comprehensive text summary of your research findings and include specific citation details with:
+- Clear, relevant titles that indicate the source content
+- Source URLs to authoritative websites
+- Specific snippets that show what kind of data or information the source contains
+- Domain names for credibility assessment
+- Cell indices array indicating which data categories each citation is relevant to
+- Cited values: Extract any specific data points, numbers, percentages, or values mentioned in the source that relate to the data categories (this helps identify discrepancies with the hidden values)
+
+CITATION RELEVANCE: Each citation should be relevant to one or more of the selected data categories (indices 0 through ${
+    selectedCells.length - 1
+  }). A citation is relevant if it contains information, data, or context about that category, even if the specific values differ.
+
+Selected data categories for reference:
+${selectedCells
+  .map((cell, index) => {
+    const colIndex = cell.colIndex;
+    const rowIndex = cell.rowIndex;
+    const headerName = headers[colIndex] || `Column ${colIndex + 1}`;
+    return `- Index ${index}: ${headerName} (Row ${rowIndex + 1})`;
   })
   .join("\n")}
 
 Return your response in the exact JSON format specified above, wrapped in \`\`\`json and \`\`\` tags.
 
-You may reuse citations for multiple cells if they support the same or related data, but every cell index (0-${
-    selectedCells.length - 1
-  }) must appear in at least one citation's cellIndices array.`;
+Focus on finding real, authoritative sources that contain relevant information about these data categories, rather than trying to verify specific values.`;
 
   try {
     // Create model
@@ -377,31 +406,34 @@ You may reuse citations for multiple cells if they support the same or related d
       console.log("--------------------------------");
     }
 
-    // Validate that all selected cells are covered by citations
-    const coveredCellIndices = new Set<number>();
-    structuredOutput.citationUrls.forEach((citation) => {
-      if (citation.cellIndices && Array.isArray(citation.cellIndices)) {
-        citation.cellIndices.forEach((index) => coveredCellIndices.add(index));
-      }
-    });
+    // Log citation relevance coverage for debugging
+    if (debug) {
+      const coveredCellIndices = new Set<number>();
+      structuredOutput.citationUrls.forEach((citation) => {
+        if (citation.cellIndices && Array.isArray(citation.cellIndices)) {
+          citation.cellIndices.forEach((index) =>
+            coveredCellIndices.add(index)
+          );
+        }
+      });
 
-    const expectedIndices = Array.from(
-      { length: selectedCells.length },
-      (_, i) => i
-    );
-    const uncoveredIndices = expectedIndices.filter(
-      (index) => !coveredCellIndices.has(index)
-    );
+      const expectedIndices = Array.from(
+        { length: selectedCells.length },
+        (_, i) => i
+      );
+      const uncoveredIndices = expectedIndices.filter(
+        (index) => !coveredCellIndices.has(index)
+      );
 
-    if (uncoveredIndices.length > 0) {
-      if (debug) {
-        console.warn(
-          `Warning: The following cell indices are not covered by citations: ${uncoveredIndices.join(
+      console.log(
+        `Found citations relevant to ${coveredCellIndices.size} out of ${selectedCells.length} data categories`
+      );
+      if (uncoveredIndices.length > 0) {
+        console.log(
+          `Data categories without relevant citations: ${uncoveredIndices.join(
             ", "
           )}`
         );
-        console.warn("Expected indices:", expectedIndices);
-        console.warn("Covered indices:", Array.from(coveredCellIndices));
       }
     }
 
@@ -460,6 +492,7 @@ function processCitationUrls(
     snippet: string;
     domain: string;
     cellIndices: number[];
+    citedValue?: string;
   }[],
   debug = false,
   selectedCellsLength?: number
@@ -493,6 +526,7 @@ function processCitationUrls(
       snippet: citationUrl.snippet,
       domain: citationUrl.domain,
       relevanceScore: 0.8, // Default relevance score
+      citedValue: citationUrl.citedValue,
     });
   });
 

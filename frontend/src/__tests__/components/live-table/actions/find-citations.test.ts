@@ -80,7 +80,8 @@ describe("findCitations", () => {
       "title": "Apple Inc - Official Website",
       "snippet": "Apple is a leading technology company",
       "domain": "apple.com",
-      "cellIndices": [0, 1]
+      "cellIndices": [0, 1],
+      "citedValue": "Apple Inc"
     }
   ]
 }
@@ -277,6 +278,7 @@ describe("findCitations", () => {
         snippet: `Citation ${i}`,
         domain: `example${i}.com`,
         cellIndices: [i % 2], // Alternate between cell indices 0 and 1
+        citedValue: `Value ${i}`,
       }));
 
       const mockResponse = {
@@ -300,6 +302,81 @@ describe("findCitations", () => {
 
       expect(result.citations?.length).toBe(10);
     });
+
+    it("should handle citedValue in response", async () => {
+      const mockResponse = {
+        content: `\`\`\`json
+{
+  "textSummary": "Found relevant data for the selected companies.",
+  "citationUrls": [
+    {
+      "url": "https://www.sec.gov/example",
+      "title": "SEC Filing - Apple Inc",
+      "snippet": "Apple Inc reported revenue of $394.3 billion",
+      "domain": "sec.gov",
+      "cellIndices": [0],
+      "citedValue": "394.3 billion"
+    },
+    {
+      "url": "https://www.microsoft.com/investor",
+      "title": "Microsoft Investor Relations",
+      "snippet": "Microsoft is a technology company",
+      "domain": "microsoft.com",
+      "cellIndices": [1]
+    }
+  ]
+}
+\`\`\``,
+      };
+
+      mockInvoke.mockResolvedValueOnce(mockResponse);
+
+      const result = await findCitationsModule.default(
+        mockSelectedCells,
+        mockCellsData,
+        mockHeaders,
+        mockDocumentTitle,
+        mockDocumentDescription
+      );
+
+      expect(result.citations).toBeDefined();
+      expect(result.citations?.length).toBe(2);
+      expect(result.citations?.[0].citedValue).toBe("394.3 billion");
+      expect(result.citations?.[1].citedValue).toBeUndefined(); // Second citation has no citedValue
+    });
+
+    it("should handle missing citedValue gracefully", async () => {
+      const mockResponse = {
+        content: `\`\`\`json
+{
+  "textSummary": "Citations without specific values",
+  "citationUrls": [
+    {
+      "url": "https://example.com",
+      "title": "Example Source",
+      "snippet": "General information about companies",
+      "domain": "example.com",
+      "cellIndices": [0, 1]
+    }
+  ]
+}
+\`\`\``,
+      };
+
+      mockInvoke.mockResolvedValueOnce(mockResponse);
+
+      const result = await findCitationsModule.default(
+        mockSelectedCells,
+        mockCellsData,
+        mockHeaders,
+        mockDocumentTitle,
+        mockDocumentDescription
+      );
+
+      expect(result.citations).toBeDefined();
+      expect(result.citations?.length).toBe(1);
+      expect(result.citations?.[0].citedValue).toBeUndefined();
+    });
   });
 
   describe("buildSearchContext", () => {
@@ -321,16 +398,19 @@ describe("findCitations", () => {
 
       // Check that the new format includes SELECTED CELLS and proper structure
       expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("=== SELECTED CELLS (Primary Focus) ===")
+        expect.stringContaining("=== SELECTED CELLS (Values Hidden) ===")
       );
       expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining('1. Company: "Apple Inc" (Row 1)')
+        expect.stringContaining("1. Company (Row 1) - [HIDDEN VALUE]")
       );
       expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining('2. Industry: "Technology" (Row 1)')
+        expect.stringContaining("2. Industry (Row 1) - [HIDDEN VALUE]")
       );
       expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining("=== TABLE CONTEXT (For Reference) ===")
+        expect.stringContaining("=== COMPLETE TABLE DATA (For Context) ===")
+      );
+      expect(HumanMessageSpy).toHaveBeenCalledWith(
+        expect.stringContaining("[SELECTED_CELL]")
       );
     });
 
@@ -357,10 +437,10 @@ describe("findCitations", () => {
 
       // Check that duplicate cells are both shown in the new format
       expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining('1. Company: "Apple Inc" (Row 1)')
+        expect.stringContaining("1. Company (Row 1) - [HIDDEN VALUE]")
       );
       expect(HumanMessageSpy).toHaveBeenCalledWith(
-        expect.stringContaining('2. Company: "Apple Inc" (Row 1)')
+        expect.stringContaining("2. Company (Row 1) - [HIDDEN VALUE]")
       );
     });
 
