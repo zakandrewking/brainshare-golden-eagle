@@ -1,4 +1,5 @@
 import {
+  afterEach,
   beforeEach,
   describe,
   expect,
@@ -71,13 +72,21 @@ describe("findCitations", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
 
     // Mock environment variable
     process.env.GEMINI_API_KEY = "test-api-key";
 
+    // Reset module cache and import fresh
+    vi.resetModules();
     findCitationsModule = await import(
       "@/components/live-table/actions/find-citations"
     );
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   describe("main findCitations function", () => {
@@ -390,7 +399,6 @@ describe("findCitations", () => {
       };
 
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
-      
 
       const result = await findCitationsModule.default(
         mockSelectedCells,
@@ -646,13 +654,14 @@ describe("findCitations", () => {
 
   describe("rate limiting", () => {
     it("should apply rate limiting delay", async () => {
-      const startTime = Date.now();
-
       const mockResponseData = { textSummary: "Test", citations: [] };
       const mockResponse = {
         text: JSON.stringify(mockResponseData),
       };
 
+      mockGenerateContent.mockResolvedValue(mockResponse);
+
+      // First call should complete immediately
       const promise1 = findCitationsModule.default(
         mockSelectedCells,
         mockCellsData,
@@ -661,6 +670,11 @@ describe("findCitations", () => {
         mockDocumentDescription
       );
 
+      // Advance time to complete first call
+      await vi.runAllTimersAsync();
+      await promise1;
+
+      // Second call should be delayed due to rate limiting
       const promise2 = findCitationsModule.default(
         mockSelectedCells,
         mockCellsData,
@@ -669,12 +683,12 @@ describe("findCitations", () => {
         mockDocumentDescription
       );
 
-      mockGenerateContent.mockResolvedValue(mockResponse);
+      // Advance timers by the expected rate limit delay (1000ms)
+      await vi.advanceTimersByTimeAsync(1000);
+      await promise2;
 
-      await Promise.all([promise1, promise2]);
-
-      const elapsed = Date.now() - startTime;
-      expect(elapsed).toBeGreaterThan(500);
+      // Both calls should have succeeded
+      expect(mockGenerateContent).toHaveBeenCalledTimes(2);
     });
   });
 

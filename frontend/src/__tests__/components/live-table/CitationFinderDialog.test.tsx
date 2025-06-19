@@ -1,4 +1,5 @@
 import {
+  afterEach,
   beforeEach,
   describe,
   expect,
@@ -7,9 +8,9 @@ import {
 } from "vitest";
 
 import {
+  act,
   render,
   screen,
-  waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -28,6 +29,12 @@ describe("CitationFinderDialog", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   it("renders when open with correct cell count", () => {
@@ -85,17 +92,17 @@ describe("CitationFinderDialog", () => {
       />
     );
 
-    await waitFor(
-      () => {
-        expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
-        expect(screen.getByText("Example Citation 2")).toBeInTheDocument();
-      },
-      { timeout: 3000 }
-    );
+    // Advance timers to simulate the 2 second timeout
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
+    expect(screen.getByText("Example Citation 2")).toBeInTheDocument();
   });
 
   it("allows selecting citations", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     render(
       <CitationFinderDialog
@@ -106,12 +113,12 @@ describe("CitationFinderDialog", () => {
       />
     );
 
-    await waitFor(
-      () => {
-        expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
-      },
-      { timeout: 3000 }
-    );
+    // Advance timers to get citations
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
 
     const citation1Checkbox = document.getElementById("citation-1");
     await user.click(citation1Checkbox!);
@@ -121,7 +128,7 @@ describe("CitationFinderDialog", () => {
   });
 
   it("calls onLock with citation note when locking", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     render(
       <CitationFinderDialog
@@ -132,12 +139,12 @@ describe("CitationFinderDialog", () => {
       />
     );
 
-    await waitFor(
-      () => {
-        expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
-      },
-      { timeout: 3000 }
-    );
+    // Advance timers to get citations
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
 
     const citation1Checkbox = document.getElementById("citation-1");
     await user.click(citation1Checkbox!);
@@ -154,7 +161,7 @@ describe("CitationFinderDialog", () => {
   });
 
   it("calls onOpenChange when canceling", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     render(
       <CitationFinderDialog
@@ -198,12 +205,12 @@ describe("CitationFinderDialog", () => {
       />
     );
 
-    await waitFor(
-      () => {
-        expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
-      },
-      { timeout: 3000 }
-    );
+    // Advance timers to get citations
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
 
     const lockButton = screen.getByText("Lock with 0 Citations");
     expect(lockButton).toBeDisabled();
