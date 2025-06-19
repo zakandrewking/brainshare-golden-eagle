@@ -5,7 +5,7 @@ import { z } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 
-import { MODEL } from "./config";
+import { defaultModel } from "@/llm-config";
 
 const generatedColumnSchema = z.object({
   headerName: z
@@ -27,7 +27,7 @@ const newColumnsResponseSchema = z.object({
 });
 
 const newColumnsModel = new ChatOpenAI({
-  model: MODEL,
+  model: defaultModel,
 }).withStructuredOutput(newColumnsResponseSchema);
 
 export type GeneratedColumn = z.infer<typeof generatedColumnSchema>;

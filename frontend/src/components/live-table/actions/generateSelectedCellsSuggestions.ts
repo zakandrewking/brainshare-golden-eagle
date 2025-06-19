@@ -5,7 +5,7 @@ import { z } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 
-import { MODEL } from "./config";
+import { defaultModel } from "@/llm-config";
 
 const selectedCellSuggestionSchema = z.object({
   rowIndex: z.number().describe("The row index of this cell"),
@@ -20,7 +20,7 @@ const selectedCellsSuggestionsSchema = z.object({
 });
 
 const selectedCellsModel = new ChatOpenAI({
-  model: MODEL,
+  model: defaultModel,
 }).withStructuredOutput(selectedCellsSuggestionsSchema);
 
 export default async function generateSelectedCellsSuggestions(

@@ -42,7 +42,8 @@ vi.mock("@langchain/core/messages", async () => {
 
 // Mock the config
 vi.mock("@/components/live-table/actions/config", () => ({
-  MODEL: "gpt-4.1",
+  defaultModel: "gpt-4.1",
+  researchModel: "o3",
 }));
 
 // Dynamically import the module to be tested
@@ -99,7 +100,6 @@ describe("findCitations", () => {
 
       expect(MockChatOpenAIClass).toHaveBeenCalledWith({
         model: "gpt-4.1",
-        temperature: 0.1,
         maxTokens: 4000,
       });
       expect(mockInvoke).toHaveBeenCalledTimes(1);

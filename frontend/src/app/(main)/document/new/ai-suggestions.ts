@@ -5,7 +5,7 @@ import { z } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 
-const MODEL = "gpt-4.1";
+import { defaultModel } from "@/llm-config";
 
 const tableInitializationSchema = z.object({
   primaryColumnName: z
@@ -35,7 +35,7 @@ const tableInitializationSchema = z.object({
 });
 
 const tableInitModel = new ChatOpenAI({
-  model: MODEL,
+  model: defaultModel,
 }).withStructuredOutput(tableInitializationSchema);
 
 export async function generateTableInitialization(

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 
-import { MODEL } from "./config";
+import { researchModel } from "@/llm-config";
 
 // TypeScript interfaces for citation data
 export interface Citation {
@@ -71,8 +71,7 @@ const rateLimitDelay = async (): Promise<void> => {
 // Create ChatOpenAI instance for web search
 const createWebSearchModel = () => {
   return new ChatOpenAI({
-    model: MODEL,
-    temperature: 0.1, // Low temperature for more consistent results
+    model: researchModel,
     maxTokens: 4000,
   });
 };

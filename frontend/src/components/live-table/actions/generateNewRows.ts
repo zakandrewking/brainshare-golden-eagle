@@ -5,7 +5,7 @@ import { z } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 
-import { MODEL } from "./config";
+import { defaultModel } from "@/llm-config";
 
 // Schema for a single generated row: an array of strings representing cell values.
 const generatedRowSchema = z
@@ -24,7 +24,7 @@ const newRowsSchema = z.object({
 });
 
 const newRowsModel = new ChatOpenAI({
-  model: MODEL,
+  model: defaultModel,
 }).withStructuredOutput(newRowsSchema);
 
 export default async function generateNewRows(
