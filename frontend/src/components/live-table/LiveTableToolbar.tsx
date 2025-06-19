@@ -1332,7 +1332,11 @@ const LiveTableToolbar: React.FC = () => {
                 </TooltipTrigger>
                 <TooltipContent>More options</TooltipContent>
               </Tooltip>
-              <DropdownMenuContent align="end" data-preserve-selection="true">
+              <DropdownMenuContent
+                align="end"
+                data-preserve-selection="true"
+                className="max-h-[calc(100vh-96px)] overflow-y-auto"
+              >
                 <DropdownMenuItem
                   onClick={emptyLeftConfig.onClick}
                   disabled={emptyLeftConfig.disabled || anySubActionPending}
@@ -1480,7 +1484,11 @@ const LiveTableToolbar: React.FC = () => {
                 </TooltipTrigger>
                 <TooltipContent>More options</TooltipContent>
               </Tooltip>
-              <DropdownMenuContent align="end" data-preserve-selection="true">
+              <DropdownMenuContent
+                align="end"
+                data-preserve-selection="true"
+                className="max-h-[calc(100vh-96px)] overflow-y-auto"
+              >
                 <DropdownMenuItem
                   onClick={emptyAboveConfig.onClick}
                   disabled={emptyAboveConfig.disabled || anySubActionPending}
@@ -1575,7 +1583,11 @@ const LiveTableToolbar: React.FC = () => {
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" data-preserve-selection="true">
+              <DropdownMenuContent
+                align="end"
+                data-preserve-selection="true"
+                className="max-h-[calc(100vh-96px)] overflow-y-auto"
+              >
                 {BUTTON_ORDER.filter(
                   (buttonId) => !visibleButtonIds.includes(buttonId)
                 ).map((buttonId) => renderButton(buttonId, true))}
