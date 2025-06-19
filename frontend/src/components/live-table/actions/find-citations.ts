@@ -10,13 +10,10 @@ import { MODEL } from "./config";
 
 // TypeScript interfaces for citation data
 export interface Citation {
-  id: string;
   title: string;
   url: string;
   snippet: string;
-  domain: string;
-  relevanceScore?: number;
-  citedValue?: string;
+  citedValue: string;
 }
 
 export interface CellPosition {
@@ -31,31 +28,28 @@ const webSearchSchema = z.object({
     .describe(
       "A comprehensive summary of the research findings that supports or provides context for the selected data points"
     ),
-  citationUrls: z
-    .array(
-      z.object({
-        url: z.string().describe("The URL of the citation source"),
-        title: z.string().describe("The title of the source"),
-        snippet: z
-          .string()
-          .describe(
-            "A relevant excerpt from the source that relates to the data"
-          ),
-        domain: z.string().describe("The domain name of the source"),
-        cellIndices: z
-          .array(z.number())
-          .describe(
-            "Array of cell indices (0-based) that this citation supports"
-          ),
-        citedValue: z
-          .string()
-          .optional()
-          .describe(
-            "The specific value or data point mentioned in this source that relates to the data categories. If no specific value is mentioned, leave empty."
-          ),
-      })
-    )
-    .describe("A list of authoritative citation sources with their details"),
+  citations: z.array(
+    z.object({
+      cellIndex: z
+        .number()
+        .describe("The index of the cell that this citation supports"),
+      citationUrl: z.string().describe("The URL of the citation source"),
+      citationTitle: z.string().describe("The title of the source"),
+      citationSnippet: z
+        .string()
+        .describe(
+          "A relevant excerpt from the source that supports the citedValue"
+        ),
+      citedValue: z.string().describe(
+        `The specific value or data point mentioned in this source that
+             relates to the data categories. If no specific value is mentioned,
+             leave empty. ONLY return the core data value - no descriptions,
+             explanations, or additional text`
+      ),
+    })
+  ).describe(`A list of authoritative citation sources with their details.
+        Cells can be included multiple times if they are supported by multiple
+        citations.`),
 });
 
 // Rate limiting configuration
@@ -89,13 +83,12 @@ function parseStructuredOutput(
   debug = false
 ): {
   textSummary: string;
-  citationUrls: Array<{
-    url: string;
-    title: string;
-    snippet: string;
-    domain: string;
-    cellIndices: number[];
-    citedValue?: string;
+  citations: Array<{
+    cellIndex: number;
+    citationUrl: string;
+    citationTitle: string;
+    citationSnippet: string;
+    citedValue: string;
   }>;
 } {
   try {
@@ -105,7 +98,7 @@ function parseStructuredOutput(
       return {
         textSummary:
           "Unable to parse structured response. Invalid response format.",
-        citationUrls: [],
+        citations: [],
       };
     }
 
@@ -127,7 +120,7 @@ function parseStructuredOutput(
       textSummary:
         "Unable to parse structured response. Raw response: " +
         (responseText || "undefined"),
-      citationUrls: [],
+      citations: [],
     };
   }
 }
@@ -170,9 +163,13 @@ export default async function findCitations(
   }
 
   // Create system prompt for citation finding with structured output
-  const systemPrompt = `You are an expert research assistant with web search capabilities specializing in finding high-quality, authoritative citations for data verification and fact-checking.
+  const systemPrompt = `
+You are an expert research assistant with web search capabilities
+specializing in finding high-quality, authoritative citations for data
+verification and fact-checking.
 
-Your task is to search the web and find credible sources that support, verify, or provide context for the selected data from a table.
+Your task is to search the web and find credible sources that support,
+verify, or provide context for the selected data from a table.
 
 SEARCH CRITERIA:
 1. Prioritize academic papers, government sources, reputable news outlets, and official organizations
@@ -198,18 +195,25 @@ Document Context: "${documentTitle}" - ${documentDescription}
 You must return your response in the following JSON format wrapped in \`\`\`json and \`\`\` tags:
 
 {
-  "textSummary": "A comprehensive summary of your research findings that supports or provides context for the selected data points",
-  "citationUrls": [
+  "textSummary": \`A comprehensive summary of your research findings that
+      supports or provides context for the selected data points\`,
+  "citations": [
     {
-      "url": "https://example.com/source1",
-      "title": "Title of the source",
-      "snippet": "Relevant excerpt from the source that relates to the data",
-      "domain": "example.com",
-      "cellIndices": [0, 1],
-      "citedValue": "The specific value or data point mentioned in this source (optional)"
+      "cellIndex": 0,
+      "citationUrl": "https://example.com/source1",
+      "citationTitle": "Title of the source",
+      "citationSnippet": "Relevant excerpt from the source that supports the citedValue",
+      "citedValue": \`The specific value or data point mentioned in this source that
+        relates to the data categories. If no specific value is mentioned,
+        leave empty. ONLY return the core data value - no descriptions,
+        explanations, or additional text\`
     }
   ]
-}`;
+}
+
+Cells can be included multiple times if they are supported by multiple citations.
+
+`;
 
   const userPrompt = `Find authoritative citations related to the following research topic and data:
 
@@ -258,53 +262,7 @@ ${selectedCells
     return `${index + 1}. ${headerName} (Row ${rowIndex + 1}) - [HIDDEN VALUE]`;
   })
   .join("\n")}
-
-=== SEARCH OBJECTIVE ===
-Using the complete table data above as context (while ignoring the specific [SELECTED_CELL] values), please search the web for high-quality, authoritative sources that contain relevant data, statistics, or information about:
-
-${headers
-  .filter((_, index) => selectedCells.some((cell) => cell.colIndex === index))
-  .map((header) => `- ${header}`)
-  .join("\n")}
-
-In the context of: ${documentTitle}
-
-The complete table data gives you context about the domain, topic, and type of information we're working with. Use this context to find relevant authoritative sources, but do NOT attempt to find sources that match the hidden [SELECTED_CELL] values.
-
-SEARCH CRITERIA:
-1. Academic or research sources for scientific claims and data
-2. Government or official statistics for numerical data
-3. Reputable news sources for current events or factual information
-4. Professional or industry sources for specialized domain knowledge
-5. Official reports, white papers, or authoritative publications
-
-IMPORTANT: Focus on finding authentic sources that provide information about the same domain/topic as shown in the table context, but do not try to match the specific hidden values.
-
-Provide a comprehensive text summary of your research findings and include specific citation details with:
-- Clear, relevant titles that indicate the source content
-- Source URLs to authoritative websites
-- Specific snippets that show what kind of data or information the source contains
-- Domain names for credibility assessment
-- Cell indices array indicating which data categories each citation is relevant to
-- Cited values: Extract any specific data points, numbers, percentages, or values mentioned in the source that relate to the data categories (this helps identify discrepancies with the hidden values)
-
-CITATION RELEVANCE: Each citation should be relevant to one or more of the selected data categories (indices 0 through ${
-    selectedCells.length - 1
-  }). A citation is relevant if it contains information, data, or context about that category, even if the specific values differ.
-
-Selected data categories for reference:
-${selectedCells
-  .map((cell, index) => {
-    const colIndex = cell.colIndex;
-    const rowIndex = cell.rowIndex;
-    const headerName = headers[colIndex] || `Column ${colIndex + 1}`;
-    return `- Index ${index}: ${headerName} (Row ${rowIndex + 1})`;
-  })
-  .join("\n")}
-
-Return your response in the exact JSON format specified above, wrapped in \`\`\`json and \`\`\` tags.
-
-Focus on finding real, authoritative sources that contain relevant information about these data categories, rather than trying to verify specific values.`;
+`;
 
   try {
     // Create model
@@ -388,22 +346,15 @@ Focus on finding real, authoritative sources that contain relevant information a
         structuredOutput.textSummary
       );
       console.log("--------------------------------");
-      console.log(
-        "structuredOutput.citationUrls:",
-        structuredOutput.citationUrls
-      );
+      console.log("structuredOutput.citations:", structuredOutput.citations);
       console.log("--------------------------------");
     }
 
     // Log citation relevance coverage for debugging
     if (debug) {
       const coveredCellIndices = new Set<number>();
-      structuredOutput.citationUrls.forEach((citation) => {
-        if (citation.cellIndices && Array.isArray(citation.cellIndices)) {
-          citation.cellIndices.forEach((index) =>
-            coveredCellIndices.add(index)
-          );
-        }
+      structuredOutput.citations.forEach((citation) => {
+        coveredCellIndices.add(citation.cellIndex);
       });
 
       const expectedIndices = Array.from(
@@ -427,11 +378,7 @@ Focus on finding real, authoritative sources that contain relevant information a
     }
 
     // Process the structured response into Citation objects
-    const citations = processCitationUrls(
-      structuredOutput.citationUrls,
-      debug,
-      selectedCells.length
-    );
+    const citations = processCitationUrls(structuredOutput.citations, debug);
 
     if (!citations || citations.length === 0) {
       return {
@@ -475,52 +422,44 @@ Focus on finding real, authoritative sources that contain relevant information a
 
 // Helper function to process citation URLs into Citation objects
 function processCitationUrls(
-  citationUrls: {
-    url: string;
-    title: string;
-    snippet: string;
-    domain: string;
-    cellIndices: number[];
-    citedValue?: string;
+  citationData: {
+    cellIndex: number;
+    citationUrl: string;
+    citationTitle: string;
+    citationSnippet: string;
+    citedValue: string;
   }[],
-  debug = false,
-  selectedCellsLength?: number
+  debug = false
 ): Citation[] {
   const citations: Citation[] = [];
   const seenUrls = new Set<string>();
 
-  citationUrls.forEach((citationUrl) => {
+  citationData.forEach((citation) => {
     // Validate URL format (must start with http:// or https://)
     if (
-      !citationUrl.url.startsWith("http://") &&
-      !citationUrl.url.startsWith("https://")
+      !citation.citationUrl.startsWith("http://") &&
+      !citation.citationUrl.startsWith("https://")
     ) {
-      if (debug) console.warn("Invalid URL format, skipping:", citationUrl.url);
+      if (debug)
+        console.warn("Invalid URL format, skipping:", citation.citationUrl);
       return;
     }
 
     // Skip duplicates by URL
-    if (seenUrls.has(citationUrl.url)) {
+    if (seenUrls.has(citation.citationUrl)) {
       if (debug)
-        console.warn("Duplicate URL found, skipping:", citationUrl.url);
+        console.warn("Duplicate URL found, skipping:", citation.citationUrl);
       return;
     }
 
-    seenUrls.add(citationUrl.url);
+    seenUrls.add(citation.citationUrl);
 
     citations.push({
-      id: `citation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: citationUrl.title,
-      url: citationUrl.url,
-      snippet: citationUrl.snippet,
-      domain: citationUrl.domain,
-      relevanceScore: 0.8, // Default relevance score
-      citedValue: citationUrl.citedValue,
+      title: citation.citationTitle,
+      url: citation.citationUrl,
+      snippet: citation.citationSnippet,
+      citedValue: citation.citedValue,
     });
   });
-
-  // Sort by relevance score (higher first)
-  return citations.sort(
-    (a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0)
-  );
+  return citations;
 }
