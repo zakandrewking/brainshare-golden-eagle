@@ -32,9 +32,9 @@
       "Government environmental reports",
     ],
     expectedCitedValues: [
-      "1.02°C",
-      "0.84°C",
-      "0.86°C"
+      { rowIndex: 0, colIndex: 1, value: "1.02" },
+      { rowIndex: 1, colIndex: 1, value: "0.84" },
+      { rowIndex: 2, colIndex: 1, value: "0.89" }
     ],
   },
   // {
@@ -71,9 +71,9 @@
   //     "Fortune 500 official listings",
   //   ],
   //   expectedCitedValues: [
-  //     "$394.3 billion",
-  //     "$198.3 billion",
-  //     "$513.9 billion"
+  //     { rowIndex: 0, colIndex: 1, value: "394.3" },
+  //     { rowIndex: 1, colIndex: 1, value: "198.3" },
+  //     { rowIndex: 2, colIndex: 1, value: "513.9" }
   //   ],
   // },
 ]

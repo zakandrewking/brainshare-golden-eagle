@@ -13,6 +13,7 @@ interface TestCase {
   selectedCells: { rowIndex: number; colIndex: number }[];
   selectedCellsData: string[][];
   expectedCitationTypes: string[];
+  expectedCitedValues: { rowIndex: number; colIndex: number; value: string }[];
 }
 
 function loadTestCasesFromJSON(): TestCase[] {
@@ -171,7 +172,7 @@ describe("findCitations Manual Testing", () => {
 
         console.log("\n🔍 Searching for citations...");
 
-        const _result = await findCitations(
+        const result = await findCitations(
           testCase.selectedCells,
           testCase.tableData.map((row) =>
             testCase.headers.map((header) => String(row[header] || ""))
@@ -182,90 +183,76 @@ describe("findCitations Manual Testing", () => {
           { debug: true }
         );
 
-        //   console.log("\n📚 CITATION RESULTS:");
-        //   if (result.error) {
-        //     console.log(`❌ Error: ${result.error}`);
-        //   } else if (result.citations && result.citations.length > 0) {
-        //     console.log(`✅ Found ${result.citations.length} citations:`);
+        // Validate expected cited values
+        console.log("\n✅ VALIDATION: Expected Cited Values");
+        if (
+          testCase.expectedCitedValues &&
+          testCase.expectedCitedValues.length > 0
+        ) {
+          const resultText = JSON.stringify(result).toLowerCase();
+          const foundValues: {
+            rowIndex: number;
+            colIndex: number;
+            value: string;
+          }[] = [];
+          const missingValues: {
+            rowIndex: number;
+            colIndex: number;
+            value: string;
+          }[] = [];
 
-        //     result.citations.forEach((citation, index) => {
-        //       console.log(`\n📖 Citation ${index + 1}:`);
-        //       console.log(`   📋 Title: ${citation.title}`);
-        //       console.log(`   🌐 URL: ${citation.url}`);
-        //       console.log(`   🏠 Domain: ${citation.domain}`);
-        //       console.log(`   ⭐ Relevance: ${citation.relevanceScore || "N/A"}`);
-        //       console.log(`   📄 Snippet: "${citation.snippet}"`);
+          testCase.expectedCitedValues.forEach((expectedCitedValue) => {
+            const normalizedExpected = expectedCitedValue.value.toLowerCase();
+            const isFound = resultText.includes(normalizedExpected);
+            const header = testCase.headers[expectedCitedValue.colIndex];
 
-        //       // Evaluate domain credibility
-        //       const domain = citation.domain.toLowerCase();
-        //       let credibilityNote = "";
-        //       if (domain.includes(".gov")) {
-        //         credibilityNote = "🏛️ Government source";
-        //       } else if (domain.includes(".edu")) {
-        //         credibilityNote = "🎓 Academic institution";
-        //       } else if (domain.includes("wikipedia")) {
-        //         credibilityNote = "📖 Wikipedia (verify with primary sources)";
-        //       } else if (
-        //         ["reuters.com", "bloomberg.com", "wsj.com", "ft.com"].some(
-        //           (site) => domain.includes(site)
-        //         )
-        //       ) {
-        //         credibilityNote = "📰 Reputable financial news";
-        //       } else if (
-        //         ["cnn.com", "bbc.com", "nytimes.com"].some((site) =>
-        //           domain.includes(site)
-        //         )
-        //       ) {
-        //         credibilityNote = "📰 Major news outlet";
-        //       } else {
-        //         credibilityNote = "❓ Verify source credibility";
-        //       }
-        //       console.log(`   🏆 Source Type: ${credibilityNote}`);
-        //     });
+            if (isFound) {
+              foundValues.push(expectedCitedValue);
+              console.log(
+                `   ✅ Found: "${expectedCitedValue.value}" at Row ${
+                  expectedCitedValue.rowIndex + 1
+                }, Column "${header}"`
+              );
+            } else {
+              missingValues.push(expectedCitedValue);
+              console.log(
+                `   ❌ Missing: "${expectedCitedValue.value}" at Row ${
+                  expectedCitedValue.rowIndex + 1
+                }, Column "${header}"`
+              );
+            }
+          });
 
-        //     if (result.searchContext) {
-        //       console.log(`\n🔍 Search Context Used: "${result.searchContext}"`);
-        //     }
-        //   } else {
-        //     console.log("❌ No citations found");
-        //   }
+          console.log(`\n📊 VALIDATION SUMMARY:`);
+          console.log(
+            `   ✅ Found: ${foundValues.length}/${testCase.expectedCitedValues.length}`
+          );
+          console.log(
+            `   ❌ Missing: ${missingValues.length}/${testCase.expectedCitedValues.length}`
+          );
 
-        //   // Basic validation
-        //   expect(result).toBeDefined();
+          if (missingValues.length > 0) {
+            console.log(`   🔍 Missing values:`);
+            missingValues.forEach((missing) => {
+              const header = testCase.headers[missing.colIndex];
+              console.log(
+                `      - "${missing.value}" at Row ${
+                  missing.rowIndex + 1
+                }, Column "${header}"`
+              );
+            });
+          }
 
-        //   if (result.error) {
-        //     console.log(`⚠️ Test completed with error: ${result.error}`);
-        //   } else {
-        //     expect(result.citations).toBeDefined();
-        //     expect(Array.isArray(result.citations)).toBe(true);
-
-        //     // Validate each citation has required properties
-        //     result.citations?.forEach((citation) => {
-        //       expect(citation.id).toBeTypeOf("string");
-        //       expect(citation.title).toBeTypeOf("string");
-        //       expect(citation.url).toBeTypeOf("string");
-        //       expect(citation.snippet).toBeTypeOf("string");
-        //       expect(citation.domain).toBeTypeOf("string");
-        //       expect(citation.url).toMatch(/^https?:\/\//); // Valid URL format
-        //     });
-
-        //     console.log("✓ Basic validation passed");
-        //   }
-        // }
-
-        // console.log("\n" + "🎉".repeat(20));
-        // console.log("🎉".repeat(20));
-        // console.log("\n🏁 Citation Finder Evaluation Complete! 🏁");
-        // console.log("\nManual Review Points:");
-        // console.log("- Verify citations are from authoritative sources");
-        // console.log("- Check if snippets directly relate to the selected data");
-        // console.log("- Ensure URLs are accessible and lead to relevant content");
-        // console.log(
-        //   "- Look for appropriate mix of source types (gov, edu, news)"
-        // );
-        // console.log("- Assess whether citations would help fact-check the data");
-        // console.log("- Check for recent vs. historical sources as
-        // appropriate");
+          // Log a sample of the actual result for debugging
+          console.log(`\n🔍 RESULT SAMPLE (first 500 chars):`);
+          console.log(
+            JSON.stringify(result, null, 2).substring(0, 500) + "..."
+          );
+        } else {
+          console.log(
+            "   ℹ️  No expected cited values defined for this test case"
+          );
+        }
       }
     }
   );
