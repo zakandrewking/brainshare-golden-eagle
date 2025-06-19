@@ -310,7 +310,26 @@ ${selectedCells
     }
 
     // Process the structured response into Citation objects
-    const citations = processCitationUrls(structuredOutput.citations, debug);
+    const citations: Citation[] = [];
+
+    structuredOutput.citations.forEach((citation) => {
+      // Validate URL format (must start with http:// or https://)
+      if (
+        !citation.citationUrl.startsWith("http://") &&
+        !citation.citationUrl.startsWith("https://")
+      ) {
+        if (debug)
+          console.warn("Invalid URL format, skipping:", citation.citationUrl);
+        return;
+      }
+
+      citations.push({
+        title: citation.citationTitle,
+        url: citation.citationUrl,
+        snippet: citation.citationSnippet,
+        citedValue: citation.citedValue,
+      });
+    });
 
     if (!citations || citations.length === 0) {
       return {
@@ -350,38 +369,4 @@ ${selectedCells
       error: "An unknown error occurred while searching for citations.",
     };
   }
-}
-
-// Helper function to process citation URLs into Citation objects
-function processCitationUrls(
-  citationData: {
-    cellIndex: number;
-    citationUrl: string;
-    citationTitle: string;
-    citationSnippet: string;
-    citedValue: string;
-  }[],
-  debug = false
-): Citation[] {
-  const citations: Citation[] = [];
-
-  citationData.forEach((citation) => {
-    // Validate URL format (must start with http:// or https://)
-    if (
-      !citation.citationUrl.startsWith("http://") &&
-      !citation.citationUrl.startsWith("https://")
-    ) {
-      if (debug)
-        console.warn("Invalid URL format, skipping:", citation.citationUrl);
-      return;
-    }
-
-    citations.push({
-      title: citation.citationTitle,
-      url: citation.citationUrl,
-      snippet: citation.citationSnippet,
-      citedValue: citation.citedValue,
-    });
-  });
-  return citations;
 }
