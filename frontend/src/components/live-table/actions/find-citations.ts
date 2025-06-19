@@ -29,9 +29,17 @@ const webSearchSchema = z.object({
     ),
   citations: z.array(
     z.object({
-      cellIndex: z
+      rowIndex: z
         .number()
-        .describe("The index of the cell that this citation supports"),
+        .describe("The row index of the cell that this citation supports"),
+      columnIndex: z
+        .number()
+        .describe("The column index of the cell that this citation supports"),
+      header: z
+        .string()
+        .describe(
+          "The header name of the column that this citation supports (must match the header from COMPLETE TABLE DATA)"
+        ),
       citationUrl: z.string().describe("The URL of the citation source"),
       citationTitle: z.string().describe("The title of the source"),
       citationSnippet: z
@@ -109,7 +117,50 @@ export default async function findCitations(
 You are an expert research assistant with web search capabilities
 specializing in finding high-quality, authoritative citations for data
 verification and fact-checking.
+`;
 
+  const userPrompt = `Find authoritative citations related to the following research topic and data:
+
+=== RESEARCH CONTEXT ===
+Document: "${documentTitle}"
+Description: ${documentDescription}
+
+=== COMPLETE TABLE DATA (Selected Values Hidden) ===
+Headers: ${headers.join(" | ")}
+
+${cellsData
+  .map((row, rowIndex) => {
+    return row
+      .map((cell, colIndex) => {
+        // Check if this cell is in the selected cells
+        const isSelected = selectedCells.some(
+          (selectedCell) =>
+            selectedCell.rowIndex === rowIndex &&
+            selectedCell.colIndex === colIndex
+        );
+
+        const value = isSelected ? "[HIDDEN VALUE]" : cell;
+        const headerName = headers[colIndex] || `Col${colIndex + 1}`;
+
+        return `rowIndex: ${rowIndex} columnIndex: ${colIndex} header: "${headerName}" value: "${value}"`;
+      })
+      .join("\n");
+  })
+  .join("\n")}
+
+=== SELECTED CELLS (Values Hidden) ===
+The user has selected ${selectedCells.length} specific data points for citation:
+
+${selectedCells
+  .map((cell) => {
+    const colIndex = cell.colIndex;
+    const rowIndex = cell.rowIndex;
+    const headerName = headers[colIndex] || `Col${colIndex + 1}`;
+    return `rowIndex: ${rowIndex} columnIndex: ${colIndex} header: "${headerName}" value: "[HIDDEN VALUE]"`;
+  })
+  .join("\n")}
+
+=== RESEARCH TASK ===
 Your task is to search the web and find credible sources that support,
 verify, or provide context for the selected data from a table.
 
@@ -141,7 +192,9 @@ You must return your response in the following JSON format wrapped in \`\`\`json
       supports or provides context for the selected data points\`,
   "citations": [
     {
-      "cellIndex": 0,
+      "rowIndex": 0,
+      "columnIndex": 1,
+      "header": "Industry",
       "citationUrl": "https://example.com/source1",
       "citationTitle": "Title of the source",
       "citationSnippet": "Relevant excerpt from the source that supports the citedValue",
@@ -153,57 +206,9 @@ You must return your response in the following JSON format wrapped in \`\`\`json
   ]
 }
 
-Cells can be included multiple times if they are supported by multiple citations.
-
-`;
-
-  const userPrompt = `Find authoritative citations related to the following research topic and data:
-
-=== RESEARCH CONTEXT ===
-Document: "${documentTitle}"
-Description: ${documentDescription}
-
-=== COMPLETE TABLE DATA (For Context) ===
-Headers: ${headers.join(" | ")}
-
-${cellsData
-  .map((row, rowIndex) => {
-    const maskedRow = row.map((cell, colIndex) => {
-      // Check if this cell is in the selected cells
-      const isSelected = selectedCells.some(
-        (selectedCell) =>
-          selectedCell.rowIndex === rowIndex &&
-          selectedCell.colIndex === colIndex
-      );
-
-      if (isSelected) {
-        return "[SELECTED_CELL]"; // Mask the selected cell values
-      }
-      return cell; // Keep other cell values visible
-    });
-
-    return `Row ${rowIndex + 1}: ${maskedRow
-      .map(
-        (cell, colIndex) =>
-          `${headers[colIndex] || `Col${colIndex + 1}`}: "${cell}"`
-      )
-      .join(" | ")}`;
-  })
-  .join("\n")}
-
-=== SELECTED CELLS (Values Hidden) ===
-The user has selected ${
-    selectedCells.length
-  } specific data points (marked as [SELECTED_CELL] above) for citation:
-
-${selectedCells
-  .map((cell, index) => {
-    const colIndex = cell.colIndex;
-    const rowIndex = cell.rowIndex;
-    const headerName = headers[colIndex] || `Column ${colIndex + 1}`;
-    return `${index + 1}. ${headerName} (Row ${rowIndex + 1}) - [HIDDEN VALUE]`;
-  })
-  .join("\n")}
+IMPORTANT:
+- Only provide citations for the selected cells.
+- Cells can be included multiple times if they are supported by multiple citations.
 `;
 
   try {
@@ -245,7 +250,7 @@ ${selectedCells
       text: {
         format: zodTextFormat(webSearchSchema, "webSearchResult"),
       },
-      tools: [{ type: "web_search_preview" }],
+      tools: [{ type: "web_search_preview", search_context_size: "high" }],
       tool_choice: { type: "web_search_preview" },
     });
 
@@ -260,7 +265,7 @@ ${selectedCells
 
     if (debug) {
       console.log("--------------------------------");
-      console.log("response.output_parsed:", structuredOutput);
+      console.log("response.structuredOutput:", structuredOutput);
       console.log("--------------------------------");
     }
 
@@ -284,25 +289,24 @@ ${selectedCells
 
     // Log citation relevance coverage for debugging
     if (debug) {
-      const coveredCellIndices = new Set<number>();
+      const coveredCells = new Set<string>();
       structuredOutput.citations.forEach((citation) => {
-        coveredCellIndices.add(citation.cellIndex);
+        coveredCells.add(`${citation.rowIndex}-${citation.columnIndex}`);
       });
 
-      const expectedIndices = Array.from(
-        { length: selectedCells.length },
-        (_, i) => i
+      const selectedCellKeys = selectedCells.map(
+        (cell) => `${cell.rowIndex}-${cell.colIndex}`
       );
-      const uncoveredIndices = expectedIndices.filter(
-        (index) => !coveredCellIndices.has(index)
+      const uncoveredCells = selectedCellKeys.filter(
+        (cellKey) => !coveredCells.has(cellKey)
       );
 
       console.log(
-        `Found citations relevant to ${coveredCellIndices.size} out of ${selectedCells.length} data categories`
+        `Found citations relevant to ${coveredCells.size} out of ${selectedCells.length} selected cells`
       );
-      if (uncoveredIndices.length > 0) {
+      if (uncoveredCells.length > 0) {
         console.log(
-          `Data categories without relevant citations: ${uncoveredIndices.join(
+          `Selected cells without relevant citations: ${uncoveredCells.join(
             ", "
           )}`
         );

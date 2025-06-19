@@ -61,7 +61,9 @@ describe("findCitations", () => {
             "Apple Inc is a leading technology company based in Cupertino, California, known for designing and manufacturing consumer electronics, software, and online services.",
           citations: [
             {
-              cellIndex: 0,
+              rowIndex: 0,
+              columnIndex: 0,
+              header: "Company",
               citationUrl: "https://www.apple.com",
               citationTitle: "Apple Inc - Official Website",
               citationSnippet: "Apple is a leading technology company",
@@ -258,7 +260,9 @@ describe("findCitations", () => {
 
     it("should limit citations to top 10", async () => {
       const citations = Array.from({ length: 15 }, (_, i) => ({
-        cellIndex: i % 2, // Alternate between cell indices 0 and 1
+        rowIndex: 0,
+        columnIndex: i % 2, // Alternate between column indices 0 and 1
+        header: i % 2 === 0 ? "Company" : "Industry",
         citationUrl: `https://example${i}.com`,
         citationTitle: `Example ${i}`,
         citationSnippet: `Citation ${i}`,
@@ -291,14 +295,18 @@ describe("findCitations", () => {
           textSummary: "Found relevant data for the selected companies.",
           citations: [
             {
-              cellIndex: 0,
+              rowIndex: 0,
+              columnIndex: 0,
+              header: "Company",
               citationUrl: "https://www.sec.gov/example",
               citationTitle: "SEC Filing - Apple Inc",
               citationSnippet: "Apple Inc reported revenue of $394.3 billion",
               citedValue: "394.3 billion",
             },
             {
-              cellIndex: 1,
+              rowIndex: 0,
+              columnIndex: 1,
+              header: "Industry",
               citationUrl: "https://www.microsoft.com/investor",
               citationTitle: "Microsoft Investor Relations",
               citationSnippet: "Microsoft is a technology company",
@@ -330,7 +338,9 @@ describe("findCitations", () => {
           textSummary: "Citations without specific values",
           citations: [
             {
-              cellIndex: 0,
+              rowIndex: 0,
+              columnIndex: 0,
+              header: "Company",
               citationUrl: "https://example.com",
               citationTitle: "Example Source",
               citationSnippet: "General information about companies",
@@ -465,7 +475,9 @@ describe("findCitations", () => {
           textSummary: "Apple Inc is a leading technology company",
           citations: [
             {
-              cellIndex: 0,
+              rowIndex: 0,
+              columnIndex: 0,
+              header: "Company",
               citationUrl: "https://www.apple.com",
               citationTitle: "Apple Inc - Official Website",
               citationSnippet: "Apple is a leading technology company",
@@ -516,14 +528,18 @@ describe("findCitations", () => {
           textSummary: "Technology companies information",
           citations: [
             {
-              cellIndex: 0,
+              rowIndex: 0,
+              columnIndex: 0,
+              header: "Company",
               citationUrl: "https://www.apple.com",
               citationTitle: "Apple Inc",
               citationSnippet: "Apple is a technology company",
               citedValue: "Apple Inc",
             },
             {
-              cellIndex: 1,
+              rowIndex: 0,
+              columnIndex: 1,
+              header: "Industry",
               citationUrl: "invalid-url",
               citationTitle: "Invalid URL",
               citationSnippet: "Invalid URL",
@@ -554,7 +570,9 @@ describe("findCitations", () => {
           textSummary: "Microsoft is a software company",
           citations: [
             {
-              cellIndex: 0,
+              rowIndex: 0,
+              columnIndex: 0,
+              header: "Company",
               citationUrl: "https://www.microsoft.com",
               citationTitle: "Microsoft",
               citationSnippet: "Microsoft is a software company",
@@ -619,7 +637,9 @@ describe("findCitations", () => {
           textSummary: "Apple is a leading technology company",
           citations: [
             {
-              cellIndex: 0,
+              rowIndex: 0,
+              columnIndex: 0,
+              header: "Company",
               citationUrl: "https://www.apple.com",
               citationTitle: "Apple Inc - Official Website",
               citationSnippet: "Apple is a leading technology company",

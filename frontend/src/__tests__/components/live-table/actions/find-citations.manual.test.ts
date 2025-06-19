@@ -222,32 +222,6 @@ describe("findCitations Manual Testing", () => {
               );
             }
           });
-
-          console.log(`\n📊 VALIDATION SUMMARY:`);
-          console.log(
-            `   ✅ Found: ${foundValues.length}/${testCase.expectedCitedValues.length}`
-          );
-          console.log(
-            `   ❌ Missing: ${missingValues.length}/${testCase.expectedCitedValues.length}`
-          );
-
-          if (missingValues.length > 0) {
-            console.log(`   🔍 Missing values:`);
-            missingValues.forEach((missing) => {
-              const header = testCase.headers[missing.colIndex];
-              console.log(
-                `      - "${missing.value}" at Row ${
-                  missing.rowIndex + 1
-                }, Column "${header}"`
-              );
-            });
-          }
-
-          // Log a sample of the actual result for debugging
-          console.log(`\n🔍 RESULT SAMPLE (first 500 chars):`);
-          console.log(
-            JSON.stringify(result, null, 2).substring(0, 500) + "..."
-          );
         } else {
           console.log(
             "   ℹ️  No expected cited values defined for this test case"
