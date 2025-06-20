@@ -20,14 +20,20 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useDocumentDescription,
+  useDocumentTitle,
+  useHeaders,
+  useTableData,
+} from "@/stores/dataStore";
 import type { CellPosition } from "@/stores/selectionStore";
 
-interface Citation {
+import findCitations, {
+  type Citation as ServerCitation,
+} from "./actions/find-citations";
+
+interface Citation extends ServerCitation {
   id: string;
-  title: string;
-  url: string;
-  snippet: string;
-  domain: string;
 }
 
 interface CitationFinderDialogProps {
@@ -49,12 +55,40 @@ export function CitationFinderDialog({
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchContext, setSearchContext] = useState<string | null>(null);
+
+  // Get table data
+  const tableData = useTableData();
+  const headers = useHeaders();
+  const documentTitle = useDocumentTitle();
+  const documentDescription = useDocumentDescription();
 
   // Detect platform for keyboard shortcut display
   const isMac =
     typeof navigator !== "undefined" &&
     navigator.userAgent.toUpperCase().indexOf("MAC") >= 0;
   const shortcutKey = isMac ? "⌘" : "Ctrl";
+
+  // Helper to extract domain from URL
+  const getDomainFromUrl = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname.replace(/^www\./, "");
+    } catch {
+      return "unknown";
+    }
+  };
+
+  // Get selected cell values for preview
+  const getSelectedCellsPreview = useCallback(() => {
+    if (!tableData || selectedCells.length === 0) return [];
+
+    return selectedCells.slice(0, 5).map((cell) => {
+      const value = tableData[cell.rowIndex]?.[cell.colIndex] || "";
+      const header = headers[cell.colIndex] || `Column ${cell.colIndex + 1}`;
+      return { header, value, row: cell.rowIndex + 1, col: cell.colIndex + 1 };
+    });
+  }, [tableData, headers, selectedCells]);
 
   const handleLockWithCitation = useCallback(() => {
     if (selectedCitationIds.size === 0) return;
@@ -93,51 +127,57 @@ export function CitationFinderDialog({
     });
   }, []);
 
-  const findCitations = useCallback(async () => {
-    if (selectedCells.length === 0) return;
+  const searchForCitations = useCallback(async () => {
+    if (selectedCells.length === 0 || !tableData) return;
 
     setIsLoading(true);
     setError(null);
     setCitations([]);
+    setSearchContext(null);
 
     try {
-      // TODO: Implement actual citation finding with OpenAI API
-      // For now, we'll show placeholder data
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate API call
+      // Convert tableData to the expected format
+      const tableDataArray: string[][] = tableData.map(
+        (row: Record<string, unknown>) =>
+          headers.map((_, index) => String(row[`col${index}`] || ""))
+      );
 
-      const mockCitations: Citation[] = [
-        {
-          id: "1",
-          title: "Example Citation 1",
-          url: "https://example.com/article1",
-          snippet:
-            "This is a relevant snippet from the first citation that relates to your selected data.",
-          domain: "example.com",
-        },
-        {
-          id: "2",
-          title: "Example Citation 2",
-          url: "https://example.com/article2",
-          snippet:
-            "This is another relevant snippet that provides additional context for your selection.",
-          domain: "example.com",
-        },
-      ];
+      const result = await findCitations(
+        selectedCells,
+        tableDataArray,
+        headers,
+        documentTitle || "Untitled Document",
+        documentDescription || "No description"
+      );
 
-      setCitations(mockCitations);
+      if (result.error) {
+        setError(result.error);
+      } else if (result.citations) {
+        // Add IDs to citations and process them
+        const citationsWithIds: Citation[] = result.citations.map(
+          (citation, index) => ({
+            ...citation,
+            id: `citation-${index}`,
+          })
+        );
+        setCitations(citationsWithIds);
+        if (result.searchContext) {
+          setSearchContext(result.searchContext);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to find citations");
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCells]);
+  }, [selectedCells, tableData, headers, documentTitle, documentDescription]);
 
   // Start finding citations when dialog opens
   useEffect(() => {
     if (isOpen && selectedCells.length > 0) {
-      findCitations();
+      searchForCitations();
     }
-  }, [isOpen, selectedCells, findCitations]);
+  }, [isOpen, selectedCells, searchForCitations]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -212,54 +252,97 @@ export function CitationFinderDialog({
                 Error finding citations
               </div>
               <div className="text-sm text-muted-foreground mb-4">{error}</div>
-              <Button onClick={findCitations} variant="outline" size="sm">
+              <Button onClick={searchForCitations} variant="outline" size="sm">
                 Try Again
               </Button>
             </div>
-          ) : citations.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No citations found. Try selecting different cells or refining your
-              data.
-            </div>
           ) : (
-            <ScrollArea className="h-96">
-              <div className="space-y-4">
-                {citations.map((citation) => (
-                  <div key={citation.id} className="border rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        id={`citation-${citation.id}`}
-                        checked={selectedCitationIds.has(citation.id)}
-                        onCheckedChange={() =>
-                          handleCitationToggle(citation.id)
-                        }
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm mb-1">
-                          {citation.title}
-                        </h4>
-                        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                          {citation.snippet}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{citation.domain}</span>
-                          <a
-                            href={citation.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center hover:text-foreground transition-colors"
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            View source
-                          </a>
+            <div className="space-y-4">
+              {/* Selected cells preview */}
+              {selectedCells.length > 0 && (
+                <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                  <h4 className="text-sm font-medium">Selected Data:</h4>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    {getSelectedCellsPreview().map((cell, index) => (
+                      <div key={index}>
+                        <span className="font-medium">{cell.header}:</span>{" "}
+                        {String(cell.value || "(empty)")}
+                        <span className="text-muted-foreground/70 ml-2">
+                          (Row {cell.row}, Col {cell.col})
+                        </span>
+                      </div>
+                    ))}
+                    {selectedCells.length > 5 && (
+                      <div className="italic">
+                        ...and {selectedCells.length - 5} more cells
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Search context summary */}
+              {searchContext && (
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <h4 className="text-sm font-medium mb-2">Search Summary:</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {searchContext}
+                  </p>
+                </div>
+              )}
+
+              {/* Citations list */}
+              {citations.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No citations found. Try selecting different cells or refining
+                  your data.
+                </div>
+              ) : (
+                <ScrollArea className="h-64">
+                  <div className="space-y-4">
+                    {citations.map((citation) => (
+                      <div key={citation.id} className="border rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            id={`citation-${citation.id}`}
+                            checked={selectedCitationIds.has(citation.id)}
+                            onCheckedChange={() =>
+                              handleCitationToggle(citation.id)
+                            }
+                            className="mt-1"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm mb-1">
+                              {citation.title}
+                            </h4>
+                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                              {citation.snippet}
+                            </p>
+                            {citation.citedValue && (
+                              <p className="text-xs text-primary mb-2">
+                                Cited value: &ldquo;{citation.citedValue}&rdquo;
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{getDomainFromUrl(citation.url)}</span>
+                              <a
+                                href={citation.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center hover:text-foreground transition-colors"
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                View source
+                              </a>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </ScrollArea>
+                </ScrollArea>
+              )}
+            </div>
           )}
         </div>
 

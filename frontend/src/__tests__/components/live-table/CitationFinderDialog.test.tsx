@@ -17,6 +17,32 @@ import userEvent from "@testing-library/user-event";
 import CitationFinderDialog from "@/components/live-table/CitationFinderDialog";
 import type { CellPosition } from "@/stores/selectionStore";
 
+import { TestDataStoreWrapper } from "./live-table-store-test-utils";
+
+// Mock the findCitations server action
+vi.mock("@/components/live-table/actions/find-citations", () => ({
+  default: vi.fn().mockResolvedValue({
+    citations: [
+      {
+        title: "Example Citation 1",
+        url: "https://example.com/article1",
+        snippet:
+          "This is a relevant snippet from the first citation that relates to your selected data.",
+        citedValue: "Example Value 1",
+      },
+      {
+        title: "Example Citation 2",
+        url: "https://example.com/article2",
+        snippet:
+          "This is another relevant snippet that provides additional context for your selection.",
+        citedValue: "Example Value 2",
+      },
+    ],
+    searchContext: "Found 2 relevant citations for the selected data.",
+  }),
+  Citation: {},
+}));
+
 describe("CitationFinderDialog", () => {
   const mockSelectedCells: CellPosition[] = [
     { rowIndex: 0, colIndex: 0 },
@@ -39,12 +65,14 @@ describe("CitationFinderDialog", () => {
 
   it("renders when open with correct cell count", () => {
     render(
-      <CitationFinderDialog
-        isOpen={true}
-        onOpenChange={mockOnOpenChange}
-        onLock={mockOnLock}
-        selectedCells={mockSelectedCells}
-      />
+      <TestDataStoreWrapper>
+        <CitationFinderDialog
+          isOpen={true}
+          onOpenChange={mockOnOpenChange}
+          onLock={mockOnLock}
+          selectedCells={mockSelectedCells}
+        />
+      </TestDataStoreWrapper>
     );
 
     expect(screen.getByTestId("citation-finder-dialog")).toBeInTheDocument();
@@ -56,12 +84,14 @@ describe("CitationFinderDialog", () => {
 
   it("does not render when closed", () => {
     render(
-      <CitationFinderDialog
-        isOpen={false}
-        onOpenChange={mockOnOpenChange}
-        onLock={mockOnLock}
-        selectedCells={mockSelectedCells}
-      />
+      <TestDataStoreWrapper>
+        <CitationFinderDialog
+          isOpen={false}
+          onOpenChange={mockOnOpenChange}
+          onLock={mockOnLock}
+          selectedCells={mockSelectedCells}
+        />
+      </TestDataStoreWrapper>
     );
 
     expect(
@@ -71,12 +101,14 @@ describe("CitationFinderDialog", () => {
 
   it("shows loading state initially", () => {
     render(
-      <CitationFinderDialog
-        isOpen={true}
-        onOpenChange={mockOnOpenChange}
-        onLock={mockOnLock}
-        selectedCells={mockSelectedCells}
-      />
+      <TestDataStoreWrapper>
+        <CitationFinderDialog
+          isOpen={true}
+          onOpenChange={mockOnOpenChange}
+          onLock={mockOnLock}
+          selectedCells={mockSelectedCells}
+        />
+      </TestDataStoreWrapper>
     );
 
     expect(screen.getByText("Searching for citations...")).toBeInTheDocument();
@@ -84,12 +116,14 @@ describe("CitationFinderDialog", () => {
 
   it("shows citations after loading", async () => {
     render(
-      <CitationFinderDialog
-        isOpen={true}
-        onOpenChange={mockOnOpenChange}
-        onLock={mockOnLock}
-        selectedCells={mockSelectedCells}
-      />
+      <TestDataStoreWrapper>
+        <CitationFinderDialog
+          isOpen={true}
+          onOpenChange={mockOnOpenChange}
+          onLock={mockOnLock}
+          selectedCells={mockSelectedCells}
+        />
+      </TestDataStoreWrapper>
     );
 
     // Advance timers to simulate the 2 second timeout
@@ -105,12 +139,14 @@ describe("CitationFinderDialog", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     render(
-      <CitationFinderDialog
-        isOpen={true}
-        onOpenChange={mockOnOpenChange}
-        onLock={mockOnLock}
-        selectedCells={mockSelectedCells}
-      />
+      <TestDataStoreWrapper>
+        <CitationFinderDialog
+          isOpen={true}
+          onOpenChange={mockOnOpenChange}
+          onLock={mockOnLock}
+          selectedCells={mockSelectedCells}
+        />
+      </TestDataStoreWrapper>
     );
 
     // Advance timers to get citations
@@ -120,10 +156,16 @@ describe("CitationFinderDialog", () => {
 
     expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
 
-    const citation1Checkbox = document.getElementById("citation-1");
-    await user.click(citation1Checkbox!);
+    // Find the checkbox using its ID which is set in the component
+    const checkbox = document.getElementById(
+      "citation-citation-0"
+    ) as HTMLInputElement;
+    expect(checkbox).toBeInTheDocument();
 
-    expect(citation1Checkbox).toBeChecked();
+    // Click the checkbox
+    await user.click(checkbox);
+
+    expect(checkbox).toBeChecked();
     expect(screen.getByText("Lock with 1 Citation")).toBeInTheDocument();
   });
 
@@ -131,12 +173,14 @@ describe("CitationFinderDialog", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     render(
-      <CitationFinderDialog
-        isOpen={true}
-        onOpenChange={mockOnOpenChange}
-        onLock={mockOnLock}
-        selectedCells={mockSelectedCells}
-      />
+      <TestDataStoreWrapper>
+        <CitationFinderDialog
+          isOpen={true}
+          onOpenChange={mockOnOpenChange}
+          onLock={mockOnLock}
+          selectedCells={mockSelectedCells}
+        />
+      </TestDataStoreWrapper>
     );
 
     // Advance timers to get citations
@@ -146,8 +190,14 @@ describe("CitationFinderDialog", () => {
 
     expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
 
-    const citation1Checkbox = document.getElementById("citation-1");
-    await user.click(citation1Checkbox!);
+    // Find the checkbox using its ID which is set in the component
+    const checkbox = document.getElementById(
+      "citation-citation-0"
+    ) as HTMLInputElement;
+    expect(checkbox).toBeInTheDocument();
+
+    // Click the checkbox
+    await user.click(checkbox);
 
     const lockButton = screen.getByText("Lock with 1 Citation");
     await user.click(lockButton);
@@ -164,12 +214,14 @@ describe("CitationFinderDialog", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     render(
-      <CitationFinderDialog
-        isOpen={true}
-        onOpenChange={mockOnOpenChange}
-        onLock={mockOnLock}
-        selectedCells={mockSelectedCells}
-      />
+      <TestDataStoreWrapper>
+        <CitationFinderDialog
+          isOpen={true}
+          onOpenChange={mockOnOpenChange}
+          onLock={mockOnLock}
+          selectedCells={mockSelectedCells}
+        />
+      </TestDataStoreWrapper>
     );
 
     const cancelButton = screen.getByText("Cancel");
@@ -182,12 +234,14 @@ describe("CitationFinderDialog", () => {
     const singleCell: CellPosition[] = [{ rowIndex: 0, colIndex: 0 }];
 
     render(
-      <CitationFinderDialog
-        isOpen={true}
-        onOpenChange={mockOnOpenChange}
-        onLock={mockOnLock}
-        selectedCells={singleCell}
-      />
+      <TestDataStoreWrapper>
+        <CitationFinderDialog
+          isOpen={true}
+          onOpenChange={mockOnOpenChange}
+          onLock={mockOnLock}
+          selectedCells={singleCell}
+        />
+      </TestDataStoreWrapper>
     );
 
     expect(
@@ -197,12 +251,14 @@ describe("CitationFinderDialog", () => {
 
   it("disables lock button when no citations are selected", async () => {
     render(
-      <CitationFinderDialog
-        isOpen={true}
-        onOpenChange={mockOnOpenChange}
-        onLock={mockOnLock}
-        selectedCells={mockSelectedCells}
-      />
+      <TestDataStoreWrapper>
+        <CitationFinderDialog
+          isOpen={true}
+          onOpenChange={mockOnOpenChange}
+          onLock={mockOnLock}
+          selectedCells={mockSelectedCells}
+        />
+      </TestDataStoreWrapper>
     );
 
     // Advance timers to get citations

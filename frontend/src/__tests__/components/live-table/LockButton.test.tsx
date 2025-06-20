@@ -23,11 +23,15 @@ import {
 } from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
 
-vi.mock("@/stores/selectionStore", () => ({
+import { TestDataStoreWrapper } from "./live-table-store-test-utils";
+
+vi.mock("@/stores/selectionStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
   useSelectedCells: vi.fn(),
 }));
 
-vi.mock("@/stores/dataStore", () => ({
+vi.mock("@/stores/dataStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/stores/dataStore")>()),
   useIsTableLoaded: vi.fn(),
   useLockedCells: vi.fn(),
   useLockSelectedRange: vi.fn(),
@@ -63,7 +67,11 @@ describe("LockButton", () => {
       { rowIndex: 0, colIndex: 1 },
     ]);
 
-    render(<LockButton />);
+    render(
+      <TestDataStoreWrapper>
+        <LockButton />
+      </TestDataStoreWrapper>
+    );
     const button = screen.getByRole("button", { name: /lock selected cells/i });
     expect(button).toBeInTheDocument();
     expect(button).not.toBeDisabled();
@@ -73,7 +81,11 @@ describe("LockButton", () => {
     // Mock no selected cells
     vi.mocked(useSelectedCells).mockReturnValue([]);
 
-    render(<LockButton />);
+    render(
+      <TestDataStoreWrapper>
+        <LockButton />
+      </TestDataStoreWrapper>
+    );
     const button = screen.getByRole("button", { name: /lock selected cells/i });
     expect(button).toBeInTheDocument();
     expect(button).toBeDisabled();
@@ -87,7 +99,11 @@ describe("LockButton", () => {
     ];
     vi.mocked(useSelectedCells).mockReturnValue(selectedCells);
 
-    render(<LockButton />);
+    render(
+      <TestDataStoreWrapper>
+        <LockButton />
+      </TestDataStoreWrapper>
+    );
     const button = screen.getByRole("button", { name: /lock selected cells/i });
     fireEvent.click(button);
 
@@ -98,7 +114,11 @@ describe("LockButton", () => {
   it("should render dropdown trigger button", () => {
     vi.mocked(useSelectedCells).mockReturnValue([]);
 
-    render(<LockButton />);
+    render(
+      <TestDataStoreWrapper>
+        <LockButton />
+      </TestDataStoreWrapper>
+    );
 
     // Check that there are two buttons (lock button and dropdown trigger)
     const buttons = screen.getAllByRole("button");
@@ -112,7 +132,11 @@ describe("LockButton", () => {
   it("should have correct disabled state for lock button based on selected cells", () => {
     // Test with no selected cells
     vi.mocked(useSelectedCells).mockReturnValue([]);
-    const { rerender } = render(<LockButton />);
+    const { rerender } = render(
+      <TestDataStoreWrapper>
+        <LockButton />
+      </TestDataStoreWrapper>
+    );
 
     const lockButton = screen.getByRole("button", {
       name: /lock selected cells/i,
@@ -121,7 +145,11 @@ describe("LockButton", () => {
 
     // Test with selected cells
     vi.mocked(useSelectedCells).mockReturnValue([{ rowIndex: 0, colIndex: 0 }]);
-    rerender(<LockButton />);
+    rerender(
+      <TestDataStoreWrapper>
+        <LockButton />
+      </TestDataStoreWrapper>
+    );
 
     expect(lockButton).not.toBeDisabled();
   });

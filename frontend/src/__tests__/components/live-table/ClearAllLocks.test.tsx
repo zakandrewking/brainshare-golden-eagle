@@ -1,8 +1,18 @@
 import React from "react";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 
 import LockButton from "@/components/live-table/LockButton";
 import {
@@ -13,6 +23,8 @@ import {
 } from "@/stores/dataStore";
 import { useSelectedCells } from "@/stores/selectionStore";
 
+import { TestDataStoreWrapper } from "./live-table-store-test-utils";
+
 // Mock the dependencies
 vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/stores/selectionStore")>()),
@@ -20,7 +32,8 @@ vi.mock("@/stores/selectionStore", async (importOriginal) => ({
   useSelectedCell: vi.fn(),
 }));
 
-vi.mock("@/stores/dataStore", () => ({
+vi.mock("@/stores/dataStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/stores/dataStore")>()),
   useIsTableLoaded: vi.fn(),
   useLockedCells: vi.fn(),
   useLockSelectedRange: vi.fn(),
@@ -50,7 +63,7 @@ describe("Clear All Locks Functionality", () => {
     // table loaded
     vi.mocked(useIsTableLoaded).mockReturnValue(true);
     vi.mocked(useSelectedCells).mockReturnValue([]);
-    vi.mocked(useLockedCells).mockReturnValue(new Set());
+    vi.mocked(useLockedCells).mockReturnValue(new Map());
     vi.mocked(useLockSelectedRange).mockReturnValue(mockLockSelectedRange);
     vi.mocked(useUnlockAll).mockReturnValue(mockUnlockAll);
   });
@@ -69,9 +82,18 @@ describe("Clear All Locks Functionality", () => {
   });
 
   it("should have unlockAll function available in LockButton component", () => {
-    vi.mocked(useLockedCells).mockReturnValue(new Set(["0-0", "1-1"])); // Some locked cells
+    vi.mocked(useLockedCells).mockReturnValue(
+      new Map([
+        ["0-0", undefined],
+        ["1-1", undefined],
+      ])
+    ); // Some locked cells
 
-    render(<LockButton />);
+    render(
+      <TestDataStoreWrapper>
+        <LockButton />
+      </TestDataStoreWrapper>
+    );
 
     // Verify that the component received the unlockAll function
     expect(vi.mocked(useUnlockAll)).toHaveBeenCalled();
@@ -80,9 +102,13 @@ describe("Clear All Locks Functionality", () => {
 
   it("should disable Clear All Locks when no cells are locked", () => {
     // Mock no locked cells
-    vi.mocked(useLockedCells).mockReturnValue(new Set()); // No locked cells
+    vi.mocked(useLockedCells).mockReturnValue(new Map()); // No locked cells
 
-    render(<LockButton />);
+    render(
+      <TestDataStoreWrapper>
+        <LockButton />
+      </TestDataStoreWrapper>
+    );
 
     // Verify that the component received empty lockedCells
     expect(vi.mocked(useLockedCells)).toHaveBeenCalled();
@@ -90,9 +116,19 @@ describe("Clear All Locks Functionality", () => {
 
   it("should enable Clear All Locks when cells are locked", () => {
     // Mock some locked cells
-    vi.mocked(useLockedCells).mockReturnValue(new Set(["0-0", "0-1", "1-0"])); // Some locked cells
+    vi.mocked(useLockedCells).mockReturnValue(
+      new Map([
+        ["0-0", undefined],
+        ["0-1", undefined],
+        ["1-0", undefined],
+      ])
+    ); // Some locked cells
 
-    render(<LockButton />);
+    render(
+      <TestDataStoreWrapper>
+        <LockButton />
+      </TestDataStoreWrapper>
+    );
 
     // Verify that the component received locked cells
     expect(vi.mocked(useLockedCells)).toHaveBeenCalled();
@@ -106,7 +142,12 @@ describe("Clear All Locks Functionality", () => {
     });
 
     vi.mocked(useUnlockAll).mockReturnValue(mockUnlockAllWithBehavior);
-    vi.mocked(useLockedCells).mockReturnValue(new Set(["0-0", "1-1"]));
+    vi.mocked(useLockedCells).mockReturnValue(
+      new Map([
+        ["0-0", undefined],
+        ["1-1", undefined],
+      ])
+    );
 
     // Create a test component that uses the hook properly
     const TestComponent = () => {
