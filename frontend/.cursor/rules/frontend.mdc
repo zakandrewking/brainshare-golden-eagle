@@ -52,6 +52,8 @@ alwaysApply: true
 
 - the command to run all tests from the shell command tool is simply `npm test`
 
+- REMEMBER NOT TO FORGET TO ALWAYS RUN THE TESTSSSSSSSS!!!
+
 # conventions
 
 - use server actions instead of api routes in next.js

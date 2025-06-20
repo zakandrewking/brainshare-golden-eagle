@@ -21,25 +21,32 @@ import { TestDataStoreWrapper } from "./live-table-store-test-utils";
 
 // Mock the findCitations server action
 vi.mock("@/components/live-table/actions/find-citations", () => ({
-  default: vi.fn().mockResolvedValue({
-    citations: [
-      {
-        title: "Example Citation 1",
-        url: "https://example.com/article1",
-        snippet:
-          "This is a relevant snippet from the first citation that relates to your selected data.",
-        citedValue: "Example Value 1",
-      },
-      {
-        title: "Example Citation 2",
-        url: "https://example.com/article2",
-        snippet:
-          "This is another relevant snippet that provides additional context for your selection.",
-        citedValue: "Example Value 2",
-      },
-    ],
-    searchContext: "Found 2 relevant citations for the selected data.",
-  }),
+  default: vi.fn().mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            citations: [
+              {
+                title: "Example Citation 1",
+                url: "https://example.com/article1",
+                snippet:
+                  "This is a relevant snippet from the first citation that relates to your selected data.",
+                citedValue: "Example Value 1",
+              },
+              {
+                title: "Example Citation 2",
+                url: "https://example.com/article2",
+                snippet:
+                  "This is another relevant snippet that provides additional context for your selection.",
+                citedValue: "Example Value 2",
+              },
+            ],
+            searchContext: "Found 2 relevant citations for the selected data.",
+          });
+        }, 2000);
+      })
+  ),
   Citation: {},
 }));
 
@@ -76,7 +83,9 @@ describe("CitationFinderDialog", () => {
     );
 
     expect(screen.getByTestId("citation-finder-dialog")).toBeInTheDocument();
-    expect(screen.getByText("Find Citations")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Find Citations" })
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/Finding relevant citations for 3 selected cells/)
     ).toBeInTheDocument();
@@ -99,7 +108,7 @@ describe("CitationFinderDialog", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows loading state initially", () => {
+  it("shows initial ready state before search", () => {
     render(
       <TestDataStoreWrapper>
         <CitationFinderDialog
@@ -111,10 +120,40 @@ describe("CitationFinderDialog", () => {
       </TestDataStoreWrapper>
     );
 
+    expect(screen.getByText("Ready to Find Citations")).toBeInTheDocument();
+    expect(
+      screen.getByText("This process typically takes about 30 seconds.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Find Citations/ })
+    ).toBeInTheDocument();
+  });
+
+  it("shows loading state after clicking search button", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    render(
+      <TestDataStoreWrapper>
+        <CitationFinderDialog
+          isOpen={true}
+          onOpenChange={mockOnOpenChange}
+          onLock={mockOnLock}
+          selectedCells={mockSelectedCells}
+        />
+      </TestDataStoreWrapper>
+    );
+
+    // Click the Find Citations button
+    const findButton = screen.getByRole("button", { name: /Find Citations/ });
+    await user.click(findButton);
+
+    // Should show loading state
     expect(screen.getByText("Searching for citations...")).toBeInTheDocument();
   });
 
-  it("shows citations after loading", async () => {
+  it("shows citations after clicking search button", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
     render(
       <TestDataStoreWrapper>
         <CitationFinderDialog
@@ -125,6 +164,13 @@ describe("CitationFinderDialog", () => {
         />
       </TestDataStoreWrapper>
     );
+
+    // Click the Find Citations button
+    const findButton = screen.getByRole("button", { name: /Find Citations/ });
+    await user.click(findButton);
+
+    // Should show loading state
+    expect(screen.getByText("Searching for citations...")).toBeInTheDocument();
 
     // Advance timers to simulate the 2 second timeout
     await act(async () => {
@@ -148,6 +194,10 @@ describe("CitationFinderDialog", () => {
         />
       </TestDataStoreWrapper>
     );
+
+    // Click the Find Citations button
+    const findButton = screen.getByRole("button", { name: /Find Citations/ });
+    await user.click(findButton);
 
     // Advance timers to get citations
     await act(async () => {
@@ -182,6 +232,10 @@ describe("CitationFinderDialog", () => {
         />
       </TestDataStoreWrapper>
     );
+
+    // Click the Find Citations button
+    const findButton = screen.getByRole("button", { name: /Find Citations/ });
+    await user.click(findButton);
 
     // Advance timers to get citations
     await act(async () => {
@@ -250,6 +304,8 @@ describe("CitationFinderDialog", () => {
   });
 
   it("disables lock button when no citations are selected", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
     render(
       <TestDataStoreWrapper>
         <CitationFinderDialog
@@ -260,6 +316,10 @@ describe("CitationFinderDialog", () => {
         />
       </TestDataStoreWrapper>
     );
+
+    // Click the Find Citations button
+    const findButton = screen.getByRole("button", { name: /Find Citations/ });
+    await user.click(findButton);
 
     // Advance timers to get citations
     await act(async () => {
