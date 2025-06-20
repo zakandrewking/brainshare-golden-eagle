@@ -55,15 +55,10 @@ describe("generateSelectedCellsSuggestions", () => {
   const mockHeaders = ["Column1", "Column2", "Column3"];
 
   const mockSelectedCells = [
-    { rowIndex: 0, colIndex: 0 },
-    { rowIndex: 0, colIndex: 1 },
-    { rowIndex: 1, colIndex: 0 },
-    { rowIndex: 1, colIndex: 1 },
-  ];
-
-  const mockSelectedCellsData = [
-    ["A1", "B1"],
-    ["A2", "B2"],
+    { rowIndex: 0, colIndex: 0, value: "A1" },
+    { rowIndex: 0, colIndex: 1, value: "B1" },
+    { rowIndex: 1, colIndex: 0, value: "A2" },
+    { rowIndex: 1, colIndex: 1, value: "B2" },
   ];
 
   const mockDocumentTitle = "Test Document";
@@ -96,7 +91,6 @@ ${JSON.stringify(mockTableData, null, 2)}
 
 Headers: ${JSON.stringify(mockHeaders)}
 Selected Cells: ${JSON.stringify(mockSelectedCells)}
-Current Values: ${JSON.stringify(mockSelectedCellsData)}
 `;
 
     // Act
@@ -104,7 +98,6 @@ Current Values: ${JSON.stringify(mockSelectedCellsData)}
       mockTableData,
       mockHeaders,
       mockSelectedCells,
-      mockSelectedCellsData,
       mockDocumentTitle,
       mockDocumentDescription
     );
@@ -167,7 +160,6 @@ ${JSON.stringify(mockTableData, null, 2)}
 
 Headers: ${JSON.stringify(mockHeaders)}
 Selected Cells: ${JSON.stringify(mockSelectedCells)}
-Current Values: ${JSON.stringify(mockSelectedCellsData)}
 `;
 
     // Act
@@ -175,7 +167,6 @@ Current Values: ${JSON.stringify(mockSelectedCellsData)}
       mockTableData,
       mockHeaders,
       mockSelectedCells,
-      mockSelectedCellsData,
       mockDocumentTitle,
       mockDocumentDescription
     );

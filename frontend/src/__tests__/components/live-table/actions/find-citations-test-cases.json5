@@ -1,79 +1,292 @@
 [
   {
-    title: "Climate Change Statistics",
-    description: "Global temperature and CO2 data requiring authoritative sources",
-    tableData: [
+    "title": "Planets of Our Solar System",
+    "description": "Here is a list of the planets orbiting our Sun, ordered by their distance from the Sun.",
+    "tableData": [
       {
-        Year: "2020",
-        "Global Temp Anomaly (°C)": "1.02",
-        "CO2 Concentration (ppm)": "414.2",
+        "Common Name": "Haumea",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "3.9",
+        "Average Surface Temperature (°C)": "-241 (average)",
+        "Potential for Human Exploration": "Highly unlikely (distance, rapid spin)",
+        "Type of Planet": "Dwarf Planet",
+        "Estimated Year of Next Major Mission": "N/A",
+        "Diameter (km)": "1632",
+        "Atmospheric Composition": "Primarily hydrogen cyanide, methane, and carbon monoxide (highly tenuous atmosphere)",
+        "Number of Moons (estimated)": "2",
+        "Distance from the sun (km)": "6550000000",
+        "Discovery Year (or First Observation)": "2004",
+        "Ring System Presence": "No",
+        "New Column 2": ""
       },
       {
-        Year: "2021",
-        "Global Temp Anomaly (°C)": "0.84",
-        "CO2 Concentration (ppm)": "416.4",
+        "Common Name": "Ceres",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "9.1",
+        "Average Surface Temperature (°C)": "-105",
+        "Potential for Human Exploration": "Highly unlikely (distance, low surface gravity)",
+        "Type of Planet": "Dwarf Planet",
+        "Estimated Year of Next Major Mission": "N/A",
+        "Diameter (km)": "946",
+        "Atmospheric Composition": "Thin atmosphere; water vapor detected, mostly negligible",
+        "Number of Moons (estimated)": "0",
+        "Distance from the sun (km)": "413900000",
+        "Discovery Year (or First Observation)": "1801",
+        "Ring System Presence": "No",
+        "New Column 2": ""
       },
       {
-        Year: "2022",
-        "Global Temp Anomaly (°C)": "0.89",
-        "CO2 Concentration (ppm)": "418.5",
+        "Common Name": "Jupiter",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "9.9",
+        "Average Surface Temperature (°C)": "-108 (cloud tops)",
+        "Potential for Human Exploration": "Currently unfeasible (radiation, extreme conditions)",
+        "Type of Planet": "Gas Giant",
+        "Estimated Year of Next Major Mission": "2031 (JUICE arrival, Europa Clipper flybys also planned in early 2030s)",
+        "Diameter (km)": "139820",
+        "Atmospheric Composition": "90% hydrogen, 10% helium, trace methane and ammonia",
+        "Number of Moons (estimated)": "79",
+        "Distance from the sun (km)": "778500000",
+        "Discovery Year (or First Observation)": "Known since ancient times",
+        "Ring System Presence": "Yes (faint ring detected)",
+        "New Column 2": ""
       },
+      {
+        "Common Name": "Saturn",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "10.7",
+        "Average Surface Temperature (°C)": "-139 (cloud tops)",
+        "Potential for Human Exploration": "Currently unfeasible (rings, lack of surface)",
+        "Type of Planet": "Gas Giant",
+        "Estimated Year of Next Major Mission": "2035+ (proposed future missions)",
+        "Diameter (km)": "120536",
+        "Atmospheric Composition": "96% hydrogen, 3% helium, trace methane and ammonia",
+        "Number of Moons (estimated)": "82",
+        "Distance from the sun (km)": "1434000000",
+        "Discovery Year (or First Observation)": "Known since ancient times",
+        "Ring System Presence": "Yes (prominent rings)",
+        "New Column 2": ""
+      },
+      {
+        "Common Name": "Neptune",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "16.1",
+        "Average Surface Temperature (°C)": "-201 (cloud tops)",
+        "Potential for Human Exploration": "Extremely remote (cold, distance, winds)",
+        "Type of Planet": "Ice Giant",
+        "Estimated Year of Next Major Mission": "No planned (concepts being studied for future missions)",
+        "Diameter (km)": "49244",
+        "Atmospheric Composition": "80% hydrogen, 19% helium, 1% methane",
+        "Number of Moons (estimated)": "14",
+        "Distance from the sun (km)": "5906000000",
+        "Discovery Year (or First Observation)": "1846",
+        "Ring System Presence": "Yes (faint rings)",
+        "New Column 2": ""
+      },
+      {
+        "Common Name": "Uranus",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "17.2",
+        "Average Surface Temperature (°C)": "-197 (cloud tops)",
+        "Potential for Human Exploration": "Extremely remote (low temperatures, atmosphere, distance from Earth)",
+        "Type of Planet": "Ice Giant",
+        "Estimated Year of Next Major Mission": "2030s+ (Uranus Orbiter and Probe mission under consideration)",
+        "Diameter (km)": "50724",
+        "Atmospheric Composition": "83% hydrogen, 15% helium, 2% methane",
+        "Number of Moons (estimated)": "27",
+        "Distance from the sun (km)": "2871000000",
+        "Discovery Year (or First Observation)": "1781",
+        "Ring System Presence": "Yes (faint rings)",
+        "New Column 2": ""
+      },
+      {
+        "Common Name": "Quaoar",
+        "Recognized by IAU": "maybe, Lacking reference ",
+        "Length of a Day (hours)": "17.7",
+        "Average Surface Temperature (°C)": "-220 (estimated)",
+        "Potential for Human Exploration": "Highly unlikely (distance, low gravity, remote location)",
+        "Type of Planet": "Dwarf Planet",
+        "Estimated Year of Next Major Mission": "N/A",
+        "Diameter (km)": "1110",
+        "Atmospheric Composition": "Primarily methane, ethane, and nitrogen (likely a very thin atmosphere)",
+        "Number of Moons (estimated)": "1",
+        "Distance from the sun (km)": "6870000000",
+        "Discovery Year (or First Observation)": "2002",
+        "Ring System Presence": "Yes (prominent rings)",
+        "New Column 2": ""
+      },
+      {
+        "Common Name": "Makemake",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "22.5",
+        "Average Surface Temperature (°C)": "-243 (average)",
+        "Potential for Human Exploration": "Highly unlikely (distance, low gravity)",
+        "Type of Planet": "Dwarf Planet",
+        "Estimated Year of Next Major Mission": "N/A",
+        "Diameter (km)": "1434",
+        "Atmospheric Composition": "Primarily methane, ethane, and nitrogen (tenuous atmosphere)",
+        "Number of Moons (estimated)": "1",
+        "Distance from the sun (km)": "7300000000",
+        "Discovery Year (or First Observation)": "2005",
+        "Ring System Presence": "No",
+        "New Column 2": ""
+      },
+      {
+        "Common Name": "Earth",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "24",
+        "Average Surface Temperature (°C)": "15",
+        "Potential for Human Exploration": "Not applicable (home planet; supports ongoing human exploration)",
+        "Type of Planet": "Terrestrial",
+        "Estimated Year of Next Major Mission": "N/A (Mission not applicable for the home planet)",
+        "Diameter (km)": "12742",
+        "Atmospheric Composition": "78% nitrogen, 21% oxygen, 1% argon, trace carbon dioxide, and other gases",
+        "Number of Moons (estimated)": "1",
+        "Distance from the sun (km)": "149600000",
+        "Discovery Year (or First Observation)": "Known since ancient times",
+        "Ring System Presence": "No",
+        "New Column 2": ""
+      },
+      {
+        "Common Name": "Mars",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "24.6",
+        "Average Surface Temperature (°C)": "-63",
+        "Potential for Human Exploration": "Feasible for human exploration (planned future missions and technology development underway)",
+        "Type of Planet": "Terrestrial",
+        "Estimated Year of Next Major Mission": "2028 (Mars Sample Return, ESA-NASA collaboration planned)",
+        "Diameter (km)": "6779",
+        "Atmospheric Composition": "95% carbon dioxide, 3% nitrogen, argon, oxygen, carbon monoxide",
+        "Number of Moons (estimated)": "2",
+        "Distance from the sun (km)": "227900000",
+        "Discovery Year (or First Observation)": "Known since ancient times",
+        "Ring System Presence": "No",
+        "New Column 2": ""
+      },
+      {
+        "Common Name": "Eris",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "25.9",
+        "Average Surface Temperature (°C)": "-231 (average)",
+        "Potential for Human Exploration": "Highly unlikely (distance, low gravity)",
+        "Type of Planet": "Dwarf Planet",
+        "Estimated Year of Next Major Mission": "N/A",
+        "Diameter (km)": "2326",
+        "Atmospheric Composition": "Mostly nitrogen and methane (likely highly tenuous, transient atmosphere)",
+        "Number of Moons (estimated)": "1",
+        "Distance from the sun (km)": "10100000000",
+        "Discovery Year (or First Observation)": "2005",
+        "Ring System Presence": "No",
+        "New Column 2": ""
+      },
+      {
+        "Common Name": "Pluto",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "153",
+        "Average Surface Temperature (°C)": "-229 (average)",
+        "Potential for Human Exploration": "Highly unlikely (distance, low gravity)",
+        "Type of Planet": "Dwarf Planet",
+        "Estimated Year of Next Major Mission": "N/A",
+        "Diameter (km)": "2376",
+        "Atmospheric Composition": "98% nitrogen, 1.5% methane, 0.5% carbon monoxide",
+        "Number of Moons (estimated)": "5",
+        "Distance from the sun (km)": "6437000000",
+        "Discovery Year (or First Observation)": "1930",
+        "Ring System Presence": "No",
+        "New Column 2": ""
+      },
+      {
+        "Common Name": "Mercury",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "1407.5",
+        "Average Surface Temperature (°C)": "167",
+        "Potential for Human Exploration": "Very low (no atmosphere, extreme temperatures)",
+        "Type of Planet": "Terrestrial",
+        "Estimated Year of Next Major Mission": "2025 (BepiColombo arrival)",
+        "Diameter (km)": "4879",
+        "Atmospheric Composition": "Thin exosphere; primarily oxygen, sodium, hydrogen, helium, potassium",
+        "Number of Moons (estimated)": "0",
+        "Distance from the sun (km)": "57900000",
+        "Discovery Year (or First Observation)": "Known since ancient times",
+        "Ring System Presence": "No",
+        "New Column 2": ""
+      },
+      {
+        "Common Name": "Venus",
+        "Recognized by IAU": "Yes",
+        "Length of a Day (hours)": "5832.5",
+        "Average Surface Temperature (°C)": "464",
+        "Potential for Human Exploration": "Extremely challenging (toxic atmosphere, high pressure, heat)",
+        "Type of Planet": "Terrestrial",
+        "Estimated Year of Next Major Mission": "2035+ (concepts in development)",
+        "Diameter (km)": "12104",
+        "Atmospheric Composition": "96% carbon dioxide, 3% nitrogen, trace amounts of sulfur dioxide, water vapor, and other gases",
+        "Number of Moons (estimated)": "0",
+        "Distance from the sun (km)": "108200000",
+        "Discovery Year (or First Observation)": "Known since ancient times",
+        "Ring System Presence": "No",
+        "New Column 2": ""
+      }
     ],
-    headers: ["Year", "Global Temp Anomaly (°C)", "CO2 Concentration (ppm)"],
-    selectedCells: [
-      { rowIndex: 0, colIndex: 1 },
-      { rowIndex: 1, colIndex: 1 },
-      { rowIndex: 2, colIndex: 1 },
+    "headers": [
+      "Common Name",
+      "Recognized by IAU",
+      "Length of a Day (hours)",
+      "Average Surface Temperature (°C)",
+      "Potential for Human Exploration",
+      "Type of Planet",
+      "Estimated Year of Next Major Mission",
+      "Diameter (km)",
+      "Atmospheric Composition",
+      "Number of Moons (estimated)",
+      "Distance from the sun (km)",
+      "Discovery Year (or First Observation)",
+      "Ring System Presence",
+      "New Column 2"
     ],
-    selectedCellsData: [["1.02"], ["0.84"], ["0.89"]],
-    expectedCitationTypes: [
-      "NOAA, NASA, or other official climate agencies",
-      "Academic papers on global temperature records",
-      "Government environmental reports",
+    "selectedCells": [
+      {
+        "rowIndex": 2,
+        "colIndex": 2,
+        "value": "9.9"
+      },
+      {
+        "rowIndex": 2,
+        "colIndex": 3,
+        "value": "-108 (cloud tops)"
+      },
+      {
+        "rowIndex": 3,
+        "colIndex": 2,
+        "value": "10.7"
+      },
+      {
+        "rowIndex": 3,
+        "colIndex": 3,
+        "value": "-139 (cloud tops)"
+      }
     ],
-    expectedCitedValues: [
-      { rowIndex: 0, colIndex: 1, value: "1.02" },
-      { rowIndex: 1, colIndex: 1, value: "0.85" },
-      { rowIndex: 2, colIndex: 1, value: "0.89" }
-    ],
-  },
-  // {
-  //   title: "Fortune 500 Companies",
-  //   description: "Major corporations with revenue and employee data",
-  //   tableData: [
-  //     {
-  //       Company: "Apple Inc",
-  //       "Revenue (Billions)": "394.3",
-  //       Employees: "164000",
-  //     },
-  //     {
-  //       Company: "Microsoft",
-  //       "Revenue (Billions)": "198.3",
-  //       Employees: "221000",
-  //     },
-  //     {
-  //       Company: "Amazon",
-  //       "Revenue (Billions)": "513.9",
-  //       Employees: "1540000",
-  //     },
-  //   ],
-  //   headers: ["Company", "Revenue (Billions)", "Employees"],
-  //   selectedCells: [
-  //     { rowIndex: 0, colIndex: 1 },
-  //     { rowIndex: 1, colIndex: 1 },
-  //     { rowIndex: 2, colIndex: 1 },
-  //   ],
-  //   selectedCellsData: [["394.3"], ["198.3"], ["513.9"]],
-  //   expectedCitationTypes: [
-  //     "SEC filings (10-K forms)",
-  //     "Official company annual reports",
-  //     "Financial news sources (Bloomberg, Reuters)",
-  //     "Fortune 500 official listings",
-  //   ],
-  //   expectedCitedValues: [
-  //     { rowIndex: 0, colIndex: 1, value: "394.3" },
-  //     { rowIndex: 1, colIndex: 1, value: "198.3" },
-  //     { rowIndex: 2, colIndex: 1, value: "513.9" }
-  //   ],
-  // },
+    "expectedCitedValues": [
+      {
+        "rowIndex": 2,
+        "colIndex": 2,
+        "value": "9.9"
+      },
+      {
+        "rowIndex": 2,
+        "colIndex": 3,
+        "value": "-108 (cloud tops)"
+      },
+      {
+        "rowIndex": 3,
+        "colIndex": 2,
+        "value": "10.7"
+      },
+      {
+        "rowIndex": 3,
+        "colIndex": 3,
+        "value": "-139 (cloud tops)"
+      }
+    ]
+  }
 ]

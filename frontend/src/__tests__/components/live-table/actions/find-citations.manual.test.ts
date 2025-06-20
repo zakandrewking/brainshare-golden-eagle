@@ -86,10 +86,6 @@ describe("findCitations Manual Testing", () => {
         );
         console.log(`📝 Description: ${testCase.description}`);
         console.log(`🎯 Selected cells: ${testCase.selectedCells.length}`);
-        console.log("🏛️ Expected citation types:");
-        testCase.expectedCitationTypes.forEach((type) =>
-          console.log(`   • ${type}`)
-        );
 
         // Helper function to visualize the table
         const visualizeTable = (data: Record<string, unknown>[]) => {

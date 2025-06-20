@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -26,11 +27,47 @@ import {
   useHeaders,
   useTableData,
 } from "@/stores/dataStore";
+import { useIsAiFillSelectionDebugEnabled } from "@/stores/debugSettingsStore";
 import type { CellPosition } from "@/stores/selectionStore";
 
 import findCitations, {
   type Citation as ServerCitation,
 } from "./actions/find-citations";
+import { getSelectedCellsData } from "./data-utils";
+
+function outputDebugTestCase(
+  tableData: Record<string, unknown>[],
+  headers: string[],
+  selectedCells: { rowIndex: number; colIndex: number; value: string }[],
+  documentTitle: string,
+  documentDescription: string
+) {
+  const testCase = {
+    title: documentTitle,
+    description: documentDescription,
+    tableData,
+    headers,
+    selectedCells,
+    expectedCitedValues: selectedCells,
+  };
+
+  console.log("\n" + "=".repeat(20));
+  console.log("🔍 CITATION FINDER DEBUG - TEST CASE DATA");
+  console.log("=".repeat(20));
+  console.log("Copy the JSON below to add as a new test case:");
+  console.log("=".repeat(20));
+  console.log(JSON.stringify(testCase, null, 2));
+  console.log("=".repeat(20));
+  console.log("📝 Instructions:");
+  console.log("1. Copy the JSON above");
+  console.log(
+    "2. Add it to the testCases array in src/__tests__/components/live-table/actions/find-citations-test-cases.json5"
+  );
+  console.log(
+    "3. Run the test with: GEMINI_API_KEY=your_key RUN_AI_TESTS=true npm test -- find-citations.manual.test.ts"
+  );
+  console.log("=".repeat(20) + "\n");
+}
 
 interface Citation extends ServerCitation {
   id: string;
@@ -62,6 +99,12 @@ export function CitationFinderDialog({
   const headers = useHeaders();
   const documentTitle = useDocumentTitle();
   const documentDescription = useDocumentDescription();
+
+  const selectedCellsData = useMemo(() => {
+    return getSelectedCellsData(tableData, headers, selectedCells);
+  }, [tableData, headers, selectedCells]);
+
+  const isDebugEnabled = useIsAiFillSelectionDebugEnabled();
 
   // Detect platform for keyboard shortcut display
   const isMac =
@@ -134,6 +177,16 @@ export function CitationFinderDialog({
     setError(null);
     setCitations([]);
     setSearchContext(null);
+
+    if (isDebugEnabled) {
+      outputDebugTestCase(
+        tableData,
+        headers,
+        selectedCellsData,
+        documentTitle,
+        documentDescription
+      );
+    }
 
     try {
       // Convert tableData to the expected format

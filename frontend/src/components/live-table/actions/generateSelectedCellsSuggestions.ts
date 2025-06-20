@@ -26,8 +26,7 @@ const selectedCellsModel = new ChatOpenAI({
 export default async function generateSelectedCellsSuggestions(
   tableData: Record<string, unknown>[],
   headers: string[],
-  selectedCells: { rowIndex: number; colIndex: number }[],
-  selectedCellsData: string[][],
+  selectedCells: { rowIndex: number; colIndex: number; value: string }[],
   documentTitle: string,
   documentDescription: string
 ): Promise<{
@@ -79,7 +78,6 @@ ${JSON.stringify(tableData, null, 2)}
 
 Headers: ${JSON.stringify(headers)}
 Selected Cells: ${JSON.stringify(selectedCells)}
-Current Values: ${JSON.stringify(selectedCellsData)}
 
 ANALYSIS REQUIRED:
 For each selected cell, carefully analyze:

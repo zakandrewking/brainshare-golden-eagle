@@ -14,9 +14,7 @@ interface TestCase {
   description: string;
   tableData: Record<string, unknown>[];
   headers: string[];
-  selectedCells: { rowIndex: number; colIndex: number }[];
-  selectedCellsData: string[][];
-  expectedPatterns: string[];
+  selectedCells: { rowIndex: number; colIndex: number; value: string }[];
 }
 
 function loadTestCasesFromJSON(): TestCase[] {
@@ -77,19 +75,9 @@ describe("generateSelectedCellsSuggestions AI Fill Selection", () => {
       ],
       headers: ["Planet Name", "Order from the Sun", "Number of Moons"],
       selectedCells: [
-        { rowIndex: 0, colIndex: 2 }, // Mars - Number of Moons
-        { rowIndex: 1, colIndex: 2 }, // Jupiter - Number of Moons
-        { rowIndex: 2, colIndex: 2 }, // Saturn - Number of Moons
-      ],
-      selectedCellsData: [
-        ["2"], // Mars moons
-        ["79"], // Jupiter moons
-        ["83"], // Saturn moons
-      ],
-      expectedPatterns: [
-        "Should validate or correct the number of moons for each planet",
-        "Should provide accurate astronomical data based on current knowledge",
-        "Should maintain consistency in numerical format",
+        { rowIndex: 0, colIndex: 2, value: "2" },
+        { rowIndex: 1, colIndex: 2, value: "79" },
+        { rowIndex: 2, colIndex: 2, value: "83" },
       ],
     },
   ];
@@ -130,10 +118,6 @@ describe("generateSelectedCellsSuggestions AI Fill Selection", () => {
         );
         console.log(`📝 Description: ${testCase.description}`);
         console.log(`🎯 Selected cells: ${testCase.selectedCells.length}`);
-        console.log("📋 Expected patterns:");
-        testCase.expectedPatterns.forEach((pattern) =>
-          console.log(`   • ${pattern}`)
-        );
 
         // Helper function to visualize the table
         const visualizeTable = (
@@ -251,7 +235,6 @@ describe("generateSelectedCellsSuggestions AI Fill Selection", () => {
           testCase.tableData,
           testCase.headers,
           testCase.selectedCells,
-          testCase.selectedCellsData,
           testCase.title,
           testCase.description
         );

@@ -30,29 +30,8 @@ Look for:
 - Appropriate mix of source types
 
 ### Adding Test Cases
-Add new test cases to `find-citations-test-cases.json`:
 
-```json
-[
-  {
-    "title": "Your Test Case Title",
-    "description": "Description of the data being tested",
-    "tableData": [
-      {"Column1": "Value1", "Column2": "Value2"}
-    ],
-    "headers": ["Column1", "Column2"],
-    "selectedCells": [
-      {"rowIndex": 0, "colIndex": 1}
-    ],
-    "selectedCellsData": [
-      ["Value2"]
-    ],
-    "expectedCitationTypes": [
-      "Expected source types for this data"
-    ]
-  }
-]
-```
+Add new test cases to `find-citations-test-cases.json5`
 
 ## AI Fill Selection Manual Test
 
