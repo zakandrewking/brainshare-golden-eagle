@@ -127,11 +127,32 @@ export function CitationFinderDialog({
     if (!tableData || selectedCells.length === 0) return [];
 
     return selectedCells.slice(0, 5).map((cell) => {
-      const value = tableData[cell.rowIndex]?.[cell.colIndex] || "";
+      const value = tableData[cell.rowIndex]?.[`col${cell.colIndex}`] || "";
       const header = headers[cell.colIndex] || `Column ${cell.colIndex + 1}`;
       return { header, value, row: cell.rowIndex + 1, col: cell.colIndex + 1 };
     });
   }, [tableData, headers, selectedCells]);
+
+  // Get original values for comparison with citations
+  const getOriginalValuesForCitations = useCallback(() => {
+    if (!tableData || selectedCells.length === 0)
+      return new Map<string, string>();
+
+    const originalValues = new Map<string, string>();
+    selectedCells.forEach((cell) => {
+      const value = String(
+        tableData[cell.rowIndex]?.[`col${cell.colIndex}`] || ""
+      );
+      const key = `${cell.rowIndex}-${cell.colIndex}`;
+      originalValues.set(key, value);
+    });
+    return originalValues;
+  }, [tableData, selectedCells]);
+
+  const originalValues = useMemo(
+    () => getOriginalValuesForCitations(),
+    [getOriginalValuesForCitations]
+  );
 
   const handleLockWithCitation = useCallback(() => {
     if (selectedCitationIds.size === 0) return;
@@ -290,44 +311,41 @@ export function CitationFinderDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            Find Citations
+            Find Citations for {cellCount} Selected {cellText}
           </DialogTitle>
           <DialogDescription>
-            Finding relevant citations for {cellCount} selected {cellText}.
             Review and select citations to lock with your data.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 min-h-0">
           {!hasStartedSearch ? (
-            <div className="text-center py-8 space-y-4">
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Ready to Find Citations</h3>
-                <p className="text-sm text-muted-foreground">
-                  We&apos;ll search for relevant citations for your selected{" "}
-                  {cellCount} {cellText}.
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  This process typically takes about 30 seconds.
-                </p>
-              </div>
-
+            <div className="text-center py-8 space-y-6">
               {/* Selected cells preview */}
               {selectedCells.length > 0 && (
-                <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-left">
-                  <h4 className="text-sm font-medium">Selected Data:</h4>
-                  <div className="text-xs text-muted-foreground space-y-1">
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <h4 className="text-sm font-medium">
+                    Selected Data Preview:
+                  </h4>
+                  <div className="text-xs text-muted-foreground space-y-2">
                     {getSelectedCellsPreview().map((cell, index) => (
-                      <div key={index}>
-                        <span className="font-medium">{cell.header}:</span>{" "}
-                        {String(cell.value || "(empty)")}
-                        <span className="text-muted-foreground/70 ml-2">
+                      <div
+                        key={index}
+                        className="bg-background rounded px-2 py-1"
+                      >
+                        <span className="font-medium text-foreground">
+                          {cell.header}:
+                        </span>{" "}
+                        <span className="text-foreground">
+                          {String(cell.value || "(empty)")}
+                        </span>
+                        <span className="text-muted-foreground/70 ml-2 text-xs">
                           (Row {cell.row}, Col {cell.col})
                         </span>
                       </div>
                     ))}
                     {selectedCells.length > 5 && (
-                      <div className="italic">
+                      <div className="italic text-center pt-1">
                         ...and {selectedCells.length - 5} more cells
                       </div>
                     )}
@@ -335,13 +353,19 @@ export function CitationFinderDialog({
                 </div>
               )}
 
-              <Button
-                onClick={searchForCitations}
-                className="flex items-center gap-2"
-              >
-                <Search className="h-4 w-4" />
-                Find Citations
-              </Button>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  This process typically takes about 30 seconds.
+                </p>
+                <Button
+                  onClick={searchForCitations}
+                  className="flex items-center gap-2"
+                  size="lg"
+                >
+                  <Search className="h-4 w-4" />
+                  Find Citations
+                </Button>
+              </div>
             </div>
           ) : isLoading ? (
             <div className="space-y-4">
@@ -386,45 +410,88 @@ export function CitationFinderDialog({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {citations.map((citation) => (
-                    <div key={citation.id} className="border rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          id={`citation-${citation.id}`}
-                          checked={selectedCitationIds.has(citation.id)}
-                          onCheckedChange={() =>
-                            handleCitationToggle(citation.id)
-                          }
-                          className="mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm mb-1">
-                            {citation.title}
-                          </h4>
-                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                            {citation.snippet}
-                          </p>
-                          {citation.citedValue && (
-                            <p className="text-xs text-primary mb-2">
-                              Cited value: &ldquo;{citation.citedValue}&rdquo;
+                  {citations.map((citation) => {
+                    // Find the original value this citation corresponds to
+                    const originalValue = citation.citedValue
+                      ? Array.from(originalValues.values()).find(
+                          (val) =>
+                            val
+                              .toLowerCase()
+                              .includes(
+                                citation.citedValue?.toLowerCase() || ""
+                              ) ||
+                            citation.citedValue
+                              ?.toLowerCase()
+                              .includes(val.toLowerCase() || "")
+                        )
+                      : undefined;
+
+                    return (
+                      <div
+                        key={citation.id}
+                        className="border rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                        onClick={() => handleCitationToggle(citation.id)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            id={`citation-${citation.id}`}
+                            checked={selectedCitationIds.has(citation.id)}
+                            onCheckedChange={() =>
+                              handleCitationToggle(citation.id)
+                            }
+                            className="mt-1 pointer-events-none"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm mb-1">
+                              {citation.title}
+                            </h4>
+                            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                              {citation.snippet}
                             </p>
-                          )}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{getDomainFromUrl(citation.url)}</span>
-                            <a
-                              href={citation.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center hover:text-foreground transition-colors"
-                            >
-                              <ExternalLink className="h-3 w-3 mr-1" />
-                              View source
-                            </a>
+
+                            {/* Show original vs cited values */}
+                            {citation.citedValue && (
+                              <div className="space-y-1 mb-3 p-2 bg-muted/20 rounded">
+                                {originalValue &&
+                                  originalValue !== citation.citedValue && (
+                                    <div className="text-xs">
+                                      <span className="text-muted-foreground">
+                                        Original:
+                                      </span>{" "}
+                                      <span className="line-through text-muted-foreground/70">
+                                        &ldquo;{originalValue}&rdquo;
+                                      </span>
+                                    </div>
+                                  )}
+                                <div className="text-xs">
+                                  <span className="text-muted-foreground">
+                                    Cited:
+                                  </span>{" "}
+                                  <span className="text-primary font-medium">
+                                    &ldquo;{citation.citedValue}&rdquo;
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{getDomainFromUrl(citation.url)}</span>
+                              <a
+                                href={citation.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center hover:text-foreground transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                View source
+                              </a>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

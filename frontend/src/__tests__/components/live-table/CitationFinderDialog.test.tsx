@@ -84,10 +84,12 @@ describe("CitationFinderDialog", () => {
 
     expect(screen.getByTestId("citation-finder-dialog")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Find Citations" })
+      screen.getByRole("heading", {
+        name: /Find Citations for 3 Selected cells/,
+      })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Finding relevant citations for 3 selected cells/)
+      screen.getByText("Review and select citations to lock with your data.")
     ).toBeInTheDocument();
   });
 
@@ -120,7 +122,7 @@ describe("CitationFinderDialog", () => {
       </TestDataStoreWrapper>
     );
 
-    expect(screen.getByText("Ready to Find Citations")).toBeInTheDocument();
+    expect(screen.getByText("Selected Data Preview:")).toBeInTheDocument();
     expect(
       screen.getByText("This process typically takes about 30 seconds.")
     ).toBeInTheDocument();
@@ -206,15 +208,19 @@ describe("CitationFinderDialog", () => {
 
     expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
 
-    // Find the checkbox using its ID which is set in the component
+    // Find the citation container which is now clickable
+    const citationContainer = screen
+      .getByText("Example Citation 1")
+      .closest('div[class*="cursor-pointer"]');
+    expect(citationContainer).toBeInTheDocument();
+
+    // Click the citation container
+    await user.click(citationContainer!);
+
+    // Find the checkbox to verify it's checked
     const checkbox = document.getElementById(
       "citation-citation-0"
     ) as HTMLInputElement;
-    expect(checkbox).toBeInTheDocument();
-
-    // Click the checkbox
-    await user.click(checkbox);
-
     expect(checkbox).toBeChecked();
     expect(screen.getByText("Lock with 1 Citation")).toBeInTheDocument();
   });
@@ -244,14 +250,14 @@ describe("CitationFinderDialog", () => {
 
     expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
 
-    // Find the checkbox using its ID which is set in the component
-    const checkbox = document.getElementById(
-      "citation-citation-0"
-    ) as HTMLInputElement;
-    expect(checkbox).toBeInTheDocument();
+    // Find the citation container which is now clickable
+    const citationContainer = screen
+      .getByText("Example Citation 1")
+      .closest('div[class*="cursor-pointer"]');
+    expect(citationContainer).toBeInTheDocument();
 
-    // Click the checkbox
-    await user.click(checkbox);
+    // Click the citation container
+    await user.click(citationContainer!);
 
     const lockButton = screen.getByText("Lock with 1 Citation");
     await user.click(lockButton);
@@ -299,7 +305,9 @@ describe("CitationFinderDialog", () => {
     );
 
     expect(
-      screen.getByText(/Finding relevant citations for 1 selected cell/)
+      screen.getByRole("heading", {
+        name: /Find Citations for 1 Selected cell/,
+      })
     ).toBeInTheDocument();
   });
 
