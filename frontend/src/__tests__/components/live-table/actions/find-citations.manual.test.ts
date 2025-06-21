@@ -10,7 +10,7 @@ interface TestCase {
   description: string;
   tableData: Record<string, unknown>[];
   headers: string[];
-  selectedCells: { rowIndex: number; colIndex: number }[];
+  selectedCells: { rowIndex: number; colIndex: number; value: string }[];
   selectedCellsData: string[][];
   expectedCitationTypes: string[];
   expectedCitedValues: { rowIndex: number; colIndex: number; value: string }[];
@@ -169,11 +169,9 @@ describe("findCitations Manual Testing", () => {
         console.log("\n🔍 Searching for citations...");
 
         const result = await findCitations(
-          testCase.selectedCells,
-          testCase.tableData.map((row) =>
-            testCase.headers.map((header) => String(row[header] || ""))
-          ),
+          testCase.tableData,
           testCase.headers,
+          testCase.selectedCells,
           testCase.title,
           testCase.description,
           { debug: true }

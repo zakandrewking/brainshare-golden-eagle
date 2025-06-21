@@ -1,11 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock Google Gemini API
 const mockGenerateContent = vi.fn();
@@ -58,15 +51,15 @@ const _originalEnv = process.env;
 let findCitationsModule: typeof import("@/components/live-table/actions/find-citations");
 
 describe("findCitations", () => {
-  const mockSelectedCells = [
-    { rowIndex: 0, colIndex: 0 },
-    { rowIndex: 0, colIndex: 1 },
-  ];
-  const mockCellsData = [
-    ["Apple Inc", "Technology"],
-    ["Microsoft", "Software"],
-  ];
   const mockHeaders = ["Company", "Industry"];
+  const mockTableData = [
+    { Company: "Apple Inc", Industry: "Technology" },
+    { Company: "Microsoft", Industry: "Software" },
+  ];
+  const mockSelectedCells = [
+    { rowIndex: 0, colIndex: 0, value: "Apple Inc" },
+    { rowIndex: 0, colIndex: 1, value: "Technology" },
+  ];
   const mockDocumentTitle = "Tech Companies Analysis";
   const mockDocumentDescription = "Analysis of major tech companies";
 
@@ -118,9 +111,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -146,9 +139,9 @@ describe("findCitations", () => {
 
     it("should return error when no cells are selected", async () => {
       const result = await findCitationsModule.default(
-        [],
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        [],
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -160,9 +153,9 @@ describe("findCitations", () => {
 
     it("should return error when no cell data is provided", async () => {
       const result = await findCitationsModule.default(
-        mockSelectedCells,
         [],
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -174,9 +167,9 @@ describe("findCitations", () => {
 
     it("should return error when no headers are provided", async () => {
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         [],
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -191,9 +184,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockRejectedValueOnce(rateError);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -209,9 +202,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockRejectedValueOnce(timeoutError);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -225,9 +218,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockRejectedValueOnce(authError);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -243,9 +236,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockRejectedValueOnce(generalError);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -260,9 +253,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockRejectedValueOnce("string error");
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -287,9 +280,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -323,9 +316,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -365,9 +358,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -401,9 +394,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -423,9 +416,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -444,8 +437,8 @@ describe("findCitations", () => {
 
     it("should handle duplicate values in selected cells", async () => {
       const duplicateCells = [
-        { rowIndex: 0, colIndex: 0 },
-        { rowIndex: 0, colIndex: 0 },
+        { rowIndex: 0, colIndex: 0, value: "Apple Inc" },
+        { rowIndex: 0, colIndex: 0, value: "Apple Inc" },
       ];
 
       const mockResponseData = { textSummary: "Test", citations: [] };
@@ -455,9 +448,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       await findCitationsModule.default(
-        duplicateCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        duplicateCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -467,14 +460,14 @@ describe("findCitations", () => {
     });
 
     it("should handle empty cells gracefully", async () => {
-      const cellsWithEmpty = [
-        ["Apple Inc", ""],
-        ["", "Software"],
+      const tableWithEmpty = [
+        { Company: "Apple Inc", Industry: "" },
+        { Company: "", Industry: "Software" },
       ];
 
       const selectedCellsWithEmpty = [
-        { rowIndex: 0, colIndex: 1 },
-        { rowIndex: 1, colIndex: 0 },
+        { rowIndex: 0, colIndex: 1, value: "" },
+        { rowIndex: 1, colIndex: 0, value: "" },
       ];
 
       const mockResponseData = { textSummary: "Test", citations: [] };
@@ -484,9 +477,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       await findCitationsModule.default(
-        selectedCellsWithEmpty,
-        cellsWithEmpty,
+        tableWithEmpty,
         mockHeaders,
+        selectedCellsWithEmpty,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -496,8 +489,10 @@ describe("findCitations", () => {
 
     it("should truncate long contexts", async () => {
       const longValue = "A".repeat(200);
-      const longCellsData = [[longValue, "Technology"]];
-      const longSelectedCells = [{ rowIndex: 0, colIndex: 0 }];
+      const longTableData = [{ Company: longValue, Industry: "Technology" }];
+      const longSelectedCells = [
+        { rowIndex: 0, colIndex: 0, value: longValue },
+      ];
 
       const mockResponseData = { textSummary: "Test", citations: [] };
       const mockResponse = {
@@ -506,9 +501,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       await findCitationsModule.default(
-        longSelectedCells,
-        longCellsData,
+        longTableData,
         mockHeaders,
+        longSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -541,9 +536,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -561,9 +556,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -605,9 +600,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -640,9 +635,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -663,9 +658,9 @@ describe("findCitations", () => {
 
       // First call should complete immediately
       const promise1 = findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -676,9 +671,9 @@ describe("findCitations", () => {
 
       // Second call should be delayed due to rate limiting
       const promise2 = findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );
@@ -716,9 +711,9 @@ describe("findCitations", () => {
       mockGenerateContent.mockResolvedValueOnce(mockResponse);
 
       const result = await findCitationsModule.default(
-        mockSelectedCells,
-        mockCellsData,
+        mockTableData,
         mockHeaders,
+        mockSelectedCells,
         mockDocumentTitle,
         mockDocumentDescription
       );

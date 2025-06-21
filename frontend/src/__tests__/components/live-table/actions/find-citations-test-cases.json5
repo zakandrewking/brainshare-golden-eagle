@@ -247,45 +247,15 @@
     "selectedCells": [
       {
         "rowIndex": 2,
-        "colIndex": 2,
-        "value": "9.9"
-      },
-      {
-        "rowIndex": 2,
         "colIndex": 3,
         "value": "-108 (cloud tops)"
-      },
-      {
-        "rowIndex": 3,
-        "colIndex": 2,
-        "value": "10.7"
-      },
-      {
-        "rowIndex": 3,
-        "colIndex": 3,
-        "value": "-139 (cloud tops)"
       }
     ],
     "expectedCitedValues": [
       {
         "rowIndex": 2,
-        "colIndex": 2,
-        "value": "9.9"
-      },
-      {
-        "rowIndex": 2,
         "colIndex": 3,
-        "value": "-108 (cloud tops)"
-      },
-      {
-        "rowIndex": 3,
-        "colIndex": 2,
-        "value": "10.7"
-      },
-      {
-        "rowIndex": 3,
-        "colIndex": 3,
-        "value": "-139 (cloud tops)"
+        "value": "-108"
       }
     ]
   }

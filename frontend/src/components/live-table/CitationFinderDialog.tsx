@@ -1,9 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ExternalLink, Search } from "lucide-react";
 
@@ -211,18 +206,12 @@ export function CitationFinderDialog({
     }
 
     try {
-      // Convert tableData to the expected format
-      const tableDataArray: string[][] = tableData.map(
-        (row: Record<string, unknown>) =>
-          headers.map((_, index) => String(row[`col${index}`] || ""))
-      );
-
       const result = await findCitations(
-        selectedCells,
-        tableDataArray,
+        tableData,
         headers,
-        documentTitle || "Untitled Document",
-        documentDescription || "No description"
+        selectedCellsData,
+        documentTitle,
+        documentDescription
       );
 
       if (result.error) {

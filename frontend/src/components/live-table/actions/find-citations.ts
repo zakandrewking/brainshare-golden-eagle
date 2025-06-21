@@ -79,9 +79,9 @@ const rateLimitDelay = async (): Promise<void> => {
 };
 
 export default async function findCitations(
-  selectedCells: CellPosition[],
-  cellsData: string[][],
+  tableData: Record<string, unknown>[],
   headers: string[],
+  selectedCells: { rowIndex: number; colIndex: number; value: string }[],
   documentTitle: string,
   documentDescription: string,
   options?: {
@@ -99,7 +99,7 @@ export default async function findCitations(
     return { error: "No cells selected for citation search." };
   }
 
-  if (!cellsData || cellsData.length === 0) {
+  if (!tableData || tableData.length === 0) {
     return { error: "No cell data provided for citation search." };
   }
 
@@ -131,21 +131,23 @@ Description: ${documentDescription}
 === COMPLETE TABLE DATA (Selected Values Hidden) ===
 Headers: ${headers.join(" | ")}
 
-${cellsData
+${tableData
   .map((row, rowIndex) => {
-    return row
-      .map((cell, colIndex) => {
+    return Object.entries(row)
+      .map(([colIndex, cell]) => {
+        const colIndexNumber = parseInt(colIndex);
         // Check if this cell is in the selected cells
         const isSelected = selectedCells.some(
           (selectedCell) =>
             selectedCell.rowIndex === rowIndex &&
-            selectedCell.colIndex === colIndex
+            selectedCell.colIndex === colIndexNumber
         );
 
-        const value = isSelected ? "[HIDDEN VALUE]" : cell;
-        const headerName = headers[colIndex] || `Col${colIndex + 1}`;
+        const value = isSelected ? "[HIDDEN VALUE]" : String(cell);
+        const headerName =
+          headers[colIndexNumber] || `Col${colIndexNumber + 1}`;
 
-        return `rowIndex: ${rowIndex} columnIndex: ${colIndex} header: "${headerName}" value: "${value}"`;
+        return `rowIndex: ${rowIndex} columnIndex: ${colIndexNumber} header: "${headerName}" value: "${value}"`;
       })
       .join("\n");
   })
@@ -156,10 +158,10 @@ The user has selected ${selectedCells.length} specific data points for citation:
 
 ${selectedCells
   .map((cell) => {
-    const colIndex = cell.colIndex;
+    const colIndexNumber = cell.colIndex;
     const rowIndex = cell.rowIndex;
-    const headerName = headers[colIndex] || `Col${colIndex + 1}`;
-    return `rowIndex: ${rowIndex} columnIndex: ${colIndex} header: "${headerName}" value: "[HIDDEN VALUE]"`;
+    const headerName = headers[colIndexNumber] || `Col${colIndexNumber + 1}`;
+    return `rowIndex: ${rowIndex} columnIndex: ${colIndexNumber} header: "${headerName}" value: "[HIDDEN VALUE]"`;
   })
   .join("\n")}
 
