@@ -117,7 +117,7 @@ export function LockButton() {
               <Lock className="h-4 w-4 mr-2" />
               Lock with Note...
             </DropdownMenuItem>
-            {process.env.NODE_ENV === "development" && (
+            {process.env.NODE_ENV !== "development" && (
               <DropdownMenuItem
                 onClick={(e) => {
                   e.preventDefault();
