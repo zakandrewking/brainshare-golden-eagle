@@ -1,11 +1,6 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   useColumnWidths,
@@ -299,6 +294,13 @@ const LiveTable: React.FC = () => {
   return (
     <div className="overflow-x-auto overscroll-none h-full">
       <div
+        ref={(el) => {
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            el.style.height = `${rect.height}px`;
+            el.style.width = `${rect.width}px`;
+          }
+        }}
         className="w-max min-w-full"
         style={{
           transform: `scale(${zoomLevel})`,
