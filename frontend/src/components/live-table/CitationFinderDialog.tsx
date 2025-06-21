@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   useDocumentDescription,
   useDocumentTitle,
@@ -28,6 +27,7 @@ import findCitations, {
   type Citation as ServerCitation,
 } from "./actions/find-citations";
 import { getSelectedCellsData } from "./data-utils";
+import { SearchProgressIndicator } from "./SearchProgressIndicator";
 
 function outputDebugTestCase(
   tableData: Record<string, unknown>[],
@@ -357,18 +357,7 @@ export function CitationFinderDialog({
               </div>
             </div>
           ) : isLoading ? (
-            <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                Searching for citations...
-              </div>
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-              ))}
-            </div>
+            <SearchProgressIndicator isActive={isLoading} />
           ) : error ? (
             <div className="text-center py-8">
               <div className="text-destructive mb-2">

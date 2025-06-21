@@ -1,17 +1,6 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  act,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import CitationFinderDialog from "@/components/live-table/CitationFinderDialog";
@@ -150,7 +139,9 @@ describe("CitationFinderDialog", () => {
     await user.click(findButton);
 
     // Should show loading state
-    expect(screen.getByText("Searching for citations...")).toBeInTheDocument();
+    expect(
+      screen.getByText("Analyzing your selected data...")
+    ).toBeInTheDocument();
   });
 
   it("shows citations after clicking search button", async () => {
@@ -172,7 +163,9 @@ describe("CitationFinderDialog", () => {
     await user.click(findButton);
 
     // Should show loading state
-    expect(screen.getByText("Searching for citations...")).toBeInTheDocument();
+    expect(
+      screen.getByText("Analyzing your selected data...")
+    ).toBeInTheDocument();
 
     // Advance timers to simulate the 2 second timeout
     await act(async () => {
