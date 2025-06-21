@@ -7,6 +7,12 @@ export interface CellPosition {
   colIndex: number;
 }
 
+export interface SelectedCell {
+  rowIndex: number;
+  colIndex: number;
+  value: string;
+}
+
 export interface SelectionArea {
   startCell: CellPosition | null;
   endCell: CellPosition | null;

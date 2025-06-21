@@ -4,6 +4,8 @@ import { UndoManager } from "yjs";
 import { useRoom } from "@liveblocks/react";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
 
+import type { SelectedCell } from "@/stores/selectionStore";
+
 import { DEFAULT_COL_WIDTH } from "./config";
 
 export interface SortingConfig {
@@ -1018,6 +1020,57 @@ export class LiveTableDoc {
     });
 
     return lockId;
+  }
+
+  /**
+   * Updates cell values and locks them in a single transaction.
+   * @param note - Note to associate with the lock
+   * @param selectedCellsNewValues - Array of cells with their new values
+   * @returns The lock ID if successful, null if failed
+   */
+  lockAndSaveSelectedRange(
+    note: string,
+    selectedCellsNewValues: SelectedCell[]
+  ): string | null {
+    if (selectedCellsNewValues.length === 0) {
+      return null;
+    }
+
+    const lockId = crypto.randomUUID();
+    const cells: CellLock[] = [];
+
+    this.yDoc.transact(() => {
+      // Update cell values and collect lock information
+      selectedCellsNewValues.forEach(({ rowIndex, colIndex, value }) => {
+        // Get rowId and columnId (similar to updateCell logic)
+        const rowId = this.yRowOrder.get(rowIndex);
+        if (!rowId) return;
+
+        const columnId = this.yColumnOrder.get(colIndex);
+        if (!columnId) return;
+
+        // Update cell value
+        const yRowMap = this.yRowData.get(rowId);
+        if (yRowMap) {
+          yRowMap.set(columnId, value);
+        }
+
+        // Add to cells array for locking
+        cells.push({ rowId, columnId });
+      });
+
+      // Create and apply lock if we have cells to lock
+      if (cells.length > 0) {
+        const lockRange: LockRange = {
+          id: lockId,
+          cells,
+          note,
+        };
+        this.yActiveLocks.set(lockId, lockRange);
+      }
+    });
+
+    return cells.length > 0 ? lockId : null;
   }
 
   /**

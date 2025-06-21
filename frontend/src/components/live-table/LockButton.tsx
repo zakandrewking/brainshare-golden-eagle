@@ -1,11 +1,6 @@
 import React, { useState } from "react";
 
-import {
-  ChevronDownIcon,
-  FileText,
-  Lock,
-  Trash2,
-} from "lucide-react";
+import { ChevronDownIcon, FileText, Lock, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  useLockAndSaveSelectedRange,
   useLockedCells,
   useLockSelectedRange,
   useUnlockAll,
@@ -38,6 +34,7 @@ export function LockButton() {
 
   const unlockAll = useUnlockAll();
   const lockSelectedRange = useLockSelectedRange();
+  const lockAndSaveSelectedRange = useLockAndSaveSelectedRange();
   const selectedCells = useSelectedCells();
   const lockedCells = useLockedCells();
 
@@ -153,7 +150,7 @@ export function LockButton() {
       <CitationFinderDialog
         isOpen={isCitationDialogOpen}
         onOpenChange={setIsCitationDialogOpen}
-        onLock={handleDialogLock}
+        onLockAndSave={lockAndSaveSelectedRange}
         selectedCells={selectedCells || []}
       />
     </TooltipProvider>

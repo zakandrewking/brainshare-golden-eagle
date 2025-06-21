@@ -21,7 +21,7 @@ import {
   useTableData,
 } from "@/stores/dataStore";
 import { useIsAiFillSelectionDebugEnabled } from "@/stores/debugSettingsStore";
-import type { CellPosition } from "@/stores/selectionStore";
+import type { CellPosition, SelectedCell } from "@/stores/selectionStore";
 
 import findCitations, {
   type Citation as ServerCitation,
@@ -70,14 +70,14 @@ interface Citation extends ServerCitation {
 interface CitationFinderDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onLock: (note?: string) => void;
+  onLockAndSave: (note: string, selectedCellsNewValues: SelectedCell[]) => void;
   selectedCells: CellPosition[];
 }
 
 export function CitationFinderDialog({
   isOpen,
   onOpenChange,
-  onLock,
+  onLockAndSave,
   selectedCells,
 }: CitationFinderDialogProps) {
   const [citations, setCitations] = useState<Citation[]>([]);
@@ -145,16 +145,39 @@ export function CitationFinderDialog({
       selectedCitationIds.has(citation.id)
     );
 
+    const selectedCellsNewValuesUnfiltered = selectedCells.map((cell) => {
+      const newCell = {
+        ...cell,
+        value:
+          selectedCitations.find(
+            (citation) =>
+              citation.rowIndex === cell.rowIndex &&
+              citation.colIndex === cell.colIndex
+          )?.citedValue || undefined,
+      };
+      return newCell;
+    });
+
+    const selectedCellsNewValues = selectedCellsNewValuesUnfiltered.filter(
+      (cell) => cell.value !== undefined
+    ) as SelectedCell[];
+
     const citationNote = selectedCitations
       .map((citation) => `${citation.title}\n${citation.url}`)
       .join("\n\n");
 
-    onLock(citationNote);
+    onLockAndSave(citationNote, selectedCellsNewValues);
     setCitations([]);
     setSelectedCitationIds(new Set());
     setError(null);
     onOpenChange(false);
-  }, [citations, selectedCitationIds, onLock, onOpenChange]);
+  }, [
+    selectedCitationIds,
+    selectedCells,
+    citations,
+    onLockAndSave,
+    onOpenChange,
+  ]);
 
   const handleCancel = useCallback(() => {
     setCitations([]);
@@ -176,7 +199,7 @@ export function CitationFinderDialog({
   }, []);
 
   const searchForCitations = useCallback(async () => {
-    if (selectedCells.length === 0 || !tableData) return;
+    if (selectedCells.length === 0) return;
 
     setHasStartedSearch(true);
     setIsLoading(true);

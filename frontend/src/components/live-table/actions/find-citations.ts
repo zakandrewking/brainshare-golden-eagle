@@ -9,15 +9,13 @@ import { geminiModel } from "@/llm-config";
 
 // TypeScript interfaces for citation data
 export interface Citation {
-  title: string;
-  url: string;
-  snippet: string;
-  citedValue: string;
-}
-
-export interface CellPosition {
   rowIndex: number;
   colIndex: number;
+  header: string;
+  url: string;
+  title: string;
+  snippet: string;
+  citedValue: string;
 }
 
 // Zod schema for structured web search output
@@ -346,8 +344,11 @@ IMPORTANT:
       }
 
       citations.push({
-        title: citation.citationTitle,
+        rowIndex: citation.rowIndex,
+        colIndex: citation.columnIndex,
+        header: citation.header,
         url: citation.citationUrl,
+        title: citation.citationTitle,
         snippet: citation.citationSnippet,
         citedValue: citation.citedValue,
       });

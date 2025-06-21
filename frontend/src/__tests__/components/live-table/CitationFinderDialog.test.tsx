@@ -46,7 +46,7 @@ describe("CitationFinderDialog", () => {
     { rowIndex: 1, colIndex: 0 },
   ];
 
-  const mockOnLock = vi.fn();
+  const mockOnLockAndSave = vi.fn();
   const mockOnOpenChange = vi.fn();
 
   beforeEach(() => {
@@ -65,7 +65,7 @@ describe("CitationFinderDialog", () => {
         <CitationFinderDialog
           isOpen={true}
           onOpenChange={mockOnOpenChange}
-          onLock={mockOnLock}
+          onLockAndSave={mockOnLockAndSave}
           selectedCells={mockSelectedCells}
         />
       </TestDataStoreWrapper>
@@ -88,7 +88,7 @@ describe("CitationFinderDialog", () => {
         <CitationFinderDialog
           isOpen={false}
           onOpenChange={mockOnOpenChange}
-          onLock={mockOnLock}
+          onLockAndSave={mockOnLockAndSave}
           selectedCells={mockSelectedCells}
         />
       </TestDataStoreWrapper>
@@ -105,7 +105,7 @@ describe("CitationFinderDialog", () => {
         <CitationFinderDialog
           isOpen={true}
           onOpenChange={mockOnOpenChange}
-          onLock={mockOnLock}
+          onLockAndSave={mockOnLockAndSave}
           selectedCells={mockSelectedCells}
         />
       </TestDataStoreWrapper>
@@ -127,7 +127,7 @@ describe("CitationFinderDialog", () => {
         <CitationFinderDialog
           isOpen={true}
           onOpenChange={mockOnOpenChange}
-          onLock={mockOnLock}
+          onLockAndSave={mockOnLockAndSave}
           selectedCells={mockSelectedCells}
         />
       </TestDataStoreWrapper>
@@ -151,7 +151,7 @@ describe("CitationFinderDialog", () => {
         <CitationFinderDialog
           isOpen={true}
           onOpenChange={mockOnOpenChange}
-          onLock={mockOnLock}
+          onLockAndSave={mockOnLockAndSave}
           selectedCells={mockSelectedCells}
         />
       </TestDataStoreWrapper>
@@ -183,7 +183,7 @@ describe("CitationFinderDialog", () => {
         <CitationFinderDialog
           isOpen={true}
           onOpenChange={mockOnOpenChange}
-          onLock={mockOnLock}
+          onLockAndSave={mockOnLockAndSave}
           selectedCells={mockSelectedCells}
         />
       </TestDataStoreWrapper>
@@ -217,7 +217,7 @@ describe("CitationFinderDialog", () => {
     expect(screen.getByText("Lock with 1 Citation")).toBeInTheDocument();
   });
 
-  it("calls onLock with citation note when locking", async () => {
+  it("calls onLockAndSave with citation note when locking", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     render(
@@ -225,7 +225,7 @@ describe("CitationFinderDialog", () => {
         <CitationFinderDialog
           isOpen={true}
           onOpenChange={mockOnOpenChange}
-          onLock={mockOnLock}
+          onLockAndSave={mockOnLockAndSave}
           selectedCells={mockSelectedCells}
         />
       </TestDataStoreWrapper>
@@ -254,11 +254,13 @@ describe("CitationFinderDialog", () => {
     const lockButton = screen.getByText("Lock with 1 Citation");
     await user.click(lockButton);
 
-    expect(mockOnLock).toHaveBeenCalledWith(
-      expect.stringContaining("Example Citation 1")
+    expect(mockOnLockAndSave).toHaveBeenCalledWith(
+      expect.stringContaining("Example Citation 1"),
+      expect.any(Array)
     );
-    expect(mockOnLock).toHaveBeenCalledWith(
-      expect.stringContaining("https://example.com/article1")
+    expect(mockOnLockAndSave).toHaveBeenCalledWith(
+      expect.stringContaining("https://example.com/article1"),
+      expect.any(Array)
     );
   });
 
@@ -270,7 +272,7 @@ describe("CitationFinderDialog", () => {
         <CitationFinderDialog
           isOpen={true}
           onOpenChange={mockOnOpenChange}
-          onLock={mockOnLock}
+          onLockAndSave={mockOnLockAndSave}
           selectedCells={mockSelectedCells}
         />
       </TestDataStoreWrapper>
@@ -295,7 +297,7 @@ describe("CitationFinderDialog", () => {
         <CitationFinderDialog
           isOpen={true}
           onOpenChange={mockOnOpenChange}
-          onLock={mockOnLock}
+          onLockAndSave={mockOnLockAndSave}
           selectedCells={singleCell}
         />
       </TestDataStoreWrapper>
@@ -316,7 +318,7 @@ describe("CitationFinderDialog", () => {
         <CitationFinderDialog
           isOpen={true}
           onOpenChange={mockOnOpenChange}
-          onLock={mockOnLock}
+          onLockAndSave={mockOnLockAndSave}
           selectedCells={mockSelectedCells}
         />
       </TestDataStoreWrapper>

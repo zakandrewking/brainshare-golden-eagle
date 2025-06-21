@@ -21,7 +21,7 @@ import {
   generateAndInsertRows,
   insertEmptyRows,
 } from "@/components/live-table/manage-rows";
-import type { CellPosition } from "@/stores/selectionStore";
+import type { CellPosition, SelectedCell } from "@/stores/selectionStore";
 
 // -----
 // Types
@@ -108,6 +108,10 @@ interface DataActions {
   lockSelectedRange: (
     selectedCells: CellPosition[],
     note?: string
+  ) => string | null;
+  lockAndSaveSelectedRange: (
+    note: string,
+    selectedCellsNewValues: SelectedCell[]
   ) => string | null;
   unlockRange: (lockId: string) => boolean;
   unlockAll: () => void;
@@ -227,6 +231,12 @@ export const DataStoreProvider = ({
       ...initialState,
       lockSelectedRange: (selectedCells: CellPosition[], note?: string) =>
         lockSelectedRange(selectedCells, liveTableDoc, note),
+
+      lockAndSaveSelectedRange: (
+        note: string,
+        selectedCellsNewValues: SelectedCell[]
+      ) => liveTableDoc.lockAndSaveSelectedRange(note, selectedCellsNewValues),
+
       unlockRange: (lockId: string) => unlockRange(lockId, liveTableDoc),
       unlockAll: () => unlockAll(liveTableDoc),
       handleHeaderDoubleClick: (colIndex: number) => {
@@ -506,6 +516,8 @@ export const useGetColumnEnumValues = () =>
 export const useLockedCells = () => useDataStore((state) => state.lockedCells);
 export const useLockSelectedRange = () =>
   useDataStore((state) => state.lockSelectedRange);
+export const useLockAndSaveSelectedRange = () =>
+  useDataStore((state) => state.lockAndSaveSelectedRange);
 export const useUnlockRange = () => useDataStore((state) => state.unlockRange);
 export const useUnlockAll = () => useDataStore((state) => state.unlockAll);
 
