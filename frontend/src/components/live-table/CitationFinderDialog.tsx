@@ -117,17 +117,6 @@ export function CitationFinderDialog({
     }
   };
 
-  // Get selected cell values for preview
-  const getSelectedCellsPreview = useCallback(() => {
-    if (!tableData || selectedCells.length === 0) return [];
-
-    return selectedCells.slice(0, 5).map((cell) => {
-      const value = tableData[cell.rowIndex]?.[`col${cell.colIndex}`] || "";
-      const header = headers[cell.colIndex] || `Column ${cell.colIndex + 1}`;
-      return { header, value, row: cell.rowIndex + 1, col: cell.colIndex + 1 };
-    });
-  }, [tableData, headers, selectedCells]);
-
   // Get original values for comparison with citations
   const getOriginalValuesForCitations = useCallback(() => {
     if (!tableData || selectedCells.length === 0)
@@ -310,39 +299,7 @@ export function CitationFinderDialog({
         <div className="flex-1 min-h-0">
           {!hasStartedSearch ? (
             <div className="text-center py-8 space-y-6">
-              {/* Selected cells preview */}
-              {selectedCells.length > 0 && (
-                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                  <h4 className="text-sm font-medium">
-                    Selected Data Preview:
-                  </h4>
-                  <div className="text-xs text-muted-foreground space-y-2">
-                    {getSelectedCellsPreview().map((cell, index) => (
-                      <div
-                        key={index}
-                        className="bg-background rounded px-2 py-1"
-                      >
-                        <span className="font-medium text-foreground">
-                          {cell.header}:
-                        </span>{" "}
-                        <span className="text-foreground">
-                          {String(cell.value || "(empty)")}
-                        </span>
-                        <span className="text-muted-foreground/70 ml-2 text-xs">
-                          (Row {cell.row}, Col {cell.col})
-                        </span>
-                      </div>
-                    ))}
-                    {selectedCells.length > 5 && (
-                      <div className="italic text-center pt-1">
-                        ...and {selectedCells.length - 5} more cells
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
+              <div className="space-y-2 flex flex-col items-center">
                 <p className="text-sm text-muted-foreground">
                   This process typically takes about 30 seconds.
                 </p>
@@ -477,19 +434,26 @@ export function CitationFinderDialog({
         </div>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" onClick={handleCancel}>
-              Cancel
-            </Button>
-          </DialogClose>
-          <Button
-            onClick={handleLockWithCitation}
-            disabled={selectedCount === 0}
-            className="flex items-center gap-3"
-          >
-            Lock with {selectedCount} Citation{selectedCount === 1 ? "" : "s"}
-            <CommandShortcut>{shortcutKey}+Enter</CommandShortcut>
-          </Button>
+          {hasStartedSearch && !error && (
+            <>
+              <DialogClose asChild>
+                <Button variant="outline" onClick={handleCancel}>
+                  Cancel
+                </Button>
+              </DialogClose>
+              {!isLoading && (
+                <Button
+                  onClick={handleLockWithCitation}
+                  disabled={selectedCount === 0}
+                  className="flex items-center gap-3"
+                >
+                  Lock with {selectedCount} Citation
+                  {selectedCount === 1 ? "" : "s"}
+                  <CommandShortcut>{shortcutKey}+Enter</CommandShortcut>
+                </Button>
+              )}
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

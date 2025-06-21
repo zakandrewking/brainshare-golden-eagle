@@ -111,7 +111,6 @@ describe("CitationFinderDialog", () => {
       </TestDataStoreWrapper>
     );
 
-    expect(screen.getByText("Selected Data Preview:")).toBeInTheDocument();
     expect(
       screen.getByText("This process typically takes about 30 seconds.")
     ).toBeInTheDocument();
@@ -277,6 +276,11 @@ describe("CitationFinderDialog", () => {
       </TestDataStoreWrapper>
     );
 
+    // Click the Find Citations button first to show the footer buttons
+    const findButton = screen.getByRole("button", { name: /Find Citations/ });
+    await user.click(findButton);
+
+    // Now the Cancel button should be visible
     const cancelButton = screen.getByText("Cancel");
     await user.click(cancelButton);
 
