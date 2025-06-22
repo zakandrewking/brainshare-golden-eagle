@@ -6,7 +6,7 @@ import { Settings, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { deleteDocument } from "@/app/(main)/document/[docId]/actions";
+import { deleteYSweetDocument } from "@/components/live-table/actions/delete-y-sweet-document";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,13 +42,11 @@ export default function DocumentSettingsDropdown({
     setIsDeleting(true);
 
     const loadingToast = toast.loading(
-      <div className="flex items-center gap-2">
-        Deleting document...
-      </div>
+      <div className="flex items-center gap-2">Deleting document...</div>
     );
 
     try {
-      const result = await deleteDocument(docId);
+      const result = await deleteYSweetDocument(docId);
 
       toast.dismiss(loadingToast);
 
@@ -97,7 +95,10 @@ export default function DocumentSettingsDropdown({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent data-testid="delete-confirmation-dialog">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Document</AlertDialogTitle>
