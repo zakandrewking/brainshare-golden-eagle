@@ -264,6 +264,7 @@ export async function createYSweetDocument(
     return {
       success: true,
       createdDocumentData: { id: supabaseDocId, title: name },
+      documentId: supabaseDocId,
       aiSuggestionsUsed,
       aiSuggestionsError,
     };
