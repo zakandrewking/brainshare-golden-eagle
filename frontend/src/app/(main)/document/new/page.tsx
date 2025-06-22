@@ -12,6 +12,10 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import FlexTitle from "@/components/flex-title";
+import {
+  createYSweetDocument,
+  type CreateYSweetDocumentFormState,
+} from "@/components/live-table/actions/create-y-sweet-document";
 import { Button } from "@/components/ui/button";
 import Container from "@/components/ui/container";
 import { Input } from "@/components/ui/input";
@@ -26,11 +30,6 @@ import {
 import { Stack } from "@/components/ui/stack";
 import { Textarea } from "@/components/ui/textarea";
 
-import {
-  handleCreateRoomForm,
-  type HandleCreateRoomFormState,
-} from "./actions";
-
 const formSchema = z.object({
   name: z.string().trim().min(1, "Document name cannot be empty."),
   description: z.string().optional(),
@@ -43,9 +42,9 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function CreateDocument() {
   const [state, formAction] = React.useActionState<
-    HandleCreateRoomFormState | null,
+    CreateYSweetDocumentFormState | null,
     FormData
-  >(handleCreateRoomForm, null);
+  >(createYSweetDocument, null);
   const { mutate } = useSWRConfig();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
