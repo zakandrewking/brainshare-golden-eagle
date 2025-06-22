@@ -9,7 +9,9 @@ import z from "zod";
 
 import { DocConnection, DocumentManager } from "@y-sweet/sdk";
 
-import { generateTableInitialization } from "@/app/(main)/document/new/ai-suggestions";
+import {
+  generateTableInitialization,
+} from "@/app/(main)/document/new/ai-suggestions";
 import { createClient } from "@/utils/supabase/server";
 
 const CreateYSweetDocumentFormSchema = z.object({

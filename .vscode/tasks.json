@@ -88,6 +88,14 @@
           }
         }
       ]
+    },
+    {
+      "type": "shell",
+      "command": "npx trigger.dev@latest dev",
+      "label": "[trigger] dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      }
     }
   ]
 }
