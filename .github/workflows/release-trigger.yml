@@ -18,9 +18,11 @@ jobs:
           node-version: "20.x"
 
       - name: Install dependencies
+        working-directory: frontend
         run: npm install
 
       - name: 🚀 Deploy Trigger.dev
+        working-directory: frontend
         env:
           TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
         run: |
