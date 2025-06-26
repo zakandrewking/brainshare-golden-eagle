@@ -15,6 +15,11 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 import { useSearch } from "@/components/global-search-provider";
 import { Button } from "@/components/ui/button";
+import {
+  useCloseDrawer,
+  useIsDrawerOpen,
+  useOpenDrawer,
+} from "@/stores/navigationStore";
 
 import { DocumentNavList, NavButton } from "./document-nav-list";
 import {
@@ -34,26 +39,19 @@ import { Stack } from "./stack";
  */
 function NavigationButtonWithDrawer() {
   const [mounted, setMounted] = useState(false);
-  const [willOpen, setWillOpen] = useState(false);
-  const [open, setOpen] = useState(false);
   const [isMac, setIsMac] = useState(false);
   const { openSearch } = useSearch();
+
+  // Use the navigation store instead of local state
+  const isDrawerOpen = useIsDrawerOpen();
+  const openDrawer = useOpenDrawer();
+  const closeDrawer = useCloseDrawer();
 
   // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
     setMounted(true);
     setIsMac(navigator.platform.toUpperCase().indexOf("MAC") >= 0);
   }, []);
-
-  // The drawer doesn't like it when the active element is focused
-  useEffect(() => {
-    if (willOpen) {
-      (document.activeElement as HTMLElement)?.blur();
-      setOpen(true);
-    } else {
-      setOpen(false);
-    }
-  }, [willOpen]);
 
   if (!mounted) {
     return (
@@ -64,7 +62,11 @@ function NavigationButtonWithDrawer() {
   }
 
   return (
-    <Drawer direction="left" open={open} onOpenChange={setWillOpen}>
+    <Drawer
+      direction="left"
+      open={isDrawerOpen}
+      onOpenChange={(open) => (open ? openDrawer() : closeDrawer())}
+    >
       <DrawerTrigger className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 rounded-md px-3 pr-3 pl-2 w-[80px]">
         <ChevronRight className="mr-1" size={16} /> Menu
       </DrawerTrigger>
@@ -99,7 +101,7 @@ function NavigationButtonWithDrawer() {
                 className="w-full mt-3 justify-start text-left"
                 onClick={() => {
                   openSearch();
-                  setWillOpen(false);
+                  closeDrawer();
                 }}
               >
                 <Search className="mr-2" size={16} />
@@ -113,7 +115,7 @@ function NavigationButtonWithDrawer() {
                 href="/document/new"
                 variant="outline"
                 className="w-full my-2 justify-center"
-                setOpen={setWillOpen}
+                setOpen={closeDrawer}
               >
                 <Grid2x2Plus className="mr-2" size={16} />
                 Create a doc
@@ -124,7 +126,7 @@ function NavigationButtonWithDrawer() {
                 match={new RegExp("^/?$")}
                 variant="outline"
                 className="justify-center"
-                setOpen={setWillOpen}
+                setOpen={closeDrawer}
               >
                 <Home className="mr-2" size={16} />
                 Home
@@ -133,24 +135,24 @@ function NavigationButtonWithDrawer() {
               <NavButton
                 href="/planets"
                 match={new RegExp("^/planets$")}
-                setOpen={setWillOpen}
+                setOpen={closeDrawer}
               >
                 Planets
               </NavButton>
               <NavButton
                 href="/moons"
                 match={new RegExp("^/moons$")}
-                setOpen={setWillOpen}
+                setOpen={closeDrawer}
               >
                 Moons
               </NavButton>
 
-              <DocumentNavList setOpen={setWillOpen} />
+              <DocumentNavList setOpen={closeDrawer} />
 
               <NavButton
                 href="/debug"
                 match={new RegExp("^/debug$")}
-                setOpen={setWillOpen}
+                setOpen={closeDrawer}
                 className="mt-4"
               >
                 <Settings className="mr-2" size={16} />
