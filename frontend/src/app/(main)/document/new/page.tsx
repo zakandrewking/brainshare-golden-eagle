@@ -11,11 +11,18 @@ import { z } from "zod";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 
+import FileUpload from "@/components/file-upload";
 import FlexTitle from "@/components/flex-title";
 import {
   createYSweetDocument,
   type CreateYSweetDocumentFormState,
 } from "@/components/live-table/actions/create-y-sweet-document";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import Container from "@/components/ui/container";
 import { Input } from "@/components/ui/input";
@@ -48,6 +55,7 @@ export default function CreateDocument() {
   const { mutate } = useSWRConfig();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [_fileProcessed, setFileProcessed] = React.useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -105,6 +113,19 @@ export default function CreateDocument() {
 
   const handleSubmit = () => {
     setIsSubmitting(true);
+  };
+
+  const handleFileProcessed = (_result: {
+    message: string;
+    success: boolean;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+  }) => {
+    setFileProcessed(true);
+    toast.success(
+      "File processed successfully! You can now create the document."
+    );
   };
 
   return (
@@ -172,6 +193,36 @@ export default function CreateDocument() {
               </p>
             )}
           </div>
+
+          {process.env.NODE_ENV === "development" && (
+            <Accordion
+              type="single"
+              collapsible
+              className="w-full rounded-md bg-muted px-4"
+            >
+              <AccordionItem value="file-upload">
+                <AccordionTrigger>More Options</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">
+                        Create from File
+                      </Label>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Upload a CSV or TSV file to automatically populate your
+                        document
+                      </p>
+                      <FileUpload
+                        onFileProcessed={handleFileProcessed}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
+
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
