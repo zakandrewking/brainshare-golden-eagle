@@ -117,27 +117,6 @@ export function CitationFinderDialog({
     }
   };
 
-  // Get original values for comparison with citations
-  const getOriginalValuesForCitations = useCallback(() => {
-    if (!tableData || selectedCells.length === 0)
-      return new Map<string, string>();
-
-    const originalValues = new Map<string, string>();
-    selectedCells.forEach((cell) => {
-      const value = String(
-        tableData[cell.rowIndex]?.[`col${cell.colIndex}`] || ""
-      );
-      const key = `${cell.rowIndex}-${cell.colIndex}`;
-      originalValues.set(key, value);
-    });
-    return originalValues;
-  }, [tableData, selectedCells]);
-
-  const originalValues = useMemo(
-    () => getOriginalValuesForCitations(),
-    [getOriginalValuesForCitations]
-  );
-
   const handleLockWithCitation = useCallback(() => {
     if (selectedCitationIds.size === 0) return;
 
@@ -370,19 +349,11 @@ export function CitationFinderDialog({
                 <div className="space-y-4">
                   {citations.map((citation) => {
                     // Find the original value this citation corresponds to
-                    const originalValue = citation.citedValue
-                      ? Array.from(originalValues.values()).find(
-                          (val) =>
-                            val
-                              .toLowerCase()
-                              .includes(
-                                citation.citedValue?.toLowerCase() || ""
-                              ) ||
-                            citation.citedValue
-                              ?.toLowerCase()
-                              .includes(val.toLowerCase() || "")
-                        )
-                      : undefined;
+                    const originalValue = selectedCellsData.find(
+                      (cell) =>
+                        cell.rowIndex === citation.rowIndex &&
+                        cell.colIndex === citation.colIndex
+                    )?.value;
 
                     return (
                       <div
@@ -410,6 +381,10 @@ export function CitationFinderDialog({
                             {/* Show original vs cited values */}
                             {citation.citedValue && (
                               <div className="space-y-1 mb-3 p-2 bg-muted/20 rounded">
+                                <div className="text-xs text-muted-foreground">
+                                  Row: {citation.rowIndex}, Col:{" "}
+                                  {citation.colIndex}
+                                </div>
                                 {originalValue &&
                                   originalValue !== citation.citedValue && (
                                     <div className="text-xs">
