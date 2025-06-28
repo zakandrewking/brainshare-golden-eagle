@@ -2,6 +2,7 @@
 
 import { useTheme } from "next-themes";
 import Image from "next/image";
+import Link from "next/link";
 
 import useIsSSR from "@/hooks/use-is-ssr";
 import { useHandleMenuButton } from "@/stores/navigationStore";
@@ -9,7 +10,6 @@ import { useHandleMenuButton } from "@/stores/navigationStore";
 import { fontOrbitron } from "./fonts";
 import robotCsv from "./robot-csv.png";
 import { Button } from "./ui/button";
-import { InternalLink } from "./ui/link";
 import { Stack } from "./ui/stack";
 
 export default function EmptyScreen() {
@@ -27,39 +27,67 @@ export default function EmptyScreen() {
           <span className="ml-3 neon-text-cyan">BRAINSHARE.</span>
         </div>
       )}
-      <Image src={robotCsv} alt="robot-csv" className="w-56 mt-8" priority />
-      <div className="text-2xl font-bold mt-4 flex flex-row items-center gap-4">
-        <pre className="text-sm">
-          {`
- ____     ____
+      <Image src={robotCsv} alt="robot-csv" className="w-56 mt-4" priority />
+      <div className="bg-black border border-gray-600 rounded-lg p-6 max-w-4xl font-mono text-sm">
+        <div className="text-green-400 mb-4">
+          <pre className="text-xs">
+            {` ____     ____
 |  0 |   | 0  |
 '___/     \\___'
-  `}
-        </pre>
-        <div>Hello, human.</div>
+            `}
+          </pre>
+          <div className="text-lg font-bold">Hello, human.</div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex"></div>
+          <div className="text-gray-300">
+            <span className="text-green-400 mr-2">{">"}</span>
+            We&apos;re on a mission to collect every true fact about the world.
+          </div>
+          <div className="text-gray-300">
+            <span className="text-green-400 mr-2">{">"}</span>
+            NBD.
+          </div>
+          <div className="text-gray-300">
+            <span className="text-green-400 mr-2">{">"}</span>
+            <span className="text-gray-300">
+              You can help by making a{" "}
+              <Button
+                variant="link"
+                className="text-blue-400 underline hover:text-blue-300 p-0 h-auto"
+                asChild
+              >
+                <Link href="/document/new">New Data Sheet</Link>
+              </Button>
+              , and then I&apos;ll fill in some facts.
+            </span>
+          </div>
+
+          <div className="flex">
+            <span className="text-green-400 mr-2">{">"}</span>
+            <span className="text-gray-300">
+              Or check out the{" "}
+              <Button
+                variant="link"
+                className="cursor-pointer text-blue-400 p-0 h-auto underline hover:text-blue-300 py-0"
+                onClick={handleMenuButton}
+              >
+                Menu
+              </Button>{" "}
+              to see the sheets we already have.
+            </span>
+          </div>
+
+          <div className="flex">
+            <span className="text-green-400 mr-2">{">"}</span>
+            <span className="text-gray-300">
+              After that, we&apos;ll check my work & add citations. Let&apos;s
+              get started!
+            </span>
+          </div>
+        </div>
       </div>
-      <p className="italic text-center">
-        I&apos;m an AI, and I&apos;ll help you generate spreadsheets about any
-        topic you like!
-      </p>
-      <div className="text-2xl font-bold text-center">
-        Start by making a{" "}
-        <InternalLink href="/document/new" className="text-2xl">
-          New Sheet
-        </InternalLink>
-        , and then I&apos;ll fill in some data.
-      </div>
-      <p className="text-center">
-        (Or check out the{" "}
-        <Button
-          variant="link"
-          className="cursor-pointer"
-          onClick={handleMenuButton}
-        >
-          Menu
-        </Button>{" "}
-        to see the sheets we already have.)
-      </p>
     </Stack>
   );
 }
