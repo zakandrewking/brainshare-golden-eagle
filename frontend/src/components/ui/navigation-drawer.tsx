@@ -13,6 +13,7 @@ import {
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
+import AccountButton from "@/components/auth/account-button";
 import { useSearch } from "@/components/global-search-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -96,9 +97,10 @@ function NavigationButtonWithDrawer() {
               </DrawerClose>
             </DrawerHeader>
             <Stack direction="col" gap={1} className="w-full">
+              <AccountButton closeDrawer={closeDrawer} />
               <Button
                 variant="outline"
-                className="w-full mt-3 justify-start text-left"
+                className="w-full justify-start text-left"
                 onClick={() => {
                   openSearch();
                   closeDrawer();
