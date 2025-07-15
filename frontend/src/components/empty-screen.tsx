@@ -47,10 +47,6 @@ export default function EmptyScreen() {
           </div>
           <div className="text-gray-300">
             <span className="text-green-400 mr-2">{">"}</span>
-            NBD.
-          </div>
-          <div className="text-gray-300">
-            <span className="text-green-400 mr-2">{">"}</span>
             <span className="text-gray-300">
               You can help by making a{" "}
               <Button
