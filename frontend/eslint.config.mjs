@@ -22,6 +22,12 @@ const eslintConfig = [
           varsIgnorePattern: "^_",
         },
       ],
+      "react/no-children-prop": [
+        "error",
+        {
+          allowFunctions: true,
+        },
+      ],
     },
   },
 ];
