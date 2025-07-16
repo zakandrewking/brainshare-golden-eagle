@@ -2,6 +2,7 @@
 
 import React from "react";
 
+import { LogIn, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 
@@ -32,9 +33,15 @@ export default function AccountButton({
 
   if (user) {
     return (
-      <form action={formActionLogOut}>
+      <form action={formActionLogOut} className="w-full">
         <input type="hidden" name="redirect" value={pathname} />
-        <Button variant="outline" disabled={isPending}>
+        <Button
+          variant="outline"
+          className="justify-center w-full"
+          disabled={isPending}
+          onClick={() => closeDrawer()}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
           Log Out
         </Button>
       </form>
@@ -44,9 +51,10 @@ export default function AccountButton({
     <NavButton
       href={logInRedirect(pathname)}
       variant="outline"
-      className="justify-center mb-2 mt-3"
+      className="justify-center"
       setOpen={closeDrawer}
     >
+      <LogIn className="mr-2 h-4 w-4" />
       Log In
     </NavButton>
   );

@@ -33,6 +33,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "./drawer";
+import { Separator } from "./separator";
 import { Stack } from "./stack";
 
 /**
@@ -97,10 +98,9 @@ function NavigationButtonWithDrawer() {
               </DrawerClose>
             </DrawerHeader>
             <Stack direction="col" gap={1} className="w-full">
-              <AccountButton closeDrawer={closeDrawer} />
               <Button
                 variant="outline"
-                className="w-full justify-start text-left"
+                className="w-full justify-start text-left mt-3"
                 onClick={() => {
                   openSearch();
                   closeDrawer();
@@ -113,15 +113,7 @@ function NavigationButtonWithDrawer() {
                 </span>
               </Button>
 
-              <NavButton
-                href="/document/new"
-                variant="outline"
-                className="w-full my-2 justify-center"
-                setOpen={closeDrawer}
-              >
-                <Grid2x2Plus className="mr-2" size={16} />
-                Create a doc
-              </NavButton>
+              <Separator className="my-2" />
 
               <NavButton
                 href="/"
@@ -133,7 +125,19 @@ function NavigationButtonWithDrawer() {
                 <Home className="mr-2" size={16} />
                 Home
               </NavButton>
-              {/* TODO: add a separator here */}
+
+              <AccountButton closeDrawer={closeDrawer} />
+
+              <NavButton
+                href="/document/new"
+                variant="outline"
+                className="w-full justify-center"
+                setOpen={closeDrawer}
+              >
+                <Grid2x2Plus className="mr-2" size={16} />
+                Create a doc
+              </NavButton>
+
               <NavButton
                 href="/planets"
                 match={new RegExp("^/planets$")}
