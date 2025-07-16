@@ -47,6 +47,12 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
         type: "page",
       },
       {
+        id: "files",
+        title: "Files",
+        href: "/files",
+        type: "page",
+      },
+      {
         id: "planets",
         title: "Planets",
         href: "/planets",

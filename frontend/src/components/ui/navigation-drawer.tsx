@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  Files,
   Grid2x2Plus,
   Home,
   Search,
@@ -136,6 +137,16 @@ function NavigationButtonWithDrawer() {
               >
                 <Grid2x2Plus className="mr-2" size={16} />
                 Create a doc
+              </NavButton>
+
+              <NavButton
+                href="/files"
+                variant="outline"
+                className="w-full justify-center"
+                setOpen={closeDrawer}
+              >
+                <Files className="mr-2" size={16} />
+                Files
               </NavButton>
 
               <NavButton
