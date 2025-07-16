@@ -4,25 +4,23 @@ import React from "react";
 
 import { useSearchParams } from "next/navigation";
 
-import { logIn } from "@/components/auth/actions/log-in";
-import { signUp } from "@/components/auth/actions/sign-up";
+// import { logIn } from "@/components/auth/actions/log-in";
+// import { signUp } from "@/components/auth/actions/sign-up";
 import { GitHubLoginButton } from "@/components/auth/github-login-button";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Stack } from "@/components/ui/stack";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
-  const [stateLogIn, formActionLogIn, isPendingLogIn] = React.useActionState(
-    logIn,
-    {}
-  );
-  const [stateSignUp, formActionSignUp, isPendingSignUp] = React.useActionState(
-    signUp,
-    {}
-  );
+  // const [stateLogIn, formActionLogIn, isPendingLogIn] = React.useActionState(
+  //   logIn,
+  //   {}
+  // );
+  // const [stateSignUp, formActionSignUp, isPendingSignUp] = React.useActionState(
+  //   signUp,
+  //   {}
+  // );
   const redirectCode = searchParams.get("redirectCode") ?? "";
-  const isPending = isPendingLogIn || isPendingSignUp;
+  // const isPending = isPendingLogIn || isPendingSignUp;
 
   return (
     <div className="max-w-md mx-auto p-4">
@@ -31,7 +29,8 @@ export default function LoginPage() {
 
         <GitHubLoginButton redirectCode={redirectCode} />
 
-        {process.env.NODE_ENV === "development" && (
+        {/* dev email/pass login flow is not working yet */}
+        {/* {process.env.NODE_ENV === "development" && (
           <>
             <div className="relative w-full">
               <div className="absolute inset-0 flex items-center">
@@ -62,7 +61,7 @@ export default function LoginPage() {
               </Stack>
             </form>
           </>
-        )}
+        )} */}
       </Stack>
     </div>
   );
