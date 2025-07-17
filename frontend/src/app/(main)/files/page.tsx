@@ -1,17 +1,15 @@
-"use client";
-
 import { Files, LogIn } from "lucide-react";
-import { usePathname } from "next/navigation";
 
+import FileList from "@/components/blocks/files/file-list";
+import FileUploader from "@/components/blocks/files/file-uploader";
 import Container from "@/components/ui/container";
 import { InternalLink } from "@/components/ui/link";
 import { Stack } from "@/components/ui/stack";
-import { useUser } from "@/utils/supabase/client";
+import { getUser } from "@/utils/supabase/server";
 import { logInRedirect } from "@/utils/url";
 
-export default function FilesPage() {
-  const user = useUser();
-  const pathname = usePathname();
+export default async function FilesPage() {
+  const { user } = await getUser();
 
   if (!user) {
     return (
@@ -28,7 +26,7 @@ export default function FilesPage() {
             You need to log in to upload and manage files. Sign in to get
             started.
           </p>
-          <InternalLink href={logInRedirect(pathname)} variant="default">
+          <InternalLink href={logInRedirect("/files")} variant="default">
             <LogIn className="mr-2 h-4 w-4" />
             Log In
           </InternalLink>
@@ -41,9 +39,8 @@ export default function FilesPage() {
     <Container>
       <Stack direction="col" gap={4} alignItems="start">
         <h1 className="text-2xl font-bold">Files</h1>
-        <p className="text-muted-foreground">
-          File management functionality will be implemented here.
-        </p>
+        <FileUploader isOverLimit={false} />
+        <FileList />
       </Stack>
     </Container>
   );

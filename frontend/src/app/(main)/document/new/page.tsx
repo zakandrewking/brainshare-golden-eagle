@@ -11,7 +11,7 @@ import { z } from "zod";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import FileUpload from "@/components/file-upload";
+import FileUpload from "@/components/blocks/files/file-upload";
 import FlexTitle from "@/components/flex-title";
 import {
   createYSweetDocument,

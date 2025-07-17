@@ -1,5 +1,5 @@
 /**
- * File uploader runs client side for performance.
+ * General purpose file uploader with full-screen drag-and-drop.
  */
 
 "use client";
