@@ -97,7 +97,7 @@ file_size_limit = "50MiB"
 [storage.buckets.files]
 public = false
 file_size_limit = "50MiB"
-allowed_mime_types = ["*"]
+allowed_mime_types = []
 # objects_path = "./files"
 
 [auth]

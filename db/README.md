@@ -1,5 +1,7 @@
 # dev workflow
 
+First `cd db`.
+
 Make edits to /db/schema/*.ts, and then run to sync with the local db:
 
 ```bash

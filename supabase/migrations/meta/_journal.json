@@ -15,6 +15,13 @@
       "when": 1748556652032,
       "tag": "0001_chubby_mimic",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1752880411424,
+      "tag": "0005_broken_blindfold",
+      "breakpoints": true
     }
   ]
 }

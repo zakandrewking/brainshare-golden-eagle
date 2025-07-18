@@ -68,7 +68,6 @@ export default function FileUploader({
         }
 
         const { error: dbError } = await supabase.from("file").insert({
-          id: id,
           name: file.name,
           size: file.size,
           bucket_id: FILE_BUCKET,
