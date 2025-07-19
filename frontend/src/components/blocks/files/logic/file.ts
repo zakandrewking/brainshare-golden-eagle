@@ -40,7 +40,7 @@ export interface FileData {
 export function useFiles() {
   const supabase = createClient();
 
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     "/files",
     async () => {
       const { data, error } = await supabase.from("file").select("*");
@@ -61,7 +61,7 @@ export function useFiles() {
     }
   );
 
-  return { data, error, isLoading };
+  return { data, error, isLoading, mutate };
 }
 
 /**

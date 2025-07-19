@@ -6,8 +6,12 @@ import {
   BookOpen,
   FileSpreadsheet,
   FileText,
+  Loader2,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 
+import { deleteFile } from "@/components/blocks/files/logic/delete-file";
 import { type FileData, useFiles } from "@/components/blocks/files/logic/file";
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { Badge } from "@/components/ui/badge";
@@ -43,26 +47,56 @@ function getFileIcon(extension: string) {
   }
 }
 
-// Placeholder component for delete file button (to be implemented later)
-function DeleteFileButton({ fileId }: { fileId: string }) {
+function DeleteFileButton({
+  fileId,
+  fileName,
+  onDelete,
+}: {
+  fileId: string;
+  fileName: string;
+  onDelete: () => void;
+}) {
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
+  const handleDelete = async () => {
+    try {
+      setIsDeleting(true);
+      await deleteFile(fileId);
+      toast.success("File deleted");
+      onDelete();
+    } catch {
+      // the logic function will log errors
+      toast.error("An unexpected error occurred while deleting the file");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Button
-      variant="destructive"
+      variant="ghost"
       size="sm"
-      disabled
-      onClick={() => {
-        console.log("Delete file:", fileId);
-        // TODO: Implement delete functionality
-      }}
+      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+      disabled={isDeleting}
+      onClick={handleDelete}
     >
-      Delete
+      {isDeleting ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Trash2 className="h-4 w-4" />
+      )}
+      <span className="sr-only">Delete file</span>
     </Button>
   );
 }
 
 export default function FileList() {
   const isSSR = useIsSSR();
-  const { data, error, isLoading } = useFiles();
+  const { data, error, isLoading, mutate } = useFiles();
+
+  const handleFileDeleted = () => {
+    mutate();
+  };
 
   if (isSSR || isLoading) return <DelayedLoadingSpinner />;
   if (error || !data) return <SomethingWentWrong />;
@@ -93,7 +127,11 @@ export default function FileList() {
               </div>
             </ListItemContent>
             <ListItemActions>
-              <DeleteFileButton fileId={file.id} />
+              <DeleteFileButton
+                fileId={file.id}
+                fileName={file.name}
+                onDelete={handleFileDeleted}
+              />
             </ListItemActions>
           </ListItem>
         );

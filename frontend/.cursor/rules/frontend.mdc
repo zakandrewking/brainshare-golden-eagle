@@ -58,6 +58,8 @@ alwaysApply: true
 - only use html forms when building a real form with react-forms
   (validation, multiple fields, etc)
 
+# server actions vs client logic
+
 - only use react server functions (i.e. /actions) as short-lived RPCs
   * when there is more than 3 seconds of work, use inngest
   * do not use prevState or formData in server actions
@@ -69,6 +71,18 @@ alwaysApply: true
   * do not create a server function just to call supabase
   * avoid using `startTransition` with server actions
   * use server actions to interact with services that have private secrets
+
+- do NOT use server actions for simple CRUD operations like:
+  * deleting files or records
+  * updating user preferences
+  * basic database operations that can be done client-side
+  * operations that don't require server secrets or validation
+
+- put client-side logic in `/logic` folders:
+  * create `/components/blocks/[feature]/logic/` directories
+  * use client-side functions for direct supabase operations
+  * handle loading states and error handling in the client
+  * use SWR mutations for optimistic updates
 
 - use server components only for static content. for loading data, use SWR
 
