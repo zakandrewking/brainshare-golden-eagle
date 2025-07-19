@@ -14,6 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Stack } from "@/components/ui/stack";
 import useIsSSR from "@/hooks/use-is-ssr";
+import {
+  getSupportedFileTypesDisplay,
+  isSupportedFileType,
+} from "@/utils/file-types";
 import { createClient, useUser } from "@/utils/supabase/client";
 import { nanoid } from "@/utils/tailwind";
 
@@ -36,6 +40,23 @@ export default function FileUploader({
   const [isPending, startTransition] = React.useTransition();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const validateFileTypes = (
+    files: FileList
+  ): { valid: File[]; invalid: File[] } => {
+    const valid: File[] = [];
+    const invalid: File[] = [];
+
+    Array.from(files).forEach((file) => {
+      if (isSupportedFileType(file.name)) {
+        valid.push(file);
+      } else {
+        invalid.push(file);
+      }
+    });
+
+    return { valid, invalid };
+  };
+
   const uploadFiles = async (filesToUpload: FileList) => {
     if (!user) {
       throw new Error("User not authenticated");
@@ -44,12 +65,29 @@ export default function FileUploader({
       return;
     }
 
+    // Validate file types
+    const { valid, invalid } = validateFileTypes(filesToUpload);
+
+    if (invalid.length > 0) {
+      const invalidNames = invalid.map((f) => f.name).join(", ");
+      setUploadStatus(
+        `Unsupported file types: ${invalidNames}. Only ${getSupportedFileTypesDisplay()} files are supported.`
+      );
+      setFailedFiles(filesToUpload);
+      return;
+    }
+
+    if (valid.length === 0) {
+      setUploadStatus("No valid files to upload.");
+      return;
+    }
+
     setIsUploading(true);
     setUploadStatus("Uploading...");
     setFailedFiles(null);
 
     try {
-      for (const file of Array.from(filesToUpload)) {
+      for (const file of valid) {
         const id = nanoid();
         const extension = file.name.split(".").pop();
         const objectPath = extension === file.name ? id : `${id}.${extension}`;
@@ -86,7 +124,9 @@ export default function FileUploader({
         }
       }
 
-      setUploadStatus("Upload complete");
+      setUploadStatus(
+        `Upload complete (${valid.length} file${valid.length !== 1 ? "s" : ""})`
+      );
       setFailedFiles(null);
 
       startTransition(() => {
@@ -144,13 +184,16 @@ export default function FileUploader({
             multiple
             disabled={isDisabled}
             className="cursor-pointer rounded-none rounded-b-md"
+            accept=".csv,.txt,.ipynb"
           />
         </Stack>
         {uploadStatus && (
           <Stack direction="row" gap={2} className="items-center">
             <div
               className={`text-sm px-2 py-1 rounded-sm ${
-                uploadStatus.includes("Error") || uploadStatus.includes("limit")
+                uploadStatus.includes("Error") ||
+                uploadStatus.includes("limit") ||
+                uploadStatus.includes("Unsupported")
                   ? "text-destructive-foreground bg-destructive"
                   : "text-muted-foreground bg-muted"
               }`}
@@ -158,7 +201,8 @@ export default function FileUploader({
               {uploadStatus}
             </div>
             {(uploadStatus.includes("Error") ||
-              uploadStatus.includes("limit")) &&
+              uploadStatus.includes("limit") ||
+              uploadStatus.includes("Unsupported")) &&
               failedFiles && (
                 <Button
                   variant="secondary"

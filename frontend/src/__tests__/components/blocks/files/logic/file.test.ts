@@ -29,6 +29,15 @@ vi.mock("@/utils/csv", () => ({
   parseCsv: vi.fn(),
 }));
 
+// Mock file types
+vi.mock("@/utils/file-types", () => ({
+  SUPPORTED_FILE_TYPES: {
+    CSV: "csv",
+    TXT: "txt",
+    IPYNB: "ipynb",
+  },
+}));
+
 // Mock Supabase client
 const mockSupabaseClient = {
   from: vi.fn(),
@@ -181,6 +190,7 @@ describe("file hooks", () => {
         ["John", "25", "NYC"],
         ["Jane", "30", "LA"],
       ],
+      fileType: "csv",
     };
 
     it("should return CSV file content successfully", async () => {
@@ -218,8 +228,74 @@ describe("file hooks", () => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    it("should return IPYNB file content successfully", async () => {
+      const notebookContent = {
+        cells: [
+          {
+            cell_type: "markdown",
+            source: ["# Test Notebook\n", "This is a test."],
+          },
+          {
+            cell_type: "code",
+            source: ["print('Hello World')"],
+            outputs: [],
+          },
+        ],
+      };
+
+      const mockContent: FileContent = {
+        text: JSON.stringify(notebookContent),
+        fileType: "ipynb",
+        isNotebook: true,
+        notebookCells: [
+          {
+            cellType: "markdown",
+            source: ["# Test Notebook\n", "This is a test."],
+            outputs: [],
+          },
+          {
+            cellType: "code",
+            source: ["print('Hello World')"],
+            outputs: [],
+          },
+        ],
+      };
+
+      const mockBlob = new Blob([JSON.stringify(notebookContent)], {
+        type: "application/json",
+      });
+      const mockDownload = vi.fn().mockResolvedValue({
+        data: mockBlob,
+        error: null,
+      });
+
+      mockSupabaseClient.storage.from.mockReturnValue({
+        download: mockDownload,
+      });
+
+      const useSWR = await import("swr");
+      vi.mocked(useSWR.default).mockReturnValue({
+        data: mockContent,
+        error: null,
+        isLoading: false,
+        isValidating: false,
+        mutate: vi.fn(),
+      });
+
+      const { result } = renderHook(() =>
+        useFileContent("files", "test-path.ipynb")
+      );
+
+      expect(result.current.content).toEqual(mockContent);
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+    });
+
     it("should return text file content successfully", async () => {
-      const textContent = { text: "This is a text file" };
+      const textContent = {
+        text: "This is a text file",
+        fileType: "txt",
+      };
       const mockBlob = new Blob([textContent.text], { type: "text/plain" });
       const mockDownload = vi.fn().mockResolvedValue({
         data: mockBlob,
@@ -284,7 +360,10 @@ describe("file hooks", () => {
         new Error("CSV parsing failed")
       );
 
-      const contentWithParsingError = { text: "invalid,csv\ndata" };
+      const contentWithParsingError = {
+        text: "invalid,csv\ndata",
+        fileType: "csv",
+      };
       const useSWR = await import("swr");
       vi.mocked(useSWR.default).mockReturnValue({
         data: contentWithParsingError,
@@ -296,6 +375,39 @@ describe("file hooks", () => {
 
       const { result } = renderHook(() =>
         useFileContent("files", "test-path.csv")
+      );
+
+      expect(result.current.content).toEqual(contentWithParsingError);
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it("should handle IPYNB parsing error", async () => {
+      const mockBlob = new Blob(["invalid json"], { type: "application/json" });
+      const mockDownload = vi.fn().mockResolvedValue({
+        data: mockBlob,
+        error: null,
+      });
+
+      mockSupabaseClient.storage.from.mockReturnValue({
+        download: mockDownload,
+      });
+
+      const contentWithParsingError = {
+        text: "invalid json",
+        fileType: "ipynb",
+      };
+      const useSWR = await import("swr");
+      vi.mocked(useSWR.default).mockReturnValue({
+        data: contentWithParsingError,
+        error: null,
+        isLoading: false,
+        isValidating: false,
+        mutate: vi.fn(),
+      });
+
+      const { result } = renderHook(() =>
+        useFileContent("files", "test-path.ipynb")
       );
 
       expect(result.current.content).toEqual(contentWithParsingError);
@@ -418,7 +530,10 @@ describe("file hooks", () => {
         download: mockDownload,
       });
 
-      const textContent = { text: "some text content" };
+      const textContent = {
+        text: "some text content",
+        fileType: "pdf", // Unknown extension
+      };
       const useSWR = await import("swr");
       vi.mocked(useSWR.default).mockReturnValue({
         data: textContent,

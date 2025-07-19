@@ -1,12 +1,20 @@
 import useSWR from "swr";
 
 import { parseCsv } from "@/utils/csv";
+import { SUPPORTED_FILE_TYPES } from "@/utils/file-types";
 import { createClient } from "@/utils/supabase/client";
 
 export interface FileContent {
   text: string;
   headers?: string[];
   parsedData?: string[][];
+  fileType?: string;
+  isNotebook?: boolean;
+  notebookCells?: Array<{
+    cellType: string;
+    source: string[];
+    outputs?: unknown[];
+  }>;
 }
 
 /**
@@ -70,19 +78,56 @@ export function useFileContent(bucketId?: string, objectPath?: string) {
       }
 
       const text = await data.text();
-
-      // Parse CSV if it's a CSV file
       const extension = objectPath!.split(".").pop()?.toLowerCase();
-      if (extension === "csv") {
+
+      // Parse different file types
+      if (extension === SUPPORTED_FILE_TYPES.CSV) {
         try {
           const { headers, parsedData } = await parseCsv(text);
-          return { text, headers, parsedData };
+          return {
+            text,
+            headers,
+            parsedData,
+            fileType: SUPPORTED_FILE_TYPES.CSV,
+          };
         } catch (parseError) {
           console.error("CSV parsing error:", parseError);
-          return { text };
+          return { text, fileType: SUPPORTED_FILE_TYPES.CSV };
+        }
+      } else if (extension === SUPPORTED_FILE_TYPES.IPYNB) {
+        try {
+          const notebook = JSON.parse(text);
+          const cells = notebook.cells || [];
+          const notebookCells = cells.map((cell: unknown) => {
+            const typedCell = cell as {
+              cell_type: string;
+              source: string | string[];
+              outputs?: unknown[];
+            };
+            return {
+              cellType: typedCell.cell_type,
+              source: Array.isArray(typedCell.source)
+                ? typedCell.source
+                : [typedCell.source || ""],
+              outputs: typedCell.outputs || [],
+            };
+          });
+          return {
+            text,
+            fileType: SUPPORTED_FILE_TYPES.IPYNB,
+            isNotebook: true,
+            notebookCells,
+          };
+        } catch (parseError) {
+          console.error("IPYNB parsing error:", parseError);
+          return { text, fileType: SUPPORTED_FILE_TYPES.IPYNB };
         }
       } else {
-        return { text };
+        // Handle TXT and other supported file types as plain text
+        return {
+          text,
+          fileType: extension || "unknown",
+        };
       }
     },
     {
