@@ -24,7 +24,8 @@ export const files = pgTable(
     pgPolicy("authenticated-user-can-manage-files", {
       for: "all",
       to: authenticatedRole,
-      using: sql`(SELECT auth.uid()) = ${table.user_id}`,
+      using: sql`(auth.uid() = ${table.user_id})`,
+      withCheck: sql`(auth.uid() = ${table.user_id})`,
     }),
   ]
 ).enableRLS();
