@@ -17,9 +17,6 @@ import ChatPage from "@/app/(main)/chat/page";
 import { getUser } from "@/utils/supabase/server";
 
 vi.mock("@/utils/supabase/server");
-vi.mock("@/components/blocks/chat/chat", () => ({
-  default: () => <div data-testid="chat-component">Chat Component</div>,
-}));
 vi.mock("@/components/blocks/chat/chat-list", () => ({
   default: () => (
     <div data-testid="chat-list-component">Chat List Component</div>
@@ -86,7 +83,6 @@ describe("ChatPage", () => {
 
     expect(screen.getByTestId("container")).toBeInTheDocument();
     expect(screen.getByTestId("chat-list-component")).toBeInTheDocument();
-    expect(screen.getByTestId("chat-component")).toBeInTheDocument();
     expect(screen.queryByText("You need to log in")).not.toBeInTheDocument();
   });
 });
