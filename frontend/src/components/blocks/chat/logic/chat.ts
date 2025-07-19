@@ -1,6 +1,6 @@
 import useSWR from "swr";
 
-import { createClient } from "@/utils/supabase/client";
+import { createClient, useUser } from "@/utils/supabase/client";
 
 /**
  * Use like:
@@ -127,4 +127,33 @@ export function useMessages(chatId: string) {
   );
 
   return { data, error, isLoading, mutate };
+}
+
+export function useCreateChat() {
+  const supabase = createClient();
+  const user = useUser();
+
+  const createChat = async (title: string = "New Chat") => {
+    if (!user) {
+      throw new Error("User must be logged in to create a chat");
+    }
+
+    const { data, error } = await supabase
+      .from("chat")
+      .insert({
+        title,
+        user_id: user.id,
+      })
+      .select()
+      .single();
+
+    if (error || !data) {
+      console.error(error);
+      throw new Error("Failed to create chat");
+    }
+
+    return data;
+  };
+
+  return { createChat };
 }

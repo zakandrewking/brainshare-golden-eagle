@@ -84,6 +84,8 @@ alwaysApply: true
   * handle loading states and error handling in the client
   * use SWR mutations for optimistic updates
 
+- use nextjs API routes for API calls that require streaming responses (e.g. chat)
+
 - use server components only for static content. for loading data, use SWR
 
 - all page.tsx files should be server components
