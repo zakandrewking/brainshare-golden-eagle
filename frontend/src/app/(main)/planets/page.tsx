@@ -9,7 +9,7 @@ export default function Planets() {
     "Here is a list of the planets orbiting our Sun, ordered by their distance from the Sun.";
 
   return (
-    <Container>
+    <Container className="mt-0">
       <InternalLink
         href="/moons"
         variant="outline"

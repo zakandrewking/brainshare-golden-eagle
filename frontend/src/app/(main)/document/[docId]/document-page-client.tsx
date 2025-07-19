@@ -31,6 +31,7 @@ export default function DocumentPageClient({
   const [document, setDocument] = useState(initialDocument);
   const router = useRouter();
 
+  // TODO move this to use not-found.tsx
   if (!document) {
     return (
       <Container>
@@ -65,7 +66,7 @@ export default function DocumentPageClient({
   };
 
   return (
-    <Container>
+    <Container className="mt-0">
       <DocumentSettingsDropdown docId={docId} documentTitle={document.title} />
       <EditableFlexTitle
         title={pageTitle}

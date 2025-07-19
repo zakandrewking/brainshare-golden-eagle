@@ -1,10 +1,13 @@
-import FileList from "@/components/blocks/files/file-list";
-import FileUploader from "@/components/blocks/files/file-uploader";
 import ShouldLogIn from "@/components/should-log-in";
 import Container from "@/components/ui/container";
 import { getUser } from "@/utils/supabase/server";
 
-export default async function FilesPage() {
+interface FilePageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function FilePage({ params }: FilePageProps) {
+  const { id } = await params;
   const { user } = await getUser();
 
   if (!user) {
@@ -13,16 +16,10 @@ export default async function FilesPage() {
         icon="files"
         message="You need to log in to upload and manage files. Sign in to get started."
         title="Files"
-        redirect="/files"
+        redirect={`/files/${id}`}
       />
     );
   }
 
-  return (
-    <Container>
-      <h1 className="text-2xl font-bold">Files</h1>
-      <FileUploader isOverLimit={false} />
-      <FileList />
-    </Container>
-  );
+  return <Container className="mt-12">File Preview {id}</Container>;
 }

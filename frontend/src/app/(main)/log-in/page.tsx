@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 // import { logIn } from "@/components/auth/actions/log-in";
 // import { signUp } from "@/components/auth/actions/sign-up";
 import { GitHubLoginButton } from "@/components/auth/github-login-button";
+import Container from "@/components/ui/container";
 import { Stack } from "@/components/ui/stack";
 
 export default function LoginPage() {
@@ -23,9 +24,14 @@ export default function LoginPage() {
   // const isPending = isPendingLogIn || isPendingSignUp;
 
   return (
-    <div className="max-w-md mx-auto p-4">
-      <Stack direction="col" gap={4} alignItems="center">
-        <h1 className="text-2xl font-bold">Welcome to Brainshare</h1>
+    <Container>
+      <Stack
+        direction="col"
+        gap={4}
+        alignItems="center"
+        className="w-full max-w-sm mx-auto"
+      >
+        <h1 className="text-2xl font-bold">Log In to Brainshare</h1>
 
         <GitHubLoginButton redirectCode={redirectCode} />
 
@@ -63,6 +69,6 @@ export default function LoginPage() {
           </>
         )} */}
       </Stack>
-    </div>
+    </Container>
   );
 }

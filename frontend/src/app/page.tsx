@@ -1,24 +1,16 @@
 import EmptyScreen from "@/components/empty-screen";
 import Container from "@/components/ui/container";
 import NavigationHeaderTitle from "@/components/ui/navigation-header-title";
-import { Stack } from "@/components/ui/stack";
 
 export default async function Home() {
   return (
-    <div className="flex flex-col">
+    <>
       <NavigationHeaderTitle />
-      <main className="flex-grow flex flex-col">
-        <Container>
-          <Stack
-            direction="col"
-            alignItems="center"
-            className="w-full"
-            gap={10}
-          >
-            <EmptyScreen />
-          </Stack>
+      <main>
+        <Container className="mt-0">
+          <EmptyScreen />
         </Container>
       </main>
-    </div>
+    </>
   );
 }
