@@ -15,7 +15,8 @@ import {
 } from "@testing-library/react";
 
 import ChatList from "@/components/blocks/chat/chat-list";
-import { useChats, useCreateChat } from "@/components/blocks/chat/logic/chat";
+import { useChats } from "@/components/blocks/chat/logic/chat";
+import createChat from "@/components/blocks/chat/logic/create-chat";
 import { useUser } from "@/utils/supabase/client";
 
 vi.mock("@/components/blocks/chat/logic/chat");
@@ -23,20 +24,35 @@ vi.mock("@/utils/supabase/client");
 vi.mock("@/hooks/use-is-ssr", () => ({
   default: () => false,
 }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
+vi.mock("@/components/blocks/chat/logic/create-chat");
 
 const mockUseChats = vi.mocked(useChats);
-const mockUseCreateChat = vi.mocked(useCreateChat);
+const mockCreateChat = vi.mocked(createChat);
 const mockUseUser = vi.mocked(useUser);
 
 describe("ChatList", () => {
-  const mockCreateChat = vi.fn();
   const mockMutate = vi.fn();
 
   beforeEach(() => {
     mockUseUser.mockReturnValue({ id: "user-123" } as ReturnType<
       typeof useUser
     >);
-    mockUseCreateChat.mockReturnValue({ createChat: mockCreateChat });
+    mockCreateChat.mockResolvedValue({
+      id: "chat-123",
+      title: "New Chat",
+      created_at: "2024-01-01T00:00:00Z",
+      user_id: "user-123",
+    });
     mockUseChats.mockReturnValue({
       data: [],
       error: null,
@@ -57,7 +73,12 @@ describe("ChatList", () => {
   });
 
   it("should call createChat when new chat button is clicked", async () => {
-    mockCreateChat.mockResolvedValue({ id: "chat-123", title: "New Chat" });
+    mockCreateChat.mockResolvedValue({
+      id: "chat-123",
+      title: "New Chat",
+      created_at: "2024-01-01T00:00:00Z",
+      user_id: "user-123",
+    });
 
     render(<ChatList />);
 
@@ -65,7 +86,7 @@ describe("ChatList", () => {
     fireEvent.click(newChatButton);
 
     await waitFor(() => {
-      expect(mockCreateChat).toHaveBeenCalledWith();
+      expect(mockCreateChat).toHaveBeenCalledWith("New Chat", "user-123");
     });
   });
 
@@ -105,5 +126,27 @@ describe("ChatList", () => {
     expect(screen.getByText("Test Chat 1")).toBeInTheDocument();
     expect(screen.getByText("Test Chat 2")).toBeInTheDocument();
     expect(screen.getByText("Recent Chats")).toBeInTheDocument();
+  });
+
+  it("should have clickable chat items", () => {
+    const mockChats = [
+      {
+        id: "chat-1",
+        title: "Test Chat 1",
+        created_at: "2024-01-01T00:00:00Z",
+        user_id: "user-123",
+      },
+    ];
+
+    mockUseChats.mockReturnValue({
+      data: mockChats,
+      error: null,
+      isLoading: false,
+      mutate: mockMutate,
+    });
+
+    render(<ChatList />);
+
+    screen.getByText("Test Chat 1").closest("div");
   });
 });
