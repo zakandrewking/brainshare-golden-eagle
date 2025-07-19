@@ -6,10 +6,12 @@ import { toast } from "sonner";
 
 import { useChat, useMessages } from "@/components/blocks/chat/logic/chat";
 import SomethingWentWrong from "@/components/something-went-wrong";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DelayedLoadingSpinner } from "@/components/ui/loading";
 import { Textarea } from "@/components/ui/textarea";
 import useIsSSR from "@/hooks/use-is-ssr";
+import { defaultModel } from "@/llm-config";
 
 interface ChatDetailProps {
   chatId: string;
@@ -93,6 +95,13 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       </div>
 
       <div className="mb-6 p-4 border rounded-md bg-muted/50">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-medium">AI Chat</h3>
+          <Badge variant="secondary" className="text-xs">
+            {defaultModel}
+          </Badge>
+        </div>
+
         <div className="flex gap-2 mb-2">
           <Textarea
             value={inputMessage}
@@ -141,9 +150,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
             </div>
           ))
         ) : (
-          <div className="text-center text-muted-foreground py-8">
-            No messages yet. Start a conversation!
-          </div>
+          <></>
         )}
       </div>
     </div>
