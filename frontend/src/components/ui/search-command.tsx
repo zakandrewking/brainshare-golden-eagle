@@ -53,6 +53,12 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
         type: "page",
       },
       {
+        id: "chat",
+        title: "Chat",
+        href: "/chat",
+        type: "page",
+      },
+      {
         id: "planets",
         title: "Planets",
         href: "/planets",

@@ -8,6 +8,7 @@ import {
   Files,
   Grid2x2Plus,
   Home,
+  MessageCircle,
   Search,
   Settings,
 } from "lucide-react";
@@ -147,6 +148,16 @@ function NavigationButtonWithDrawer() {
               >
                 <Files className="mr-2" size={16} />
                 Files
+              </NavButton>
+
+              <NavButton
+                href="/chat"
+                variant="outline"
+                className="w-full justify-center"
+                setOpen={closeDrawer}
+              >
+                <MessageCircle className="mr-2" size={16} />
+                Chat
               </NavButton>
 
               <NavButton
