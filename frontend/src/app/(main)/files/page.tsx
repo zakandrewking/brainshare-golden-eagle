@@ -19,9 +19,11 @@ export default async function FilesPage() {
   }
 
   return (
-    <Container>
+    <Container gap={6}>
       <h1 className="text-2xl font-bold">Files</h1>
-      <FileUploader isOverLimit={false} />
+      <div>
+        <FileUploader isOverLimit={false} />
+      </div>
       <FileList />
     </Container>
   );

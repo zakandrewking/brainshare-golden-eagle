@@ -1,3 +1,4 @@
+import FilePreview from "@/components/blocks/files/file-preview";
 import ShouldLogIn from "@/components/should-log-in";
 import Container from "@/components/ui/container";
 import { getUser } from "@/utils/supabase/server";
@@ -21,5 +22,9 @@ export default async function FilePage({ params }: FilePageProps) {
     );
   }
 
-  return <Container className="mt-12">File Preview {id}</Container>;
+  return (
+    <Container className="mt-12">
+      <FilePreview id={id} />
+    </Container>
+  );
 }
