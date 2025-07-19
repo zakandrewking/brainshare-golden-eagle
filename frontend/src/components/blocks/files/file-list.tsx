@@ -12,8 +12,7 @@ import {
 import { toast } from "sonner";
 
 import { deleteFile } from "@/components/blocks/files/logic/delete-file";
-import { type FileData, useFiles } from "@/components/blocks/files/logic/file";
-import SomethingWentWrong from "@/components/something-went-wrong";
+import { type FileData } from "@/components/blocks/files/logic/file";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,8 +21,6 @@ import {
   ListItemActions,
   ListItemContent,
 } from "@/components/ui/list";
-import { DelayedLoadingSpinner } from "@/components/ui/loading";
-import useIsSSR from "@/hooks/use-is-ssr";
 import { SUPPORTED_FILE_TYPES } from "@/utils/file-types";
 
 function formatFileSize(size: number) {
@@ -90,24 +87,20 @@ function DeleteFileButton({
   );
 }
 
-export default function FileList() {
-  const isSSR = useIsSSR();
-  const { data, error, isLoading, mutate } = useFiles();
-
-  const handleFileDeleted = () => {
-    mutate();
-  };
-
-  if (isSSR || isLoading) return <DelayedLoadingSpinner />;
-  if (error || !data) return <SomethingWentWrong />;
-
-  if (data.length === 0) {
+export default function FileList({
+  files,
+  onFileDeleted,
+}: {
+  files: FileData[];
+  onFileDeleted: () => void;
+}) {
+  if (files.length === 0) {
     return <div>No files uploaded yet</div>;
   }
 
   return (
     <List className="w-full">
-      {data.map((file: FileData) => {
+      {files.map((file: FileData) => {
         const extension = file.name.split(".").pop()?.toLowerCase() || "";
 
         return (
@@ -130,7 +123,7 @@ export default function FileList() {
               <DeleteFileButton
                 fileId={file.id}
                 fileName={file.name}
-                onDelete={handleFileDeleted}
+                onDelete={onFileDeleted}
               />
             </ListItemActions>
           </ListItem>

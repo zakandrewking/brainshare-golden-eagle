@@ -1,5 +1,4 @@
-import FileList from "@/components/blocks/files/file-list";
-import FileUploader from "@/components/blocks/files/file-uploader";
+import FilesManager from "@/components/blocks/files/files-manager";
 import ShouldLogIn from "@/components/should-log-in";
 import Container from "@/components/ui/container";
 import { Stack } from "@/components/ui/stack";
@@ -32,11 +31,7 @@ export default async function FilesPage() {
             Upload files. We currently support: {getSupportedFileTypesDisplay()}
           </p>
         </div>
-        <FileUploader isOverLimit={isOverLimit} />
-      </Stack>
-      <Stack direction="col" gap={2} alignItems="start" className="w-full">
-        <h3 className="text-xl font-semibold">Files</h3>
-        <FileList />
+        <FilesManager isOverLimit={isOverLimit} />
       </Stack>
     </Container>
   );

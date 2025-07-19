@@ -6,8 +6,6 @@
 
 import React from "react";
 
-import { useRouter } from "next/navigation";
-
 import FileDrag from "@/components/file-drag";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +23,10 @@ const FILE_BUCKET = process.env.NEXT_PUBLIC_FILE_BUCKET!;
 
 export default function FileUploader({
   isOverLimit,
+  onUploadSuccess,
 }: {
   isOverLimit: boolean;
+  onUploadSuccess: () => void;
 }) {
   const user = useUser();
   const supabase = createClient();
@@ -36,8 +36,7 @@ export default function FileUploader({
   const [failedFiles, setFailedFiles] = React.useState<FileList | null>(null);
   const [isUploading, setIsUploading] = React.useState(false);
   const isSSR = useIsSSR();
-  const router = useRouter();
-  const [isPending, startTransition] = React.useTransition();
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const validateFileTypes = (
@@ -129,9 +128,7 @@ export default function FileUploader({
       );
       setFailedFiles(null);
 
-      startTransition(() => {
-        router.refresh();
-      });
+      onUploadSuccess();
     } catch (error) {
       console.error(error);
       setUploadStatus(
@@ -161,11 +158,11 @@ export default function FileUploader({
     }
   }, [droppedFiles]);
 
-  const isDisabled = isUploading || isPending || isSSR || isOverLimit;
+  const isDisabled = isUploading || isSSR || isOverLimit;
 
   return (
     <FileDrag onFilesChange={handleFileDrop}>
-      <Stack alignItems="end" gap={1} className="w-full">
+      <Stack alignItems="end" gap={1} className="w-full max-w-md">
         <Stack alignItems="start" gap={0} className="w-full">
           <Button
             variant="secondary"
