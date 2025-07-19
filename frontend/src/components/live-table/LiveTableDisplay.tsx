@@ -1,6 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
   useColumnWidths,
@@ -288,7 +293,11 @@ const LiveTable: React.FC = () => {
   );
 
   if (!isTableLoaded) {
-    return <DelayedLoadingSpinner />;
+    return (
+      <div className="m-6">
+        <DelayedLoadingSpinner />
+      </div>
+    );
   }
 
   return (
