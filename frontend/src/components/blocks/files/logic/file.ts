@@ -14,20 +14,32 @@ import { createClient } from "@/utils/supabase/client";
 export function useFile(id: string) {
   const supabase = createClient();
 
-  const { data, error, isLoading } = useSWR(`/files/${id}`, async () => {
-    const { data, error } = await supabase
-      .from("file")
-      .select("*")
-      .eq("id", id)
-      .single();
+  const { data, error, isLoading } = useSWR(
+    `/files/${id}`,
+    async () => {
+      const { data, error } = await supabase
+        .from("file")
+        .select("*")
+        .eq("id", id)
+        .single();
 
-    if (error || !data) {
-      console.error(error);
-      throw new Error(error?.message || "File not found");
+      if (error || !data) {
+        console.error(error);
+        throw new Error(error?.message || "File not found");
+      }
+
+      return data;
+    },
+    {
+      // use if data can change
+      revalidateIfStale: true,
+      // use if data changes regularly
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      // use if data changes consistently
+      refreshInterval: 0,
     }
-
-    return data;
-  });
+  );
 
   return { data, error, isLoading };
 }
