@@ -1,0 +1,16 @@
+---
+description: rules for db development
+globs:
+alwaysApply: true
+---
+
+# RLS policies
+
+- A safe, general purpose RLS policy looks like this:
+
+```sql
+CREATE POLICY "authenticated-user-can-manage-chats" ON "chat"
+  FOR ALL TO authenticated
+    USING ((auth.uid() = "chat"."user_id")
+    WITH CHECK ((auth.uid() = "chat"."user_id");
+```

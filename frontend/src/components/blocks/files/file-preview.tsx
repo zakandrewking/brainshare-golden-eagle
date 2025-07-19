@@ -149,7 +149,8 @@ export default function FilePreview({ id }: { id: string }) {
     error: contentError,
   } = useFileContent(fileData?.bucket_id, fileData?.object_path);
 
-  if (isSSR || isLoading || contentIsLoading) return <DelayedLoadingSpinner />;
+  if (isSSR) return <></>;
+  if (isLoading || contentIsLoading) return <DelayedLoadingSpinner />;
   if (error || !fileData || contentError || !content)
     return <SomethingWentWrong />;
 

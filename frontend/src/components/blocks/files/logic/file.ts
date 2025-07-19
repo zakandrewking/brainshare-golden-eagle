@@ -33,7 +33,8 @@ export interface FileData {
  *
  * const isSSR = useIsSSR();
  * const { data, error, isLoading } = useFiles(id);
- * if (isSSR || isLoading) return <DelayedLoadingSpinner />;
+ * if (isSSR) return <></>;
+ * if (isLoading) return <DelayedLoadingSpinner />;
  * if (error || !data) return <SomethingWentWrong />;
  * return ...
  */
@@ -46,7 +47,7 @@ export function useFiles() {
       const { data, error } = await supabase.from("file").select("*");
       if (error || !data) {
         console.error(error);
-        throw new Error(error?.message || "Failed to load files");
+        throw new Error("Failed to load files");
       }
       return data;
     },
@@ -69,7 +70,8 @@ export function useFiles() {
  *
  * const isSSR = useIsSSR();
  * const { data, error, isLoading } = useFile(id);
- * if (isSSR || isLoading) return <DelayedLoadingSpinner />;
+ * if (isSSR) return <></>;
+ * if (isLoading) return <DelayedLoadingSpinner />;
  * if (error || !data) return <SomethingWentWrong />;
  * return ...
  */
@@ -87,7 +89,7 @@ export function useFile(id: string) {
 
       if (error || !data) {
         console.error(error);
-        throw new Error(error?.message || "File not found");
+        throw new Error("File not found");
       }
 
       return data;
@@ -121,7 +123,8 @@ export function useFileContent(bucketId?: string, objectPath?: string) {
         .download(objectPath!);
 
       if (downloadError || !data) {
-        throw new Error(downloadError?.message || "Failed to download file");
+        console.error(downloadError);
+        throw new Error("Failed to download file");
       }
 
       const text = await data.text();

@@ -18,7 +18,8 @@ export default function FilesManager({
   const isSSR = useIsSSR();
   const { data, error, isLoading, mutate } = useFiles();
 
-  if (isSSR || isLoading) return <DelayedLoadingSpinner />;
+  if (isSSR) return <></>;
+  if (isLoading) return <DelayedLoadingSpinner />;
   if (error || !data) return <SomethingWentWrong />;
 
   return (
