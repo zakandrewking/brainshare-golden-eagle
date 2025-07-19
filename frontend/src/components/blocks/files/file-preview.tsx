@@ -12,5 +12,5 @@ export default function FilePreview({ id }: { id: string }) {
   if (isSSR || isLoading) return <DelayedLoadingSpinner />;
   if (error || !data) return <SomethingWentWrong />;
 
-  return <div>{`${data.name}`}</div>;
+  return <div>File: {`${data.name}`}</div>;
 }
