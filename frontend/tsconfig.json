@@ -27,8 +27,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "next-env.d.ts",
-    ".next-dev/types/**/*.ts",
-    "trigger.config.ts"
+    ".next-dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }
