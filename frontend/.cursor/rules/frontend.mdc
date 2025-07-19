@@ -72,6 +72,8 @@ alwaysApply: true
 
 - use server components only for static content. for loading data, use SWR
 
+- all page.tsx files should be server components
+
 - do not show error messages with internal information to users. Show a generic
   error message and console.error() the details
 

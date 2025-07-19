@@ -24,10 +24,11 @@ vi.mock("swr", () => ({
 vi.mock("react-hook-form", () => ({
   useForm: vi.fn(() => ({
     register: vi.fn(() => ({})),
-    formState: { errors: {} },
+    formState: { errors: {}, isValid: true },
     setError: vi.fn(),
     reset: vi.fn(),
     setValue: vi.fn(),
+    watch: vi.fn((field) => (field === "docType" ? "text" : "")),
   })),
 }));
 

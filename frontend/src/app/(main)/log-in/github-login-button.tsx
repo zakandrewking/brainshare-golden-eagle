@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 
 import { SiGithub } from "@icons-pack/react-simple-icons";

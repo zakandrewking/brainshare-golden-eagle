@@ -17,6 +17,53 @@ export interface FileContent {
   }>;
 }
 
+export interface FileData {
+  id: string;
+  name: string;
+  size: number;
+  bucket_id: string;
+  object_path: string;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * Use like:
+ *
+ * const isSSR = useIsSSR();
+ * const { data, error, isLoading } = useFiles(id);
+ * if (isSSR || isLoading) return <DelayedLoadingSpinner />;
+ * if (error || !data) return <SomethingWentWrong />;
+ * return ...
+ */
+export function useFiles() {
+  const supabase = createClient();
+
+  const { data, error, isLoading } = useSWR(
+    "/files",
+    async () => {
+      const { data, error } = await supabase.from("file").select("*");
+      if (error || !data) {
+        console.error(error);
+        throw new Error(error?.message || "Failed to load files");
+      }
+      return data;
+    },
+    {
+      // use if data can change
+      revalidateIfStale: true,
+      // use if data changes regularly
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      // use if data changes consistently
+      refreshInterval: 0,
+    }
+  );
+
+  return { data, error, isLoading };
+}
+
 /**
  * Use like:
  *

@@ -11,8 +11,10 @@ import { renderHook } from "@testing-library/react";
 
 import {
   type FileContent,
+  type FileData,
   useFile,
   useFileContent,
+  useFiles,
 } from "@/components/blocks/files/logic/file";
 
 // Environment stubs
@@ -60,12 +62,156 @@ describe("file hooks", () => {
     user_id: "user-123",
   };
 
+  const mockFilesList: FileData[] = [
+    {
+      id: "file-1",
+      name: "data.csv",
+      size: 2048,
+      bucket_id: "files",
+      object_path: "data.csv",
+      user_id: "user-123",
+    },
+    {
+      id: "file-2",
+      name: "notebook.ipynb",
+      size: 4096,
+      bucket_id: "files",
+      object_path: "notebook.ipynb",
+      user_id: "user-123",
+    },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe("useFiles", () => {
+    it("should return files list successfully", async () => {
+      const mockSelect = vi.fn().mockResolvedValue({
+        data: mockFilesList,
+        error: null,
+      });
+
+      mockSupabaseClient.from.mockReturnValue({
+        select: mockSelect,
+      });
+
+      // Mock the SWR return value directly
+      const useSWR = await import("swr");
+      vi.mocked(useSWR.default).mockReturnValue({
+        data: mockFilesList,
+        error: null,
+        isLoading: false,
+        isValidating: false,
+        mutate: vi.fn(),
+      });
+
+      const { result } = renderHook(() => useFiles());
+
+      expect(result.current.data).toEqual(mockFilesList);
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it("should handle supabase error when fetching files", async () => {
+      const mockSelect = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "Database error" },
+      });
+
+      mockSupabaseClient.from.mockReturnValue({
+        select: mockSelect,
+      });
+
+      const mockError = new Error("Database error");
+      const useSWR = await import("swr");
+      vi.mocked(useSWR.default).mockReturnValue({
+        data: null,
+        error: mockError,
+        isLoading: false,
+        isValidating: false,
+        mutate: vi.fn(),
+      });
+
+      const { result } = renderHook(() => useFiles());
+
+      expect(result.current.data).toBeNull();
+      expect(result.current.error).toEqual(mockError);
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it("should handle loading state", async () => {
+      const useSWR = await import("swr");
+      vi.mocked(useSWR.default).mockReturnValue({
+        data: null,
+        error: null,
+        isLoading: true,
+        isValidating: false,
+        mutate: vi.fn(),
+      });
+
+      const { result } = renderHook(() => useFiles());
+
+      expect(result.current.data).toBeNull();
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(true);
+    });
+
+    it("should call SWR with correct parameters", async () => {
+      const useSWR = await import("swr");
+      const mockUseSWR = vi.mocked(useSWR.default);
+      mockUseSWR.mockReturnValue({
+        data: null,
+        error: null,
+        isLoading: true,
+        isValidating: false,
+        mutate: vi.fn(),
+      });
+
+      renderHook(() => useFiles());
+
+      expect(mockUseSWR).toHaveBeenCalledWith(
+        "/files",
+        expect.any(Function),
+        expect.objectContaining({
+          revalidateIfStale: true,
+          revalidateOnFocus: false,
+          revalidateOnReconnect: false,
+          refreshInterval: 0,
+        })
+      );
+    });
+
+    it("should return empty array when no files exist", async () => {
+      const emptyFilesList: FileData[] = [];
+      const mockSelect = vi.fn().mockResolvedValue({
+        data: emptyFilesList,
+        error: null,
+      });
+
+      mockSupabaseClient.from.mockReturnValue({
+        select: mockSelect,
+      });
+
+      const useSWR = await import("swr");
+      vi.mocked(useSWR.default).mockReturnValue({
+        data: emptyFilesList,
+        error: null,
+        isLoading: false,
+        isValidating: false,
+        mutate: vi.fn(),
+      });
+
+      const { result } = renderHook(() => useFiles());
+
+      expect(result.current.data).toEqual(emptyFilesList);
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+    });
   });
 
   describe("useFile", () => {

@@ -1,16 +1,26 @@
-import {
-  File as FileIcon,
-  FileText,
-  Image as ImageIcon,
-  Music,
-  Video,
-} from "lucide-react";
-import Link from "next/link";
+"use client";
 
+import React from "react";
+
+import {
+  BookOpen,
+  FileSpreadsheet,
+  FileText,
+} from "lucide-react";
+
+import { type FileData, useFiles } from "@/components/blocks/files/logic/file";
+import SomethingWentWrong from "@/components/something-went-wrong";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Stack } from "@/components/ui/stack";
-import { createClient } from "@/utils/supabase/server";
+import {
+  List,
+  ListItem,
+  ListItemActions,
+  ListItemContent,
+} from "@/components/ui/list";
+import { DelayedLoadingSpinner } from "@/components/ui/loading";
+import useIsSSR from "@/hooks/use-is-ssr";
+import { SUPPORTED_FILE_TYPES } from "@/utils/file-types";
 
 function formatFileSize(size: number) {
   if (size < 1024) return `${size} B`;
@@ -21,49 +31,54 @@ function formatFileSize(size: number) {
 }
 
 function getFileIcon(extension: string) {
-  const imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp"];
-  const videoExtensions = ["mp4", "avi", "mov", "wmv", "flv", "webm", "mkv"];
-  const audioExtensions = ["mp3", "wav", "flac", "aac", "ogg", "wma"];
-  const documentExtensions = ["pdf", "doc", "docx", "txt", "rtf", "odt"];
-
-  if (imageExtensions.includes(extension)) return <ImageIcon size={20} />;
-  if (videoExtensions.includes(extension)) return <Video size={20} />;
-  if (audioExtensions.includes(extension)) return <Music size={20} />;
-  if (documentExtensions.includes(extension)) return <FileText size={20} />;
-  return <FileIcon size={20} />;
+  switch (extension.toLowerCase()) {
+    case SUPPORTED_FILE_TYPES.CSV:
+      return <FileSpreadsheet size={20} className="text-green-600" />;
+    case SUPPORTED_FILE_TYPES.IPYNB:
+      return <BookOpen size={20} className="text-orange-600" />;
+    case SUPPORTED_FILE_TYPES.TXT:
+      return <FileText size={20} className="text-blue-600" />;
+    default:
+      return <FileText size={20} className="text-gray-600" />;
+  }
 }
 
-export default async function FileList() {
-  const supabase = await createClient();
+// Placeholder component for delete file button (to be implemented later)
+function DeleteFileButton({ fileId }: { fileId: string }) {
+  return (
+    <Button
+      variant="destructive"
+      size="sm"
+      disabled
+      onClick={() => {
+        console.log("Delete file:", fileId);
+        // TODO: Implement delete functionality
+      }}
+    >
+      Delete
+    </Button>
+  );
+}
 
-  const { data: files, error } = await supabase.from("file").select("*");
+export default function FileList() {
+  const isSSR = useIsSSR();
+  const { data, error, isLoading } = useFiles();
 
-  if (error) {
-    console.error(error);
-    return <div>Error loading files</div>;
-  }
+  if (isSSR || isLoading) return <DelayedLoadingSpinner />;
+  if (error || !data) return <SomethingWentWrong />;
 
-  if (files?.length === 0) {
-    return (
-      <div className="text-center text-muted-foreground py-8">
-        No files found
-      </div>
-    );
+  if (data.length === 0) {
+    return <div>No files uploaded yet</div>;
   }
 
   return (
-    <Stack direction="col" gap={2}>
-      {files?.map((file) => {
+    <List className="w-full">
+      {data.map((file: FileData) => {
         const extension = file.name.split(".").pop()?.toLowerCase() || "";
 
         return (
-          <Button
-            key={file.id}
-            variant="ghost"
-            className="h-auto p-4 justify-start text-left"
-            asChild
-          >
-            <Link href={`/files/${file.id}`}>
+          <ListItem key={file.id}>
+            <ListItemContent href={`/file/${file.id}`}>
               <div className="flex items-center gap-3 w-full">
                 {getFileIcon(extension)}
                 <div className="flex-1 min-w-0">
@@ -76,10 +91,13 @@ export default async function FileList() {
                   {extension.toUpperCase()}
                 </Badge>
               </div>
-            </Link>
-          </Button>
+            </ListItemContent>
+            <ListItemActions>
+              <DeleteFileButton fileId={file.id} />
+            </ListItemActions>
+          </ListItem>
         );
       })}
-    </Stack>
+    </List>
   );
 }
