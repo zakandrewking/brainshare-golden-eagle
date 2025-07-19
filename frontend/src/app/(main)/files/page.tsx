@@ -6,7 +6,7 @@ import { getSupportedFileTypesDisplay } from "@/utils/file-types";
 import { getUser } from "@/utils/supabase/server";
 
 export default async function FilesPage() {
-  const user = await getUser();
+  const { user } = await getUser();
 
   if (!user) {
     return (
