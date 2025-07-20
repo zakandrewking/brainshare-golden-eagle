@@ -36,6 +36,9 @@ alwaysApply: true
 
 - ALWAYS use lucide-react for icons if possible
 
+- only use html forms when building a real form with react-forms
+  (validation, multiple fields, etc)
+
 # testing - MANDATORY STEP
 
 - 🚨 CRITICAL: IMMEDIATELY run `npm test` after ANY code changes, especially:
@@ -50,13 +53,6 @@ alwaysApply: true
 
 - WORKFLOW: Code → Test → Fix → Test → Complete
 - If you forget to run tests, the task is NOT complete
-
-# conventions
-
-- do not use api routes in next.js
-
-- only use html forms when building a real form with react-forms
-  (validation, multiple fields, etc)
 
 # server actions vs client logic
 
@@ -84,7 +80,10 @@ alwaysApply: true
   * handle loading states and error handling in the client
   * use SWR mutations for optimistic updates
 
-- use nextjs API routes for API calls that require streaming responses (e.g. chat)
+- use nextjs API routes for API calls that require streaming responses (e.g.
+  chat). Inngest is preferred for long-running operations, which is most of the
+  current workloads, but nextjs API routes are a viable alternative when
+  persistence is not required.
 
 - use server components only for static content. for loading data, use SWR
 

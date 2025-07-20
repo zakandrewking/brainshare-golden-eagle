@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import useIsSSR from "@/hooks/use-is-ssr";
 import { defaultModel } from "@/llm-config";
 
+import { callChat } from "./actions/call-chat";
+
 interface ChatDetailProps {
   chatId: string;
 }
@@ -41,40 +43,9 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     setStreamingResponse("");
 
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message: inputMessage }),
-      });
-
-      if (!response.ok) {
-        console.error("Failed to get a response", response);
-        toast.error("Failed to get response from AI");
-        return;
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        console.error("No reader available", response);
-        toast.error("Failed to get response from AI");
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      let accumulatedResponse = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        accumulatedResponse += chunk;
-        setStreamingResponse(accumulatedResponse);
-      }
-    } catch (error) {
-      console.error("Streaming error:", error);
+      await callChat(chatId);
+    } catch {
+      // the action will log errors
       toast.error("Failed to get response from AI");
     } finally {
       setIsStreaming(false);

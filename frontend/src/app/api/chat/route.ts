@@ -1,10 +1,22 @@
+/**
+ * This is an example of a chat API endpoint that returns a ReadableStream.
+ * We're not using it now, but it might be useful in the future.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { ChatOpenAI } from "@langchain/openai";
 
 import { defaultModel } from "@/llm-config";
+import { getUser } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
+  const { user } = await getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { message } = await request.json();
 
   const model = new ChatOpenAI({ model: defaultModel });

@@ -36,6 +36,14 @@
       }
     },
     {
+      "label": "[inngest] dev",
+      "type": "shell",
+      "command": "npx inngest-cli@latest dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      }
+    },
+    {
       "type": "npm",
       "script": "dev",
       "label": "[npm] dev",

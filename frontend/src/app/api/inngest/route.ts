@@ -1,9 +1,9 @@
 import { serve } from "inngest/next";
 
 import { inngest } from "@/inngest/client";
-import { helloWorld } from "@/inngest/functions";
+import { newChat } from "@/inngest/functions/chat";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [helloWorld],
+  functions: [newChat],
 });
