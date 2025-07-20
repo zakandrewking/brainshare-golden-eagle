@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
 import { useChat, useMessages } from "@/components/blocks/chat/logic/chat";
@@ -113,12 +115,11 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
         {streamingResponse && (
           <div className="mt-4">
             <h3 className="text-sm font-medium mb-2">AI Response:</h3>
-            <Textarea
-              value={streamingResponse}
-              readOnly
-              className="w-full min-h-[200px] font-mono text-sm"
-              placeholder="AI response will appear here..."
-            />
+            <div className="w-full min-h-[200px] p-3 border rounded-md bg-background font-mono text-sm prose prose-sm max-w-none dark:prose-invert">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {streamingResponse}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
       </div>
@@ -141,7 +142,11 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
                     <p className="text-sm text-muted-foreground mb-1">
                       {message.role === "user" ? "You" : "Assistant"}
                     </p>
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    <div className="whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               </div>
