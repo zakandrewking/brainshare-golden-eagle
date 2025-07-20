@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
 
 import { toast } from "sonner";
 
@@ -12,6 +15,7 @@ import { DelayedLoadingSpinner } from "@/components/ui/loading";
 import { Textarea } from "@/components/ui/textarea";
 import useIsSSR from "@/hooks/use-is-ssr";
 import { defaultModel } from "@/llm-config";
+import { createClient, useUser } from "@/utils/supabase/client";
 
 import { callChat } from "./actions/call-chat";
 
@@ -21,8 +25,8 @@ interface ChatDetailProps {
 
 export default function ChatDetail({ chatId }: ChatDetailProps) {
   const isSSR = useIsSSR();
+  const user = useUser();
   const [streamingResponse, setStreamingResponse] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
   const [inputMessage, setInputMessage] = useState("Hello, how are you?");
 
   const {
@@ -34,21 +38,64 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     data: messages,
     error: messagesError,
     isLoading: messagesLoading,
+    mutate: mutateMessages,
   } = useMessages(chatId);
 
-  const handleStreamChat = async () => {
-    if (!inputMessage.trim()) return;
+  // subscribe to supabase realtime updates
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`chat:${chatId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "message",
+          filter: `chat_id=eq.${chatId}`,
+        },
+        (payload) => {
+          console.log("Change received!", payload);
+          const newMessage = payload.new as {
+            id: string;
+            updated_at: string;
+          };
+          mutateMessages((currentMessages) => {
+            if (!currentMessages) {
+              return new Map([[newMessage.id, newMessage]]);
+            }
+            const existingMessage = currentMessages.get(newMessage.id);
+            if (
+              existingMessage &&
+              new Date(existingMessage.updated_at) >=
+                new Date(newMessage.updated_at)
+            ) {
+              return currentMessages;
+            }
+            const newMessages = new Map(currentMessages);
+            newMessages.set(newMessage.id, payload.new);
+            return newMessages;
+          }, false);
+        }
+      )
+      .subscribe();
 
-    setIsStreaming(true);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chatId, mutateMessages]);
+
+  const handleStreamChat = async () => {
+    if (!inputMessage.trim() || !user) return;
+
     setStreamingResponse("");
 
     try {
-      await callChat(chatId);
+      await callChat(chatId, inputMessage);
+      setInputMessage("");
     } catch {
       // the action will log errors
       toast.error("Failed to get response from AI");
-    } finally {
-      setIsStreaming(false);
     }
   };
 
@@ -83,10 +130,10 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
           />
           <Button
             onClick={handleStreamChat}
-            disabled={isStreaming || !inputMessage.trim()}
+            disabled={!inputMessage.trim()}
             className="self-end"
           >
-            {isStreaming ? "Streaming..." : "Send"}
+            Send
           </Button>
         </div>
 
@@ -104,22 +151,28 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       </div>
 
       <div className="space-y-4">
-        {messages && messages.length > 0 ? (
-          messages.map((message) => (
-            <div key={message.id} className="p-4 border rounded-md">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                  {message.role === "user" ? "U" : "A"}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground mb-1">
-                    {message.role === "user" ? "You" : "Assistant"}
-                  </p>
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+        {messages && messages.size > 0 ? (
+          Array.from(messages.values())
+            .sort(
+              (a, b) =>
+                new Date(a.created_at).getTime() -
+                new Date(b.created_at).getTime()
+            )
+            .map((message) => (
+              <div key={message.id} className="p-4 border rounded-md">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+                    {message.role === "user" ? "U" : "A"}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground mb-1">
+                      {message.role === "user" ? "You" : "Assistant"}
+                    </p>
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))
         ) : (
           <></>
         )}

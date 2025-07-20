@@ -113,7 +113,12 @@ export function useMessages(chatId: string) {
         throw new Error("Failed to load messages");
       }
 
-      return data;
+      const messageMap = new Map();
+      data.forEach((message) => {
+        messageMap.set(message.id, message);
+      });
+
+      return messageMap;
     },
     {
       // use if data can change

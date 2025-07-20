@@ -48,9 +48,25 @@ export async function createClient() {
         }
       },
     },
+  });
+
+  return supabase;
+}
+
+export async function createClientWithToken(token: string) {
+  const supabase = createServerClient<Database>(apiUrl!, anonKey!, {
     auth: {
-      // persistSession: false,
-      // autoRefreshToken: false,
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    cookies: {
+      getAll() {
+        return [];
+      },
+      setAll() {},
+    },
+    global: {
+      headers: { Authorization: `Bearer ${token}` },
     },
   });
 
