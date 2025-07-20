@@ -15,7 +15,9 @@ export const chat = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     user_id: uuid("user_id").notNull(),
     title: text("title").notNull(),
-    created_at: timestamp("created_at").defaultNow().notNull(),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     pgPolicy("authenticated-user-can-manage-chats", {
@@ -27,32 +29,39 @@ export const chat = pgTable(
   ]
 ).enableRLS();
 
-export const messages = pgTable(
+export const message = pgTable(
   "message",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     chat_id: uuid("chat_id")
       .references(() => chat.id, { onDelete: "cascade" })
       .notNull(),
+    role: text("role", { enum: ["user", "assistant"] }).notNull(),
     content: text("content").notNull(),
-    role: text("role").notNull(),
-    created_at: timestamp("created_at").defaultNow().notNull(),
+    status: text("status", { enum: ["streaming", "complete"] }).notNull(),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     check("message_role_check", sql`${table.role} IN ('user', 'assistant')`),
+    check(
+      "message_status_check",
+      sql`${table.status} IN ('streaming', 'complete')`
+    ),
     pgPolicy("authenticated-user-can-manage-messages", {
       for: "all",
       to: authenticatedRole,
       using: sql`EXISTS (
-        SELECT 1 FROM chat
-        WHERE chat.id = ${table.chat_id}
-        AND chat.user_id = auth.uid()
-      )`,
+            SELECT 1 FROM chat
+            WHERE chat.id = ${table.chat_id}
+            AND chat.user_id = auth.uid()
+          )`,
       withCheck: sql`EXISTS (
-        SELECT 1 FROM chat
-        WHERE chat.id = ${table.chat_id}
-        AND chat.user_id = auth.uid()
-      )`,
+            SELECT 1 FROM chat
+            WHERE chat.id = ${table.chat_id}
+            AND chat.user_id = auth.uid()
+          )`,
     }),
   ]
 ).enableRLS();

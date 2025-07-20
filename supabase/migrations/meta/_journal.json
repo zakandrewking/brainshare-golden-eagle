@@ -57,6 +57,13 @@
       "when": 1752948427568,
       "tag": "0007_mean_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1753034847583,
+      "tag": "0008_dusty_pride",
+      "breakpoints": true
     }
   ]
 }
