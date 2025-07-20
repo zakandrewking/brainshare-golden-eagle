@@ -1,24 +1,32 @@
-import { Inngest } from "inngest";
-
+import { channel, topic } from "@inngest/realtime";
 import { ChatOpenAI } from "@langchain/openai";
 
+import { inngest } from "@/inngest/client";
 import { defaultModel } from "@/llm-config";
 import { createClientWithToken } from "@/utils/supabase/server";
 
-export const inngest = new Inngest({
-  id: "chat-app",
-});
+export const chatChannel = channel(
+  (userId: string) => `chat:${userId}`
+).addTopic(topic("messageChunks").type<string>());
+
+export interface NewChatEventData {
+  chatId: string;
+  message: string;
+  supabaseAccessToken: string;
+  userId: string;
+}
 
 export const newChat = inngest.createFunction(
   { id: "new-chat" },
-  { event: "new-chat" },
-  async ({ event, step }) => {
+  { event: "chat/new" },
+  async ({ event, publish }) => {
     const { chatId, message, supabaseAccessToken } = event.data;
 
     const supabase = await createClientWithToken(supabaseAccessToken);
 
     let full = "";
 
+    console.log("Creating empty assistant message for chat", chatId);
     const { data: assistantRow, error } = await supabase
       .from("message")
       .insert({
@@ -38,6 +46,7 @@ export const newChat = inngest.createFunction(
     const model = new ChatOpenAI({ model: defaultModel });
 
     let stream;
+    // const channel = newChatChannel();
     try {
       stream = await model.stream(message);
     } catch (error) {
@@ -46,26 +55,48 @@ export const newChat = inngest.createFunction(
     }
 
     for await (const chunk of stream) {
-      const delta = chunk.content;
+      const delta = String(chunk.content);
       if (!delta) continue;
       full += delta;
 
+      console.log(
+        "Updating message with ID",
+        assistantRow.id,
+        "with content",
+        full
+      );
+
+      // TODO throttle these updates; way too fast for postgres
       await supabase
         .from("message")
         .update({ content: full })
         .eq("id", assistantRow.id);
 
-      // update inngest realtime channel
-      //   await step.send({
-      //     name: "update-message",
-      //     data: { messageId, content: full },
-      //   });
+      // TODO clean up messages that are still listed as streaming because
+      // there was an error or this job died
+
+      // TODO this didn't work; was recalling the job a bunch. what's the right
+      // way?
+      // use await step.run(
+      // publish(channel["message-chunks"](delta));
     }
 
+    console.log(
+      "Finalizing message with ID",
+      assistantRow.id,
+      "with content",
+      full
+    );
     await supabase
       .from("message")
       .update({ content: full, status: "complete" })
       .eq("id", assistantRow.id);
+
+    // waiting on the result of my bug report https://app.inngest.com/support in
+    // the meantime, keep polling for updates from supabase. or check out
+    // brainshare-on-rails ;) console.log("publishing for user", userId); await
+    // publish(chatChannel(userId).messageChunks("test")); await
+    // publish(chatChannel(userId).messageChunks("test2"));
 
     return { message: `Hello chat` };
   }

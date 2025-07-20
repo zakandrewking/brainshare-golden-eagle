@@ -36,11 +36,12 @@ export async function callChat(chatId: string, message: string) {
 
   try {
     await inngest.send({
-      name: "new-chat", // event name
+      name: "chat/new",
       data: {
         chatId,
         supabaseAccessToken: session.access_token,
         message,
+        userId: user.id,
       },
     });
   } catch (error) {
