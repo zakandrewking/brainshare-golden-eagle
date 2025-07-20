@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 
+import Link from "next/link";
 import { toast } from "sonner";
 
 import { useChat, useMessages } from "@/components/blocks/chat/logic/chat";
@@ -62,10 +63,17 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
   return (
     <div className="w-full">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">{chat.title}</h1>
-        <p className="text-muted-foreground">
-          Created {new Date(chat.created_at).toLocaleDateString()}
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold">{chat.title}</h1>
+            <p className="text-muted-foreground">
+              Created {new Date(chat.created_at).toLocaleDateString()}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/chat">Chat History</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="mb-6 p-4 border rounded-md bg-muted/50">
