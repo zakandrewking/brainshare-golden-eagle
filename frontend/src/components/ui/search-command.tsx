@@ -70,6 +70,12 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
         href: "/moons",
         type: "page",
       },
+      {
+        id: "debug",
+        title: "Debug",
+        href: "/debug",
+        type: "page",
+      },
     ];
 
     const documentItems: SearchItem[] = documents

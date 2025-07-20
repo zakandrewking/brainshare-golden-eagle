@@ -1,3 +1,4 @@
+import InngestTest from "@/app/inngest-test";
 import { DebugSettings } from "@/components/debug-settings";
 import Container from "@/components/ui/container";
 import NavigationHeaderTitle from "@/components/ui/navigation-header-title";
@@ -14,6 +15,7 @@ export default function DebugPage() {
               Configure debug options for development and testing.
             </p>
             <DebugSettings />
+            <InngestTest />
           </div>
         </Container>
       </main>
