@@ -18,7 +18,7 @@ export async function callChat(chatId: string, message: string) {
     throw new Error("No session found");
   }
 
-  const { data, error: messageError } = await supabase
+  const { error: messageError } = await supabase
     .from("message")
     .insert({
       chat_id: chatId,
@@ -39,9 +39,7 @@ export async function callChat(chatId: string, message: string) {
       name: "new-chat", // event name
       data: {
         chatId,
-        userId: user.id,
         supabaseAccessToken: session.access_token,
-        messageId: data.id,
         message,
       },
     });

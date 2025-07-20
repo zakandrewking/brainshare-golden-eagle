@@ -13,8 +13,7 @@ export const newChat = inngest.createFunction(
   { id: "new-chat" },
   { event: "new-chat" },
   async ({ event, step }) => {
-    const { chatId, userId, messageId, message, supabaseAccessToken } =
-      event.data;
+    const { chatId, message, supabaseAccessToken } = event.data;
 
     const supabase = await createClientWithToken(supabaseAccessToken);
 
@@ -47,7 +46,7 @@ export const newChat = inngest.createFunction(
     }
 
     for await (const chunk of stream) {
-      const delta = chunk;
+      const delta = chunk.content;
       if (!delta) continue;
       full += delta;
 

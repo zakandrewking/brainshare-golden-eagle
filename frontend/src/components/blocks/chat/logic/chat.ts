@@ -76,10 +76,10 @@ export function useChat(id: string) {
       // use if data can change
       revalidateIfStale: true,
       // use if data changes regularly
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
       // use if data changes consistently
-      refreshInterval: 0,
+      refreshInterval: 5_000,
     }
   );
 
@@ -113,21 +113,16 @@ export function useMessages(chatId: string) {
         throw new Error("Failed to load messages");
       }
 
-      const messageMap = new Map();
-      data.forEach((message) => {
-        messageMap.set(message.id, message);
-      });
-
-      return messageMap;
+      return data;
     },
     {
       // use if data can change
       revalidateIfStale: true,
       // use if data changes regularly
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
       // use if data changes consistently
-      refreshInterval: 0,
+      refreshInterval: 5_000,
     }
   );
 

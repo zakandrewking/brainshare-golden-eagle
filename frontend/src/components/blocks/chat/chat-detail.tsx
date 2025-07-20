@@ -1,9 +1,6 @@
 "use client";
 
-import React, {
-  useEffect,
-  useState,
-} from "react";
+import React, { useState } from "react";
 
 import { toast } from "sonner";
 
@@ -15,7 +12,7 @@ import { DelayedLoadingSpinner } from "@/components/ui/loading";
 import { Textarea } from "@/components/ui/textarea";
 import useIsSSR from "@/hooks/use-is-ssr";
 import { defaultModel } from "@/llm-config";
-import { createClient, useUser } from "@/utils/supabase/client";
+import { useUser } from "@/utils/supabase/client";
 
 import { callChat } from "./actions/call-chat";
 
@@ -34,56 +31,15 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     error: chatError,
     isLoading: chatLoading,
   } = useChat(chatId);
+
   const {
     data: messages,
     error: messagesError,
     isLoading: messagesLoading,
-    mutate: mutateMessages,
   } = useMessages(chatId);
 
-  // subscribe to supabase realtime updates
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`chat:${chatId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "message",
-          filter: `chat_id=eq.${chatId}`,
-        },
-        (payload) => {
-          console.log("Change received!", payload);
-          const newMessage = payload.new as {
-            id: string;
-            updated_at: string;
-          };
-          mutateMessages((currentMessages) => {
-            if (!currentMessages) {
-              return new Map([[newMessage.id, newMessage]]);
-            }
-            const existingMessage = currentMessages.get(newMessage.id);
-            if (
-              existingMessage &&
-              new Date(existingMessage.updated_at) >=
-                new Date(newMessage.updated_at)
-            ) {
-              return currentMessages;
-            }
-            const newMessages = new Map(currentMessages);
-            newMessages.set(newMessage.id, payload.new);
-            return newMessages;
-          }, false);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [chatId, mutateMessages]);
+  console.log("chat", chat);
+  console.log("messages", messages);
 
   const handleStreamChat = async () => {
     if (!inputMessage.trim() || !user) return;
@@ -151,8 +107,8 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       </div>
 
       <div className="space-y-4">
-        {messages && messages.size > 0 ? (
-          Array.from(messages.values())
+        {messages && messages.length > 0 ? (
+          messages
             .sort(
               (a, b) =>
                 new Date(a.created_at).getTime() -
