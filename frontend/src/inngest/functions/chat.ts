@@ -24,6 +24,9 @@ export const newChat = inngest.createFunction(
 
     const supabase = await createClientWithToken(supabaseAccessToken);
 
+    const THROTTLE_MS = 500;
+    let lastUpdateTime = 0;
+
     let full = "";
 
     console.log("Creating empty assistant message for chat", chatId);
@@ -59,18 +62,22 @@ export const newChat = inngest.createFunction(
       if (!delta) continue;
       full += delta;
 
-      console.log(
-        "Updating message with ID",
-        assistantRow.id,
-        "with content",
-        full
-      );
+      const now = Date.now();
+      if (now - lastUpdateTime >= THROTTLE_MS) {
+        console.log(
+          "Updating message with ID",
+          assistantRow.id,
+          "with content",
+          full
+        );
 
-      // TODO throttle these updates; way too fast for postgres
-      await supabase
-        .from("message")
-        .update({ content: full })
-        .eq("id", assistantRow.id);
+        await supabase
+          .from("message")
+          .update({ content: full })
+          .eq("id", assistantRow.id);
+
+        lastUpdateTime = now;
+      }
 
       // TODO clean up messages that are still listed as streaming because
       // there was an error or this job died

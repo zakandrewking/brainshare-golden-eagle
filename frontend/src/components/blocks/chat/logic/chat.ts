@@ -79,7 +79,7 @@ export function useChat(id: string) {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
       // use if data changes consistently
-      refreshInterval: 5_000,
+      refreshInterval: 1_000,
     }
   );
 
@@ -122,7 +122,7 @@ export function useMessages(chatId: string) {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
       // use if data changes consistently
-      refreshInterval: 5_000,
+      refreshInterval: 1_000,
     }
   );
 

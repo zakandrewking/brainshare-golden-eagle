@@ -5,8 +5,6 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
-import { useInngestSubscription } from "@inngest/realtime/hooks";
-
 import { useChat, useMessages } from "@/components/blocks/chat/logic/chat";
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +16,6 @@ import { defaultModel } from "@/llm-config";
 import { useUser } from "@/utils/supabase/client";
 
 import { callChat } from "./actions/call-chat";
-import fetchSubscriptionToken from "./actions/inngest-realtime-token";
 
 interface ChatDetailProps {
   chatId: string;
@@ -42,17 +39,17 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     isLoading: messagesLoading,
   } = useMessages(chatId);
 
-  const { data, error, freshData, state, latestData } = useInngestSubscription({
-    refreshToken: () => fetchSubscriptionToken(user?.id ?? ""),
-    bufferInterval: 500,
-    enabled: true,
-  });
+  // const { data, error, freshData, state, latestData } = useInngestSubscription({
+  //   refreshToken: () => fetchSubscriptionToken(user?.id ?? ""),
+  //   bufferInterval: 500,
+  //   enabled: true,
+  // });
 
-  console.log("data", data);
-  console.log("error", error);
-  console.log("freshData", freshData);
-  console.log("state", state);
-  console.log("latestData", latestData);
+  // console.log("data", data);
+  // console.log("error", error);
+  // console.log("freshData", freshData);
+  // console.log("state", state);
+  // console.log("latestData", latestData);
 
   const handleStreamChat = async () => {
     if (!inputMessage.trim() || !user) return;
