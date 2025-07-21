@@ -4,6 +4,8 @@ import React, { useState } from "react";
 
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
@@ -22,6 +24,58 @@ import { callChat } from "./actions/call-chat";
 interface ChatDetailProps {
   chatId: string;
 }
+
+const CodeBlock = ({
+  children,
+  className,
+  ...props
+}: {
+  children?: React.ReactNode;
+  className?: string;
+} & React.HTMLAttributes<HTMLElement>) => {
+  const language = className?.replace("language-", "") || "text";
+  const codeString = String(children).replace(/\n$/, "");
+
+  return (
+    <SyntaxHighlighter
+      language={language}
+      style={oneDark}
+      customStyle={{
+        margin: 0,
+        borderRadius: "0.5rem",
+        fontSize: "0.875rem",
+      }}
+    >
+      {codeString}
+    </SyntaxHighlighter>
+  );
+};
+
+const CustomParagraph = ({
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLParagraphElement>) => {
+  // Check if the paragraph contains only a code block
+  const hasOnlyCodeBlock =
+    React.Children.count(children) === 1 &&
+    React.Children.toArray(children).every(
+      (child) =>
+        React.isValidElement(child) &&
+        (child.type === CodeBlock ||
+          (typeof child.props === "object" &&
+            child.props &&
+            "className" in child.props &&
+            typeof child.props.className === "string" &&
+            child.props.className.includes("language-")))
+    );
+
+  // If paragraph contains only a code block, render without <p> wrapper
+  if (hasOnlyCodeBlock) {
+    return <>{children}</>;
+  }
+
+  return <p {...props}>{children}</p>;
+};
 
 export default function ChatDetail({ chatId }: ChatDetailProps) {
   const isSSR = useIsSSR();
@@ -116,7 +170,13 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
           <div className="mt-4">
             <h3 className="text-sm font-medium mb-2">AI Response:</h3>
             <div className="w-full min-h-[200px] p-3 border rounded-md bg-background font-mono text-sm prose prose-sm max-w-none dark:prose-invert">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code: CodeBlock,
+                  p: CustomParagraph,
+                }}
+              >
                 {streamingResponse}
               </ReactMarkdown>
             </div>
@@ -143,7 +203,13 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
                       {message.role === "user" ? "You" : "Assistant"}
                     </p>
                     <div className="whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          code: CodeBlock,
+                          p: CustomParagraph,
+                        }}
+                      >
                         {message.content}
                       </ReactMarkdown>
                     </div>
