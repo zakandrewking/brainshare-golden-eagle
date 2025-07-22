@@ -17,7 +17,6 @@
     "@google/genai": "^1.5.1",
     "@hookform/resolvers": "^5.0.1",
     "@icons-pack/react-simple-icons": "^13.5.0",
-    "@inngest/realtime": "^0.3.1",
     "@js-temporal/polyfill": "^0.5.1",
     "@langchain/core": "^0.3.51",
     "@langchain/openai": "^0.5.10",

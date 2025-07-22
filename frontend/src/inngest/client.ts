@@ -1,7 +1,5 @@
 import { EventSchemas, Inngest } from "inngest";
 
-import { realtimeMiddleware } from "@inngest/realtime";
-
 type NewChatEvent = {
   data: {
     chatId: string;
@@ -16,6 +14,9 @@ type Events = {
 
 export const inngest = new Inngest({
   id: "chat-app",
-  middleware: [realtimeMiddleware()],
+  // Inngest realtime doesn't work for streaming yet as far as I can tell. Each
+  // `publish()` call creates a new `step`, which would start a brand new stream
+  // if we did it outside of another step. We'll stick with supabase realtime.
+  // middleware: [ realtimeMiddleware() ],
   schemas: new EventSchemas().fromRecord<Events>(),
 });

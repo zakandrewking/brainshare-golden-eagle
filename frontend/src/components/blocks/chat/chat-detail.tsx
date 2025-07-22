@@ -95,18 +95,6 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     isLoading: messagesLoading,
   } = useMessages(chatId);
 
-  // const { data, error, freshData, state, latestData } = useInngestSubscription({
-  //   refreshToken: () => fetchSubscriptionToken(user?.id ?? ""),
-  //   bufferInterval: 500,
-  //   enabled: true,
-  // });
-
-  // console.log("data", data);
-  // console.log("error", error);
-  // console.log("freshData", freshData);
-  // console.log("state", state);
-  // console.log("latestData", latestData);
-
   const handleStreamChat = async () => {
     if (!inputMessage.trim() || !user) return;
 
