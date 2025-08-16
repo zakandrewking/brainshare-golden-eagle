@@ -11,6 +11,6 @@ alwaysApply: true
 ```sql
 CREATE POLICY "authenticated-user-can-manage-chats" ON "chat"
   FOR ALL TO authenticated
-    USING ((auth.uid() = "chat"."user_id")
-    WITH CHECK ((auth.uid() = "chat"."user_id");
+    USING (((SELECT auth.uid()) = "chat"."user_id")
+    WITH CHECK (((SELECT auth.uid()) = "chat"."user_id");
 ```
