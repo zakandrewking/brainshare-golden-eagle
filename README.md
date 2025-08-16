@@ -21,6 +21,9 @@ To sync config:
 supabase link
 ```
 
+Manual steps for the production server:
+- set realtime settings to disable public access
+
 # Seed production
 
 To create storage buckets in the production instance, run:
