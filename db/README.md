@@ -27,3 +27,8 @@ Then push to production:
 supabase link # first time only
 supabase db push
 ```
+
+## Debugging
+
+If realtime broadcast for db changes is not working, check that the Database
+Publication `supabase_realtime_messages_publication` is enabled for Insert.
