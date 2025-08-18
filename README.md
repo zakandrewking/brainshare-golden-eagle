@@ -1,4 +1,6 @@
-# Run locally
+# Brainshare
+
+## Run locally
 
 Tasks (in `.vscode/tasks.json`) to start a local instance:
 - `[supabase] start`
@@ -13,7 +15,7 @@ Debug configurations (in `.vscode/launch.json`):
 NOTE: Currently, both of those configurations run against the production y-sweet
 server.
 
-# Deploy
+## Deploy
 
 To sync config:
 
@@ -24,7 +26,7 @@ supabase link
 Manual steps for the production server:
 - set realtime settings to disable public access
 
-# Seed production
+## Seed production
 
 To create storage buckets in the production instance, run:
 
@@ -34,3 +36,13 @@ npx supabase seed buckets --linked
 ```
 
 See https://github.com/orgs/supabase/discussions/12390#discussioncomment-10260149
+
+## Developing offline
+
+1. Use supabase-cli cache (is there a better way? install globally?)
+
+```
+npm config ls -l|rg cache
+fd supabase .../.npm/_npx/
+.../.npm/_npx/.../node_modules/supabase/bin/supabase db reset
+```
