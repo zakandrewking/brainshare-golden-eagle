@@ -2,13 +2,14 @@
 
 import React from "react";
 
-import FileList from "@/components/blocks/files/file-list";
-import FileUploader from "@/components/blocks/files/file-uploader";
-import { useFiles } from "@/components/blocks/files/logic/file";
+import FileList from "@/blocks/files/file-list";
+import FileUploader from "@/blocks/files/file-uploader";
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { DelayedLoadingSpinner } from "@/components/ui/loading";
 import { Stack } from "@/components/ui/stack";
 import useIsSSR from "@/hooks/use-is-ssr";
+
+import useFiles from "./logic/use-files";
 
 export default function FilesManager({
   isOverLimit,

@@ -27,88 +27,7 @@ export interface FileData {
   created_at?: string;
   updated_at?: string;
 }
-
-/**
- * Use like:
- *
- * const isSSR = useIsSSR();
- * const { data, error, isLoading } = useFiles(id);
- * if (isSSR) return <></>;
- * if (isLoading) return <DelayedLoadingSpinner />;
- * if (error || !data) return <SomethingWentWrong />;
- * return ...
- */
-export function useFiles() {
-  const supabase = createClient();
-
-  const { data, error, isLoading, mutate } = useSWR(
-    "/files",
-    async () => {
-      const { data, error } = await supabase.from("file").select("*");
-      if (error || !data) {
-        console.error(error);
-        throw new Error("Failed to load files");
-      }
-      return data;
-    },
-    {
-      // use if data can change
-      revalidateIfStale: true,
-      // use if data changes regularly
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      // use if data changes consistently
-      refreshInterval: 0,
-    }
-  );
-
-  return { data, error, isLoading, mutate };
-}
-
-/**
- * Use like:
- *
- * const isSSR = useIsSSR();
- * const { data, error, isLoading } = useFile(id);
- * if (isSSR) return <></>;
- * if (isLoading) return <DelayedLoadingSpinner />;
- * if (error || !data) return <SomethingWentWrong />;
- * return ...
- */
-export function useFile(id: string) {
-  const supabase = createClient();
-
-  const { data, error, isLoading } = useSWR(
-    `/files/${id}`,
-    async () => {
-      const { data, error } = await supabase
-        .from("file")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error || !data) {
-        console.error(error);
-        throw new Error("File not found");
-      }
-
-      return data;
-    },
-    {
-      // use if data can change
-      revalidateIfStale: true,
-      // use if data changes regularly
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      // use if data changes consistently
-      refreshInterval: 0,
-    }
-  );
-
-  return { data, error, isLoading };
-}
-
-export function useFileContent(bucketId?: string, objectPath?: string) {
+export default function useFileContent(bucketId?: string, objectPath?: string) {
   const supabase = createClient();
 
   const {
@@ -186,7 +105,7 @@ export function useFileContent(bucketId?: string, objectPath?: string) {
       // use if data changes regularly
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      // use if data changes consistently
+      // use if data changes consistently & not using realtime
       refreshInterval: 0,
     }
   );

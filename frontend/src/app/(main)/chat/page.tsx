@@ -1,4 +1,4 @@
-import ChatList from "@/components/blocks/chat/chat-list";
+import ChatList from "@/blocks/chat/chat-list";
 import ShouldLogIn from "@/components/should-log-in";
 import Container from "@/components/ui/container";
 import { getUser } from "@/utils/supabase/server";

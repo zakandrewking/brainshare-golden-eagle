@@ -9,20 +9,18 @@ import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
-import { type RealtimeChannel } from "@supabase/supabase-js";
-
-import { useChat, useMessages } from "@/components/blocks/chat/logic/chat";
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DelayedLoadingSpinner } from "@/components/ui/loading";
 import { Textarea } from "@/components/ui/textarea";
-import { useAsyncEffect } from "@/hooks/use-async-effect";
 import useIsSSR from "@/hooks/use-is-ssr";
 import { defaultModel } from "@/llm-config";
-import { createClient, useUser } from "@/utils/supabase/client";
+import { useUser } from "@/utils/supabase/client";
 
 import { callChat } from "./actions/call-chat";
+import useChat from "./logic/use-chat";
+import useMessages from "./logic/use-messages";
 
 interface ChatDetailProps {
   chatId: string;
@@ -83,9 +81,10 @@ const CustomParagraph = ({
 export default function ChatDetail({ chatId }: ChatDetailProps) {
   const isSSR = useIsSSR();
   const user = useUser();
-  const [streamingResponse, setStreamingResponse] = useState("");
+  const [streamingMessages, _setStreamingMessages] = useState<
+    { id: string; content: string }[]
+  >([]);
   const [inputMessage, setInputMessage] = useState("Hello, how are you?");
-  const supabase = createClient();
 
   const {
     data: chat,
@@ -99,10 +98,8 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     isLoading: messagesLoading,
   } = useMessages(chatId);
 
-  const handleStreamChat = async () => {
+  const handleSend = async () => {
     if (!inputMessage.trim() || !user) return;
-
-    setStreamingResponse("");
 
     try {
       await callChat(chatId, inputMessage);
@@ -112,29 +109,6 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       toast.error("Failed to get response from AI");
     }
   };
-
-  let channel: RealtimeChannel | null = null;
-  useAsyncEffect(
-    async () => {
-      if (!user) return;
-      await supabase.realtime.setAuth();
-      channel = supabase
-        .channel("topic", {
-          config: { private: true },
-        })
-        .on("broadcast", { event: "INSERT" }, (payload) => console.log(payload))
-        .on("broadcast", { event: "UPDATE" }, (payload) => console.log(payload))
-        .subscribe();
-      console.log("subscribed to channel", channel);
-    },
-    async () => {
-      if (channel) {
-        await channel.unsubscribe();
-        channel = null;
-      }
-    },
-    []
-  );
 
   if (isSSR) return <></>;
   if (chatLoading || messagesLoading) return <DelayedLoadingSpinner />;
@@ -173,7 +147,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
             rows={2}
           />
           <Button
-            onClick={handleStreamChat}
+            onClick={handleSend}
             disabled={!inputMessage.trim()}
             className="self-end"
           >
@@ -181,7 +155,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
           </Button>
         </div>
 
-        {streamingResponse && (
+        {streamingMessages.length > 0 && (
           <div className="mt-4">
             <h3 className="text-sm font-medium mb-2">AI Response:</h3>
             <div className="w-full min-h-[200px] p-3 border rounded-md bg-background font-mono text-sm prose prose-sm max-w-none dark:prose-invert">
@@ -192,7 +166,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
                   p: CustomParagraph,
                 }}
               >
-                {streamingResponse}
+                {streamingMessages.map((message) => message.content).join("\n")}
               </ReactMarkdown>
             </div>
           </div>

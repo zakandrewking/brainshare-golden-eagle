@@ -1,4 +1,4 @@
-import FilesManager from "@/components/blocks/files/files-manager";
+import FilesManager from "@/blocks/files/files-manager";
 import ShouldLogIn from "@/components/should-log-in";
 import Container from "@/components/ui/container";
 import { Stack } from "@/components/ui/stack";

@@ -2,11 +2,10 @@
 
 import React from "react";
 
-import {
+import useFile from "@/blocks/files/logic/use-file";
+import useFileContent, {
   type FileContent,
-  useFile,
-  useFileContent,
-} from "@/components/blocks/files/logic/file";
+} from "@/blocks/files/logic/use-file-content";
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { DelayedLoadingSpinner } from "@/components/ui/loading";
 import { Stack } from "@/components/ui/stack";

@@ -14,9 +14,9 @@ import {
   waitFor,
 } from "@testing-library/react";
 
-import ChatList from "@/components/blocks/chat/chat-list";
-import { useChats } from "@/components/blocks/chat/logic/chat";
-import createChat from "@/components/blocks/chat/logic/create-chat";
+import ChatList from "@/blocks/chat/chat-list";
+import createChat from "@/blocks/chat/logic/create-chat";
+import useChats from "@/blocks/chat/logic/use-chats";
 import { useUser } from "@/utils/supabase/client";
 
 vi.mock("@/components/blocks/chat/logic/chat");

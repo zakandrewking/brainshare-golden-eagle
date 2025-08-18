@@ -8,8 +8,8 @@ import {
 
 import { render, screen } from "@testing-library/react";
 
-import FilesManager from "@/components/blocks/files/files-manager";
-import { useFiles } from "@/components/blocks/files/logic/file";
+import FilesManager from "@/blocks/files/files-manager";
+import useFiles from "@/blocks/files/logic/use-files";
 
 // Mock the child components
 vi.mock("@/components/blocks/files/file-uploader", () => ({

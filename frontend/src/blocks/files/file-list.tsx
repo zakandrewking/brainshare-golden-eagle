@@ -11,8 +11,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { deleteFile } from "@/components/blocks/files/logic/delete-file";
-import { type FileData } from "@/components/blocks/files/logic/file";
+import { deleteFile } from "@/blocks/files/logic/delete-file";
+import { type FileData } from "@/blocks/files/logic/use-file-content";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

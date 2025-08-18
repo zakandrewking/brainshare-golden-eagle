@@ -4,6 +4,7 @@ import { inngest } from "@/inngest/client";
 import { createClient, getUser } from "@/utils/supabase/server";
 
 export async function callChat(chatId: string, message: string) {
+  console.log("callChat", chatId, message);
   const { user } = await getUser();
   if (!user) {
     throw new Error("User not authenticated");
@@ -35,6 +36,7 @@ export async function callChat(chatId: string, message: string) {
   }
 
   try {
+    console.log("sending to inngest");
     await inngest.send({
       name: "chat/new",
       data: {

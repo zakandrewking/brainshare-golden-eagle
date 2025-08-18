@@ -1,4 +1,4 @@
-import FilePreview from "@/components/blocks/files/file-preview";
+import FilePreview from "@/blocks/files/file-preview";
 import ShouldLogIn from "@/components/should-log-in";
 import Container from "@/components/ui/container";
 import { getUser } from "@/utils/supabase/server";

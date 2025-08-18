@@ -7,9 +7,9 @@ import Link from "next/link";
 import { redirect, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { useChats } from "@/components/blocks/chat/logic/chat";
-import createChat from "@/components/blocks/chat/logic/create-chat";
-import deleteChat from "@/components/blocks/chat/logic/delete-chat";
+import createChat from "@/blocks/chat/logic/create-chat";
+import deleteChat from "@/blocks/chat/logic/delete-chat";
+import useChats from "@/blocks/chat/logic/use-chats";
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { Button } from "@/components/ui/button";
 import { DelayedLoadingSpinner } from "@/components/ui/loading";

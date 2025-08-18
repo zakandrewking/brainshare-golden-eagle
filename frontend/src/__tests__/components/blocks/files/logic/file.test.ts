@@ -9,13 +9,12 @@ import {
 
 import { renderHook } from "@testing-library/react";
 
-import {
+import useFile from "@/blocks/files/logic/use-file";
+import useFileContent, {
   type FileContent,
   type FileData,
-  useFile,
-  useFileContent,
-  useFiles,
-} from "@/components/blocks/files/logic/file";
+} from "@/blocks/files/logic/use-file-content";
+import useFiles from "@/blocks/files/logic/use-files";
 
 // Environment stubs
 vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test_anon_key");
