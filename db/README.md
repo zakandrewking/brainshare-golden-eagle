@@ -28,6 +28,18 @@ supabase link # first time only
 supabase db push
 ```
 
+## Seeding
+
+https://snaplet-seed.netlify.app/seed/integrations/supabase
+
+Update the seeding script:
+
+```bash
+cd db
+npx @snaplet/seed sync
+npx tsx seed.ts > ../supabase/seed.sql
+```
+
 ## Debugging
 
 If realtime broadcast for db changes is not working, check that the Database

@@ -22,7 +22,7 @@ export function useKeyboardShortcut(
       } = options;
 
       if (
-        event.key.toLowerCase() === key.toLowerCase() &&
+        event.key?.toLowerCase() === key.toLowerCase() &&
         event.metaKey === metaKey &&
         event.ctrlKey === ctrlKey &&
         event.shiftKey === shiftKey &&
@@ -45,7 +45,7 @@ export function useCmdK(callback: () => void) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        event.key.toLowerCase() === "k" &&
+        event.key?.toLowerCase() === "k" &&
         (event.metaKey || event.ctrlKey) &&
         !event.shiftKey &&
         !event.altKey

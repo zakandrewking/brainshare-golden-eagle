@@ -1,6 +1,7 @@
 import Container from "@/components/ui/container";
 import { Stack } from "@/components/ui/stack";
 
+import EmailLogIn from "./email-login";
 import { GitHubLoginButton } from "./github-login-button";
 
 export default async function LoginPage({
@@ -20,6 +21,9 @@ export default async function LoginPage({
       >
         <h1 className="text-2xl font-bold">Log In to Brainshare</h1>
         <GitHubLoginButton redirectCode={redirectCode} />
+        {process.env.NODE_ENV === "development" && (
+          <EmailLogIn redirectCode={redirectCode} />
+        )}
       </Stack>
     </Container>
   );
