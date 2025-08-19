@@ -17,7 +17,7 @@ import ChatPage from "@/app/(main)/chat/page";
 import { getUser } from "@/utils/supabase/server";
 
 vi.mock("@/utils/supabase/server");
-vi.mock("@/components/blocks/chat/chat-list", () => ({
+vi.mock("@/blocks/chat/chat-list", () => ({
   default: () => (
     <div data-testid="chat-list-component">Chat List Component</div>
   ),

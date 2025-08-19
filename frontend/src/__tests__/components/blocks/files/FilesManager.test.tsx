@@ -12,7 +12,7 @@ import FilesManager from "@/blocks/files/files-manager";
 import useFiles from "@/blocks/files/logic/use-files";
 
 // Mock the child components
-vi.mock("@/components/blocks/files/file-uploader", () => ({
+vi.mock("@/blocks/files/file-uploader", () => ({
   default: vi.fn(({ onUploadSuccess }: { onUploadSuccess: () => void }) => (
     <div data-testid="file-uploader">
       <button data-testid="trigger-upload-success" onClick={onUploadSuccess}>
@@ -22,7 +22,7 @@ vi.mock("@/components/blocks/files/file-uploader", () => ({
   )),
 }));
 
-vi.mock("@/components/blocks/files/file-list", () => ({
+vi.mock("@/blocks/files/file-list", () => ({
   default: vi.fn(
     ({
       files,
@@ -42,8 +42,8 @@ vi.mock("@/components/blocks/files/file-list", () => ({
 }));
 
 // Mock the useFiles hook
-vi.mock("@/components/blocks/files/logic/file", () => ({
-  useFiles: vi.fn(),
+vi.mock("@/blocks/files/logic/use-files", () => ({
+  default: vi.fn(),
 }));
 
 // Mock other dependencies

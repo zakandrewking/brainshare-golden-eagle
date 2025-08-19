@@ -17,7 +17,7 @@ import FilePage from "@/app/(main)/file/[id]/page";
 import { getUser } from "@/utils/supabase/server";
 
 vi.mock("@/utils/supabase/server");
-vi.mock("@/components/blocks/files/file-preview", () => ({
+vi.mock("@/blocks/files/file-preview", () => ({
   default: ({ id }: { id: string }) => (
     <div data-testid="file-preview-component">
       File Preview Component (id: {id})

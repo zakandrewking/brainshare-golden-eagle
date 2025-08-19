@@ -19,7 +19,12 @@ import createChat from "@/blocks/chat/logic/create-chat";
 import useChats from "@/blocks/chat/logic/use-chats";
 import { useUser } from "@/utils/supabase/client";
 
-vi.mock("@/components/blocks/chat/logic/chat");
+vi.mock("@/blocks/chat/logic/create-chat", () => ({
+  default: vi.fn(),
+}));
+vi.mock("@/blocks/chat/logic/use-chats", () => ({
+  default: vi.fn(),
+}));
 vi.mock("@/utils/supabase/client");
 vi.mock("@/hooks/use-is-ssr", () => ({
   default: () => false,
@@ -34,7 +39,6 @@ vi.mock("next/navigation", () => ({
     prefetch: vi.fn(),
   }),
 }));
-vi.mock("@/components/blocks/chat/logic/create-chat");
 
 const mockUseChats = vi.mocked(useChats);
 const mockCreateChat = vi.mocked(createChat);

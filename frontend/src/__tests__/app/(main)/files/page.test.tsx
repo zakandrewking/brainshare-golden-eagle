@@ -17,7 +17,7 @@ import FilesPage from "@/app/(main)/files/page";
 import { getUser } from "@/utils/supabase/server";
 
 vi.mock("@/utils/supabase/server");
-vi.mock("@/components/blocks/files/files-manager", () => ({
+vi.mock("@/blocks/files/files-manager", () => ({
   default: ({ isOverLimit }: { isOverLimit: boolean }) => (
     <div data-testid="files-manager-component">
       Files Manager Component (isOverLimit: {isOverLimit.toString()})
