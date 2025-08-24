@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { Button } from "@/components/ui/button";
-import { DelayedLoadingSpinner } from "@/components/ui/loading";
+import { DelayedLoadingSpinner, LoadingSpinner } from "@/components/ui/loading";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import useIsSSR from "@/hooks/use-is-ssr";
@@ -80,6 +80,25 @@ const CustomParagraph = ({
   return <p {...props}>{children}</p>;
 };
 
+function hasAssistantStreaming(messages: unknown): boolean {
+  if (!Array.isArray(messages)) return false;
+  for (const m of messages) {
+    if (typeof m !== "object" || m === null) continue;
+    const rec = m as Record<string, unknown>;
+    const role = rec.role;
+    const status = rec.status;
+    if (
+      typeof role === "string" &&
+      typeof status === "string" &&
+      role === "assistant" &&
+      status === "streaming"
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export default function ChatDetail({ chatId }: ChatDetailProps) {
   const isSSR = useIsSSR();
   const user = useUser();
@@ -87,6 +106,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     { id: string; content: string }[]
   >([]);
   const [inputMessage, setInputMessage] = useState("Hello, how are you?");
+  const [forceThinking, setForceThinking] = useState(false);
   const isMac =
     typeof window !== "undefined" &&
     (/Mac|iPod|iPhone|iPad/.test(navigator.platform) ||
@@ -109,7 +129,14 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingMessages]);
+  }, [messages, streamingMessages, forceThinking]);
+
+  const serverStreaming = hasAssistantStreaming(messages);
+  const isThinking = forceThinking || serverStreaming;
+
+  useEffect(() => {
+    if (serverStreaming) setForceThinking(false);
+  }, [serverStreaming]);
 
   const handleSend = async () => {
     if (!inputMessage.trim() || !user) return;
@@ -123,6 +150,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       created_at: new Date().toISOString(),
     };
 
+    setForceThinking(true);
     await mutateMessages(
       (prev) => (prev ? [...prev, optimisticMessage] : [optimisticMessage]),
       false
@@ -134,6 +162,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       await callChat(chatId, messageToSend);
       await mutateMessages();
     } catch {
+      setForceThinking(false);
       await mutateMessages(
         (prev) =>
           prev ? prev.filter((m) => m.id !== optimisticMessage.id) : [],
@@ -246,6 +275,12 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
 
       <div className="bg-background border-t">
         <div className="p-4">
+          {isThinking && (
+            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+              <LoadingSpinner className="w-4 h-4" />
+              <span className="text-sm">Thinking…</span>
+            </div>
+          )}
           <div className="flex gap-2">
             <Textarea
               value={inputMessage}
@@ -257,7 +292,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
             />
             <Button
               onClick={handleSend}
-              disabled={!inputMessage.trim()}
+              disabled={!inputMessage.trim() || isThinking}
               className="self-end"
             >
               Send
