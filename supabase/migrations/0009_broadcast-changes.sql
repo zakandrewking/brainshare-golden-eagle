@@ -15,9 +15,10 @@ CREATE OR REPLACE FUNCTION public.broadcast_chat_changes()
     LANGUAGE plpgsql
     AS $$
 BEGIN
-    RAISE LOG 'broadcast_chat_changes triggered: %', 'chat:' || NEW.chat_id;
-    PERFORM
-        realtime.broadcast_changes('chat:' || NEW.chat_id, TG_OP, TG_OP, TG_TABLE_NAME, TG_TABLE_SCHEMA, NEW, OLD);
+    IF(NEW.status = 'streaming' OR OLD.status = 'streaming') THEN
+        PERFORM
+            realtime.broadcast_changes('chat:' || NEW.chat_id, TG_OP, TG_OP, TG_TABLE_NAME, TG_TABLE_SCHEMA, NEW, OLD);
+    END IF;
     RETURN NULL;
 END;
 $$;
@@ -25,7 +26,6 @@ $$;
 CREATE OR REPLACE TRIGGER handle_chat_changes
     AFTER INSERT OR UPDATE ON public.message
     FOR EACH ROW
-    WHEN(NEW.status = 'streaming')
     EXECUTE FUNCTION broadcast_chat_changes();
 
 -- For the future, here's how to push:

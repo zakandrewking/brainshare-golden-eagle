@@ -35,7 +35,7 @@ export default function useChat(id: string) {
       // use if data can change
       revalidateIfStale: true,
       // use if data changes regularly
-      revalidateOnFocus: true,
+      revalidateOnFocus: false,
       revalidateOnReconnect: true,
       // use if data changes consistently & not using realtime
       refreshInterval: 0,
