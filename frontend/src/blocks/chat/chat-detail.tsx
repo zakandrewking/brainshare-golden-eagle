@@ -8,6 +8,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
+import { nanoid } from "nanoid";
 
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { Badge } from "@/components/ui/badge";
@@ -96,16 +97,36 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     data: messages,
     error: messagesError,
     isLoading: messagesLoading,
+    mutate: mutateMessages,
   } = useMessages(chatId);
 
   const handleSend = async () => {
     if (!inputMessage.trim() || !user) return;
 
+    const messageToSend = inputMessage;
+    const optimisticMessage = {
+      id: `optimistic-${nanoid()}`,
+      chat_id: chatId,
+      role: "user",
+      content: messageToSend,
+      created_at: new Date().toISOString(),
+    };
+
+    await mutateMessages(
+      (prev) => (prev ? [...prev, optimisticMessage] : [optimisticMessage]),
+      false
+    );
+
+    setInputMessage("");
+
     try {
-      await callChat(chatId, inputMessage);
-      setInputMessage("");
+      await callChat(chatId, messageToSend);
+      await mutateMessages();
     } catch {
-      // the action will log errors
+      await mutateMessages(
+        (prev) => (prev ? prev.filter((m) => m.id !== optimisticMessage.id) : []),
+        false
+      );
       toast.error("Failed to get response from AI");
     }
   };
