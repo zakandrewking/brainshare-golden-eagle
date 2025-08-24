@@ -1,7 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
-import { z } from "zod";
-import { tool } from "@langchain/core/tools";
 import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
+import { createCalculatorTool } from "@/inngest/tools/calculator-tool";
 
 import { inngest } from "@/inngest/client";
 import { defaultModel } from "@/llm-config";
@@ -47,29 +46,7 @@ export const newChat = inngest.createFunction(
     );
 
     const full = await step.run("process-chat", async () => {
-      const calculator = tool({
-        name: "calculator",
-        description:
-          "Evaluate simple arithmetic expressions using +, -, *, /, and parentheses. Return only the numeric result.",
-        schema: z.object({ expression: z.string() }),
-        func: async ({ expression }) => {
-          const trimmed = String(expression ?? "");
-          const sanitized = trimmed.replace(/\s+/g, "");
-          if (!/^[0-9+\-*/().]+$/.test(sanitized)) {
-            throw new Error("Invalid expression");
-          }
-          let result: unknown;
-          try {
-            result = Function(`"use strict"; return (${sanitized})`)();
-          } catch (e) {
-            throw new Error("Invalid expression");
-          }
-          if (typeof result !== "number" || !isFinite(result)) {
-            throw new Error("Invalid result");
-          }
-          return String(result);
-        },
-      });
+      const calculator = createCalculatorTool();
 
       const THROTTLE_MS = 500;
       let lastUpdateTime = 0;
@@ -91,12 +68,20 @@ export const newChat = inngest.createFunction(
 
       if (Array.isArray(firstResponse.tool_calls) && firstResponse.tool_calls.length > 0) {
         messages.push(firstResponse);
+        const toCalculatorArgs = (input: unknown): { expression: string } => {
+          if (typeof input === "string") return { expression: input };
+          if (input && typeof input === "object") {
+            const maybe = (input as { expression?: unknown }).expression;
+            if (typeof maybe === "string") return { expression: maybe };
+          }
+          return { expression: String(input ?? "") };
+        };
         for (const call of firstResponse.tool_calls) {
           try {
-            const result = await calculator.invoke(call.args as unknown);
-            messages.push(new ToolMessage({ content: String(result), tool_call_id: call.id }));
-          } catch (e) {
-            messages.push(new ToolMessage({ content: "Error", tool_call_id: call.id }));
+            const result = await calculator.invoke(toCalculatorArgs(call.args));
+            messages.push(new ToolMessage({ content: String(result), tool_call_id: String(call.id) }));
+          } catch {
+            messages.push(new ToolMessage({ content: "Error", tool_call_id: String(call.id) }));
           }
         }
 
