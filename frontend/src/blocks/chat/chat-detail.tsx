@@ -1,22 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
+import { nanoid } from "nanoid";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
-import { nanoid } from "nanoid";
 
 import SomethingWentWrong from "@/components/something-went-wrong";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DelayedLoadingSpinner } from "@/components/ui/loading";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import useIsSSR from "@/hooks/use-is-ssr";
-import { defaultModel } from "@/llm-config";
 import { useUser } from "@/utils/supabase/client";
 
 import { callChat } from "./actions/call-chat";
@@ -57,7 +60,6 @@ const CustomParagraph = ({
   children,
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) => {
-  // Check if the paragraph contains only a code block
   const hasOnlyCodeBlock =
     React.Children.count(children) === 1 &&
     React.Children.toArray(children).every(
@@ -71,7 +73,6 @@ const CustomParagraph = ({
             child.props.className.includes("language-")))
     );
 
-  // If paragraph contains only a code block, render without <p> wrapper
   if (hasOnlyCodeBlock) {
     return <>{children}</>;
   }
@@ -100,6 +101,12 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     mutate: mutateMessages,
   } = useMessages(chatId);
 
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, streamingMessages]);
+
   const handleSend = async () => {
     if (!inputMessage.trim() || !user) return;
 
@@ -124,7 +131,8 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       await mutateMessages();
     } catch {
       await mutateMessages(
-        (prev) => (prev ? prev.filter((m) => m.id !== optimisticMessage.id) : []),
+        (prev) =>
+          prev ? prev.filter((m) => m.id !== optimisticMessage.id) : [],
         false
       );
       toast.error("Failed to get response from AI");
@@ -136,8 +144,8 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
   if (chatError || messagesError || !chat) return <SomethingWentWrong />;
 
   return (
-    <div className="w-full">
-      <div className="mb-6">
+    <div className="w-full flex flex-col h-[calc(100vh-6rem)] overflow-hidden">
+      <div className="mb-4">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold">{chat.title}</h1>
@@ -151,66 +159,54 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
         </div>
       </div>
 
-      <div className="mb-6 p-4 border rounded-md bg-muted/50">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium">AI Chat</h3>
-          <Badge variant="secondary" className="text-xs">
-            {defaultModel}
-          </Badge>
-        </div>
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full pr-2">
+          <div className="space-y-4">
+            {messages && messages.length > 0 ? (
+              messages
+                .sort(
+                  (a, b) =>
+                    new Date(a.created_at).getTime() -
+                    new Date(b.created_at).getTime()
+                )
+                .map((message) => (
+                  <div key={message.id} className="p-4 border rounded-md">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+                        {message.role === "user" ? "U" : "A"}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-muted-foreground mb-1">
+                          {message.role === "user" ? "You" : "Assistant"}
+                        </p>
+                        <div className="whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              code: CodeBlock,
+                              p: CustomParagraph,
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+            ) : (
+              <></>
+            )}
 
-        <div className="flex gap-2 mb-2">
-          <Textarea
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Enter your message..."
-            className="flex-1"
-            rows={2}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!inputMessage.trim()}
-            className="self-end"
-          >
-            Send
-          </Button>
-        </div>
-
-        {streamingMessages.length > 0 && (
-          <div className="mt-4">
-            <h3 className="text-sm font-medium mb-2">AI Response:</h3>
-            <div className="w-full min-h-[200px] p-3 border rounded-md bg-background font-mono text-sm prose prose-sm max-w-none dark:prose-invert">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code: CodeBlock,
-                  p: CustomParagraph,
-                }}
-              >
-                {streamingMessages.map((message) => message.content).join("\n")}
-              </ReactMarkdown>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-4">
-        {messages && messages.length > 0 ? (
-          messages
-            .sort(
-              (a, b) =>
-                new Date(a.created_at).getTime() -
-                new Date(b.created_at).getTime()
-            )
-            .map((message) => (
-              <div key={message.id} className="p-4 border rounded-md">
+            {streamingMessages.length > 0 && (
+              <div className="p-4 border rounded-md">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                    {message.role === "user" ? "U" : "A"}
+                    A
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground mb-1">
-                      {message.role === "user" ? "You" : "Assistant"}
+                      Assistant
                     </p>
                     <div className="whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert">
                       <ReactMarkdown
@@ -220,16 +216,40 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
                           p: CustomParagraph,
                         }}
                       >
-                        {message.content}
+                        {streamingMessages
+                          .map((message) => message.content)
+                          .join("\n")}
                       </ReactMarkdown>
                     </div>
                   </div>
                 </div>
               </div>
-            ))
-        ) : (
-          <></>
-        )}
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </ScrollArea>
+      </div>
+
+      <div className="bg-background border-t">
+        <div className="p-4">
+          <div className="flex gap-2">
+            <Textarea
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Enter your message..."
+              className="flex-1 resize-none"
+              rows={2}
+            />
+            <Button
+              onClick={handleSend}
+              disabled={!inputMessage.trim()}
+              className="self-end"
+            >
+              Send
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
