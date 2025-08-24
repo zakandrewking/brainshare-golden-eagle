@@ -80,6 +80,25 @@ const CustomParagraph = ({
   return <p {...props}>{children}</p>;
 };
 
+function hasAssistantStreaming(messages: unknown): boolean {
+  if (!Array.isArray(messages)) return false;
+  for (const m of messages) {
+    if (typeof m !== "object" || m === null) continue;
+    const rec = m as Record<string, unknown>;
+    const role = rec.role;
+    const status = rec.status;
+    if (
+      typeof role === "string" &&
+      typeof status === "string" &&
+      role === "assistant" &&
+      status === "streaming"
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export default function ChatDetail({ chatId }: ChatDetailProps) {
   const isSSR = useIsSSR();
   const user = useUser();
@@ -108,9 +127,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingMessages, forceThinking]);
 
-  const serverStreaming = Boolean(
-    messages?.some((m: any) => m.role === "assistant" && m.status === "streaming")
-  );
+  const serverStreaming = hasAssistantStreaming(messages);
   const isThinking = forceThinking || serverStreaming;
 
   useEffect(() => {
