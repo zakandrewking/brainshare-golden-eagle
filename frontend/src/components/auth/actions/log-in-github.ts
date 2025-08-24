@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/utils/supabase/server";
 
-const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
+function getBaseUrl() {
+  const vercel = process.env.NEXT_PUBLIC_VERCEL_URL;
+  if (vercel) return `https://${vercel}`;
+  return process.env.NEXT_PUBLIC_FRONTEND_URL;
+}
 
 export async function logInGithub(
   prevState: { error?: string },
@@ -13,6 +17,7 @@ export async function logInGithub(
   const supabase = await createClient();
 
   const redirectCode = formData.get("redirectCode");
+  const baseUrl = getBaseUrl();
   const redirectTo =
     redirectCode && redirectCode !== ""
       ? `${baseUrl}/auth/callback?redirectCode=${redirectCode}`

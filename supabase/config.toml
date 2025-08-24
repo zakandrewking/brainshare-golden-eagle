@@ -109,6 +109,7 @@ site_url = "https://brainshare.io"
 additional_redirect_urls = [
     "http://localhost:3000/auth/callback*",
     "https://brainshare.io/auth/callback*",
+    "https://*-zakandrewkings-projects.vercel.app/auth/callback*",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
