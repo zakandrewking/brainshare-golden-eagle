@@ -5,9 +5,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 
 function getBaseUrl() {
-  const vercel = process.env.NEXT_PUBLIC_VERCEL_URL;
+  const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
+  if (baseUrl) return baseUrl;
+  const vercel = process.env.NEXT_PUBLIC_VERCEL_BRANCH_URL;
   if (vercel) return `https://${vercel}`;
-  return process.env.NEXT_PUBLIC_FRONTEND_URL;
+  throw new Error("No base URL found");
 }
 
 export async function logInGithub(
@@ -31,6 +33,5 @@ export async function logInGithub(
   if (error) {
     return { error: error.message };
   }
-
   redirect(data.url);
 }
