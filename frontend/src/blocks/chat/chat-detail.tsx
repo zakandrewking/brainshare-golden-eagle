@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { Button } from "@/components/ui/button";
-import { DelayedLoadingSpinner } from "@/components/ui/loading";
+import { DelayedLoadingSpinner, LoadingSpinner } from "@/components/ui/loading";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import useIsSSR from "@/hooks/use-is-ssr";
@@ -87,6 +87,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     { id: string; content: string }[]
   >([]);
   const [inputMessage, setInputMessage] = useState("Hello, how are you?");
+  const [forceThinking, setForceThinking] = useState(false);
 
   const {
     data: chat,
@@ -105,7 +106,16 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingMessages]);
+  }, [messages, streamingMessages, forceThinking]);
+
+  const serverStreaming = Boolean(
+    messages?.some((m: any) => m.role === "assistant" && m.status === "streaming")
+  );
+  const isThinking = forceThinking || serverStreaming;
+
+  useEffect(() => {
+    if (serverStreaming) setForceThinking(false);
+  }, [serverStreaming]);
 
   const handleSend = async () => {
     if (!inputMessage.trim() || !user) return;
@@ -119,6 +129,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       created_at: new Date().toISOString(),
     };
 
+    setForceThinking(true);
     await mutateMessages(
       (prev) => (prev ? [...prev, optimisticMessage] : [optimisticMessage]),
       false
@@ -130,6 +141,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       await callChat(chatId, messageToSend);
       await mutateMessages();
     } catch {
+      setForceThinking(false);
       await mutateMessages(
         (prev) =>
           prev ? prev.filter((m) => m.id !== optimisticMessage.id) : [],
@@ -233,6 +245,12 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
 
       <div className="bg-background border-t">
         <div className="p-4">
+          {isThinking && (
+            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+              <LoadingSpinner className="w-4 h-4" />
+              <span className="text-sm">Thinking…</span>
+            </div>
+          )}
           <div className="flex gap-2">
             <Textarea
               value={inputMessage}
@@ -243,7 +261,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
             />
             <Button
               onClick={handleSend}
-              disabled={!inputMessage.trim()}
+              disabled={!inputMessage.trim() || isThinking}
               className="self-end"
             >
               Send
