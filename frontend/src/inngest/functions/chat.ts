@@ -47,6 +47,44 @@ export const newChat = inngest.createFunction(
       const THROTTLE_MS = 500;
       let lastUpdateTime = 0;
       let full = "";
+
+      const normalized = message.trim().toLowerCase();
+      const isListDocumentsRequest =
+        /^\/list-?docs\b/.test(normalized) ||
+        /\b(list|show)\b[\s\S]*\b(livetable|live table|table)\b[\s\S]*\b(docs|documents|tables)\b/.test(
+          normalized
+        );
+
+      if (isListDocumentsRequest) {
+        const { data: documents, error } = await supabase
+          .from("document")
+          .select("id, title, type, ysweet_id, liveblocks_id")
+          .eq("type", "table")
+          .order("title", { ascending: true });
+
+        if (error) {
+          console.error(error);
+          throw new Error(
+            `Failed to list documents with error: ${error?.message}`
+          );
+        }
+
+        if (!documents || documents.length === 0) {
+          full = "You have no LiveTable documents.";
+        } else {
+          const lines = documents.map(
+            (doc) => `- ${doc.title} (/document/${doc.id})`
+          );
+          full = [
+            "Here are your LiveTable documents:",
+            "",
+            ...lines,
+          ].join("\n");
+        }
+
+        return full;
+      }
+
       const model = new ChatOpenAI({ model: defaultModel });
 
       let stream;
