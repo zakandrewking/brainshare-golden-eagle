@@ -39,6 +39,11 @@ vi.mock("@/components/live-table/actions/find-citations", () => ({
   Citation: {},
 }));
 
+vi.mock("@/components/live-table/SearchProgressIndicator", () => ({
+  SearchProgressIndicator: ({ isActive }: { isActive: boolean }) =>
+    isActive ? <div>Analyzing your selected data...</div> : null,
+}));
+
 describe("CitationFinderDialog", () => {
   const mockSelectedCells: CellPosition[] = [
     { rowIndex: 0, colIndex: 0 },
@@ -55,7 +60,7 @@ describe("CitationFinderDialog", () => {
   });
 
   afterEach(() => {
-    vi.runOnlyPendingTimers();
+    vi.clearAllTimers();
     vi.useRealTimers();
   });
 
@@ -168,7 +173,8 @@ describe("CitationFinderDialog", () => {
 
     // Advance timers to simulate the 2 second timeout
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
     });
 
     expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
@@ -195,7 +201,8 @@ describe("CitationFinderDialog", () => {
 
     // Advance timers to get citations
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
     });
 
     expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
@@ -237,7 +244,8 @@ describe("CitationFinderDialog", () => {
 
     // Advance timers to get citations
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
     });
 
     expect(screen.getByText("Example Citation 1")).toBeInTheDocument();
@@ -330,7 +338,8 @@ describe("CitationFinderDialog", () => {
 
     // Advance timers to get citations
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
     });
 
     expect(screen.getByText("Example Citation 1")).toBeInTheDocument();

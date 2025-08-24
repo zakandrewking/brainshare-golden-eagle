@@ -107,6 +107,10 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
   >([]);
   const [inputMessage, setInputMessage] = useState("Hello, how are you?");
   const [forceThinking, setForceThinking] = useState(false);
+  const isMac =
+    typeof window !== "undefined" &&
+    (/Mac|iPod|iPhone|iPad/.test(navigator.platform) ||
+      /Macintosh/.test(navigator.userAgent));
 
   const {
     data: chat,
@@ -165,6 +169,15 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
         false
       );
       toast.error("Failed to get response from AI");
+    }
+  };
+
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
@@ -272,6 +285,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
             <Textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Enter your message..."
               className="flex-1 resize-none"
               rows={2}
@@ -282,6 +296,9 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
               className="self-end"
             >
               Send
+              <span className="ml-2 rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
+                {isMac ? "⌘↵" : "Ctrl↵"}
+              </span>
             </Button>
           </div>
         </div>
