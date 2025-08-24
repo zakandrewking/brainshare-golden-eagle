@@ -1,4 +1,7 @@
 import { ChatOpenAI } from "@langchain/openai";
+import { z } from "zod";
+import { tool } from "@langchain/core/tools";
+import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 
 import { inngest } from "@/inngest/client";
 import { defaultModel } from "@/llm-config";
@@ -43,43 +46,90 @@ export const newChat = inngest.createFunction(
       }
     );
 
-    const full = await step.run("stream-chat", async () => {
+    const full = await step.run("process-chat", async () => {
+      const calculator = tool({
+        name: "calculator",
+        description:
+          "Evaluate simple arithmetic expressions using +, -, *, /, and parentheses. Return only the numeric result.",
+        schema: z.object({ expression: z.string() }),
+        func: async ({ expression }) => {
+          const trimmed = String(expression ?? "");
+          const sanitized = trimmed.replace(/\s+/g, "");
+          if (!/^[0-9+\-*/().]+$/.test(sanitized)) {
+            throw new Error("Invalid expression");
+          }
+          let result: unknown;
+          try {
+            result = Function(`"use strict"; return (${sanitized})`)();
+          } catch (e) {
+            throw new Error("Invalid expression");
+          }
+          if (typeof result !== "number" || !isFinite(result)) {
+            throw new Error("Invalid result");
+          }
+          return String(result);
+        },
+      });
+
       const THROTTLE_MS = 500;
       let lastUpdateTime = 0;
       let full = "";
-      const model = new ChatOpenAI({ model: defaultModel });
+      const baseModel = new ChatOpenAI({ model: defaultModel });
+      const model = baseModel.bindTools([calculator]);
 
-      let stream;
+      const messages: (HumanMessage | AIMessage | ToolMessage)[] = [
+        new HumanMessage(message),
+      ];
+
+      let firstResponse: AIMessage;
       try {
-        stream = await model.stream(message);
+        firstResponse = await model.invoke(messages);
       } catch (error) {
         console.error(error);
         throw new Error(`Failed to process chat request with error: ${error}`);
       }
 
-      for await (const chunk of stream) {
-        const delta = String(chunk.content);
-        if (!delta) continue;
-        full += delta;
-
-        const now = Date.now();
-        if (now - lastUpdateTime >= THROTTLE_MS) {
-          const { error } = await supabase
-            .from("message")
-            .update({ content: full })
-            .eq("id", assistantRow.id);
-
-          if (error) {
-            console.warn(
-              `Failed to update message with ID ${assistantRow.id} with error: ${error?.message}`
-            );
+      if (Array.isArray(firstResponse.tool_calls) && firstResponse.tool_calls.length > 0) {
+        messages.push(firstResponse);
+        for (const call of firstResponse.tool_calls) {
+          try {
+            const result = await calculator.invoke(call.args as unknown);
+            messages.push(new ToolMessage({ content: String(result), tool_call_id: call.id }));
+          } catch (e) {
+            messages.push(new ToolMessage({ content: "Error", tool_call_id: call.id }));
           }
-
-          lastUpdateTime = now;
         }
-      }
 
-      return full;
+        let stream;
+        try {
+          stream = await model.stream(messages);
+        } catch (error) {
+          console.error(error);
+          throw new Error(`Failed to process chat request with error: ${error}`);
+        }
+
+        for await (const chunk of stream) {
+          const delta = String(chunk.content ?? "");
+          if (!delta) continue;
+          full += delta;
+          const now = Date.now();
+          if (now - lastUpdateTime >= THROTTLE_MS) {
+            const { error } = await supabase
+              .from("message")
+              .update({ content: full })
+              .eq("id", assistantRow.id);
+            if (error) {
+              console.warn(
+                `Failed to update message with ID ${assistantRow.id} with error: ${error?.message}`
+              );
+            }
+            lastUpdateTime = now;
+          }
+        }
+        return full;
+      } else {
+        return String(firstResponse.content ?? "");
+      }
     });
 
     await step.run("finalize-message", async () => {
