@@ -13,6 +13,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
+import { ArrowDown } from "lucide-react";
 
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { Button } from "@/components/ui/button";
@@ -126,10 +127,28 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
   } = useMessages(chatId);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingMessages, forceThinking]);
+    const el = viewportRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setIsPinnedToBottom(distanceFromBottom < 16);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => {
+      el.removeEventListener("scroll", onScroll as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isPinnedToBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, streamingMessages, forceThinking, isPinnedToBottom]);
 
   const serverStreaming = hasAssistantStreaming(messages);
   const isThinking = forceThinking || serverStreaming;
@@ -201,8 +220,8 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-2">
+      <div className="flex-1 overflow-hidden relative">
+        <ScrollArea className="h-full pr-2" viewportRef={viewportRef}>
           <div className="space-y-4">
             {messages && messages.length > 0 ? (
               messages
@@ -271,6 +290,18 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
             <div ref={bottomRef} />
           </div>
         </ScrollArea>
+        {!isPinnedToBottom && (
+          <Button
+            size="sm"
+            className="absolute bottom-4 right-6 shadow-md"
+            onClick={() => {
+              bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            <ArrowDown className="mr-2 h-4 w-4" />
+            Jump to latest
+          </Button>
+        )}
       </div>
 
       <div className="bg-background border-t">
