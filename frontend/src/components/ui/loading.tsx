@@ -53,3 +53,19 @@ export function DelayedLoadingSpinner({
     />
   );
 }
+
+export function TypingDots({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5",
+        className
+      )}
+      aria-label="typing"
+    >
+      <span className="animate-pulse">.</span>
+      <span className="animate-pulse [animation-delay:150ms]">.</span>
+      <span className="animate-pulse [animation-delay:300ms]">.</span>
+    </span>
+  );
+}
