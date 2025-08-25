@@ -12,8 +12,8 @@ export interface NewChatEventData {
 }
 
 export const newChat = inngest.createFunction(
-  { id: "new-chat" },
-  { event: "chat/new" },
+  { id: "process-message" },
+  { event: "message.created" },
   async ({ event, step }) => {
     const { chatId, message, supabaseAccessToken } = event.data;
     const supabase = await createClientWithToken(supabaseAccessToken);

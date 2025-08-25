@@ -1,6 +1,6 @@
 import { EventSchemas, Inngest } from "inngest";
 
-type NewChatEvent = {
+type MessageCreatedEvent = {
   data: {
     chatId: string;
     message: string;
@@ -9,11 +9,11 @@ type NewChatEvent = {
   };
 };
 type Events = {
-  "chat/new": NewChatEvent;
+  "message.created": MessageCreatedEvent;
 };
 
 export const inngest = new Inngest({
-  id: "chat-app",
+  id: "brainshare",
   // Inngest realtime doesn't work for streaming yet as far as I can tell. Each
   // `publish()` call creates a new `step`, which would start a brand new stream
   // if we did it outside of another step. We'll stick with supabase realtime.

@@ -38,7 +38,7 @@ export async function callChat(chatId: string, message: string) {
   try {
     console.log("sending to inngest");
     await inngest.send({
-      name: "chat/new",
+      name: "message.created",
       data: {
         chatId,
         supabaseAccessToken: session.access_token,
