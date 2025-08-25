@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 import SomethingWentWrong from "@/components/something-went-wrong";
 import { Button } from "@/components/ui/button";
-import { DelayedLoadingSpinner, LoadingSpinner } from "@/components/ui/loading";
+import { DelayedLoadingSpinner, TypingDots } from "@/components/ui/loading";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import useIsSSR from "@/hooks/use-is-ssr";
@@ -277,8 +277,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
         <div className="p-4">
           {isThinking && (
             <div className="flex items-center gap-2 text-muted-foreground mb-2">
-              <LoadingSpinner className="w-4 h-4" />
-              <span className="text-sm">Thinking…</span>
+              <TypingDots className="text-sm" />
             </div>
           )}
           <div className="flex gap-2">
