@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { toast } from "sonner";
 import useSWR from "swr";
 
 import { RealtimeChannel } from "@supabase/supabase-js";
@@ -68,7 +69,12 @@ export default function useMessages(chatId: string) {
           );
         })
         .subscribe((_status, err) => {
-          if (err) console.error(err);
+          if (err) {
+            console.error(err);
+            toast.error("Failed to subscribe to chat: " + err.message);
+          } else {
+            toast.success("Subscribed to chat");
+          }
         });
       setMyChannel(myChannel);
     },
