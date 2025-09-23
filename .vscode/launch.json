@@ -2,27 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Frontend",
-      "type": "chrome",
-      "request": "launch",
-      "url": "http://localhost:3000",
-      // brew install homebrew/cask-versions/google-chrome@beta
-      "runtimeExecutable": "beta",
-      "preLaunchTask": "[npm] dev",
-      "sourceMaps": true,
-      "webRoot": "${workspaceFolder}/frontend",
-      "skipFiles": [
-        "<node_internals>/**",
-        "${workspaceFolder}/node_modules/**/*.js"
-      ]
-    },
-    {
-      "name": "Frontend (prod db)",
+      "name": "[Frontend] Chrome",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000/",
       "runtimeExecutable": "beta",
-      "preLaunchTask": "[npm] dev (prod db)",
       "sourceMaps": true,
       "webRoot": "${workspaceFolder}/frontend",
       "skipFiles": [
@@ -31,13 +15,35 @@
       ]
     },
     {
-      "name": "Backend",
-      "type": "go",
+      "name": "[Frontend] Debug server",
+      "type": "node",
       "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/backend/server.go",
-      "cwd": "${workspaceFolder}/backend",
-      "envFile": "${workspaceFolder}/backend/.env"
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "[Frontend] Debug server (prod db)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "envFile": "${workspaceFolder}/.env.production"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug All",
+      "configurations": ["[Frontend] Debug server", "[Frontend] Chrome"]
+    },
+    {
+      "name": "Debug All (prod db)",
+      "configurations": [
+        "[Frontend] Debug server (prod db)",
+        "[Frontend] Chrome"
+      ]
     }
   ]
 }

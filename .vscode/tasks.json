@@ -43,59 +43,5 @@
         "cwd": "${workspaceFolder}/frontend"
       }
     },
-    {
-      "type": "npm",
-      "script": "dev",
-      "label": "[npm] dev",
-      "isBackground": true,
-      "options": {
-        "cwd": "${workspaceFolder}/frontend"
-      },
-      "problemMatcher": [
-        {
-          "owner": "background",
-          "pattern": [
-            {
-              "kind": "file",
-              "regexp": "^(.*)$",
-              "file": 1,
-              "message": 1
-            }
-          ],
-          "background": {
-            "activeOnStart": true,
-            "beginsPattern": "^.*$",
-            "endsPattern": "^.*$"
-          }
-        }
       ]
-    },
-    {
-      "type": "shell",
-      "command": "npx env-cmd -f .env.production npm run dev",
-      "label": "[npm] dev (prod db)",
-      "isBackground": true,
-      "options": {
-        "cwd": "${workspaceFolder}/frontend"
-      },
-      "problemMatcher": [
-        {
-          "owner": "background",
-          "pattern": [
-            {
-              "kind": "file",
-              "regexp": "^(.*)$",
-              "file": 1,
-              "message": 1
-            }
-          ],
-          "background": {
-            "activeOnStart": true,
-            "beginsPattern": "^.*$",
-            "endsPattern": "^.*$"
-          }
-        }
-      ]
-    }
-  ]
 }
