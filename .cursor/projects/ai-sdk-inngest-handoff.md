@@ -64,7 +64,10 @@ We reuse existing `chat` and `message` tables. To support reliable handoff and s
   - `created_at` (timestamptz)
   - `updated_at` (timestamptz)
 
-### Proposed SQL (to be added under `/db/schema`)
+### Schema definition and migrations (Drizzle)
+We define all schema changes using **Drizzle** schema definitions, and generate SQL/migrations from those definitions. The following SQL is illustrative of the desired state; the authoritative source will be the Drizzle schema files, and migrations will be produced via our standard Drizzle workflow.
+
+### Illustrative SQL (desired state)
 ```sql
 -- messages: add status, metadata, handoff reference, and parent threading
 ALTER TABLE message
