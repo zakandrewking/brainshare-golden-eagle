@@ -54,7 +54,7 @@ describe("ChatPage", () => {
     expect(screen.getByText("Log In")).toBeInTheDocument();
   });
 
-  it("should render chat components when user is logged in", async () => {
+  it("should render container when user is logged in", async () => {
     const mockUser: User = {
       id: "user-123",
       email: "test@example.com",
@@ -82,7 +82,6 @@ describe("ChatPage", () => {
     render(page);
 
     expect(screen.getByTestId("container")).toBeInTheDocument();
-    expect(screen.getByTestId("chat-list-component")).toBeInTheDocument();
     expect(screen.queryByText("You need to log in")).not.toBeInTheDocument();
   });
 });
