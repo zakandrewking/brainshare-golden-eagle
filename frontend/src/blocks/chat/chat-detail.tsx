@@ -22,7 +22,8 @@ import { Textarea } from "@/components/ui/textarea";
 import useIsSSR from "@/hooks/use-is-ssr";
 import { useUser } from "@/utils/supabase/client";
 
-import { callChat } from "./actions/call-chat";
+import { useChat as useAiChat } from "ai/react";
+import { saveAssistantMessage, saveUserMessage } from "./logic/save-message";
 import useChat from "./logic/use-chat";
 import useMessages from "./logic/use-messages";
 
@@ -138,9 +139,26 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     if (serverStreaming) setForceThinking(false);
   }, [serverStreaming]);
 
+  const { append, isLoading: aiLoading, messages: aiMessages } = useAiChat({
+    api: "/api/chat",
+    id: chatId,
+    async onFinish(message) {
+      try {
+        await saveAssistantMessage(chatId, message.content);
+        await mutateMessages();
+      } catch {
+        toast.error("Failed to save assistant message");
+      }
+      setForceThinking(false);
+    },
+    onError() {
+      setForceThinking(false);
+      toast.error("Failed to get response from AI");
+    },
+  });
+
   const handleSend = async () => {
     if (!inputMessage.trim() || !user) return;
-
     const messageToSend = inputMessage;
     const optimisticMessage = {
       id: `optimistic-${nanoid()}`,
@@ -149,18 +167,15 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       content: messageToSend,
       created_at: new Date().toISOString(),
     };
-
     setForceThinking(true);
     await mutateMessages(
       (prev) => (prev ? [...prev, optimisticMessage] : [optimisticMessage]),
       false
     );
-
     setInputMessage("");
-
     try {
-      await callChat(chatId, messageToSend);
-      await mutateMessages();
+      await saveUserMessage(chatId, messageToSend);
+      append({ role: "user", content: messageToSend });
     } catch {
       setForceThinking(false);
       await mutateMessages(
@@ -168,7 +183,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
           prev ? prev.filter((m) => m.id !== optimisticMessage.id) : [],
         false
       );
-      toast.error("Failed to get response from AI");
+      toast.error("Failed to send message");
     }
   };
 
@@ -240,7 +255,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
               <></>
             )}
 
-            {streamingMessages.length > 0 && (
+            {aiLoading && aiMessages && aiMessages.length > 0 && (
               <div className="p-4 border rounded-md">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
@@ -258,9 +273,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
                           p: CustomParagraph,
                         }}
                       >
-                        {streamingMessages
-                          .map((message) => message.content)
-                          .join("\n")}
+                        {aiMessages.filter((m) => m.role === "assistant").pop()?.content || ""}
                       </ReactMarkdown>
                     </div>
                   </div>
