@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { convertToCoreMessages, smoothStream, streamText } from "ai";
+import { convertToCoreMessages, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 import { defaultModel } from "@/llm-config";
@@ -36,12 +36,7 @@ export async function POST(request: Request) {
       temperature: 0.2,
     });
 
-    return result.toDataStreamResponse({
-      stream: smoothStream(),
-      headers: {
-        "Cache-Control": "no-cache",
-      },
-    });
+    return result.toDataStreamResponse({ headers: { "Cache-Control": "no-cache" } });
   } catch (err) {
     console.error(err);
     return NextResponse.json(
