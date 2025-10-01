@@ -7,15 +7,6 @@ import { Session, User } from "@supabase/supabase-js";
 
 import { Database } from "@/database.types";
 
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const apiUrl = process.env.NEXT_PUBLIC_SUPABASE_API_URL;
-if (!anonKey) {
-  throw Error("Missing environment variable NEXT_PUBLIC_SUPABASE_ANON_KEY");
-}
-if (!apiUrl) {
-  throw Error("Missing environment variable NEXT_PUBLIC_SUPABASE_API_URL");
-}
-
 /**
  * Supabase client for server components.
  *
@@ -30,6 +21,14 @@ if (!apiUrl) {
  */
 export async function createClient() {
   const cookieStore = await cookies();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const apiUrl = process.env.NEXT_PUBLIC_SUPABASE_API_URL;
+  if (!anonKey) {
+    throw Error("Missing environment variable NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+  if (!apiUrl) {
+    throw Error("Missing environment variable NEXT_PUBLIC_SUPABASE_API_URL");
+  }
 
   const supabase = createServerClient<Database>(apiUrl!, anonKey!, {
     cookies: {
@@ -54,6 +53,14 @@ export async function createClient() {
 }
 
 export async function createClientWithToken(token: string) {
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const apiUrl = process.env.NEXT_PUBLIC_SUPABASE_API_URL;
+  if (!anonKey) {
+    throw Error("Missing environment variable NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+  if (!apiUrl) {
+    throw Error("Missing environment variable NEXT_PUBLIC_SUPABASE_API_URL");
+  }
   const supabase = createServerClient<Database>(apiUrl!, anonKey!, {
     auth: {
       persistSession: false,

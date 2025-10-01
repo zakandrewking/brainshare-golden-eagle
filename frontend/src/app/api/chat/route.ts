@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { convertToCoreMessages, streamText } from "ai";
+import { convertToCoreMessages, streamText, type Message } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 import { defaultModel } from "@/llm-config";
@@ -30,10 +30,17 @@ export async function POST(request: Request) {
   }
 
   try {
-    const uiMessages = messages as Array<{
-      role: "user" | "assistant" | "system" | "tool";
-      content: string;
-    }>;
+    const uiMessages = (messages as Array<Record<string, unknown>>)
+      .map((m) => {
+        const role = String(m.role);
+        const content = String(m.content ?? "");
+        if (role === "tool") return { role: "assistant", content } satisfies Omit<Message, "id">;
+        if (role === "system" || role === "user" || role === "assistant")
+          return { role, content } as Omit<Message, "id">;
+        if (role === "data") return { role: "data", content } as Omit<Message, "id">;
+        return null;
+      })
+      .filter((m): m is Omit<Message, "id"> => m !== null);
     const result = await streamText({
       model: openai(defaultModel),
       messages: convertToCoreMessages(uiMessages),
