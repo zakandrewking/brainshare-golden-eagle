@@ -54,6 +54,8 @@ alwaysApply: true
 - WORKFLOW: Code → Test → Fix → Test → Complete
 - If you forget to run tests, the task is NOT complete
 
+- Verify frontend builds before completing frontend changes: run `cd frontend && npm run build`
+
 # server actions vs client logic
 
 - only use react server functions (i.e. /actions) as short-lived RPCs
