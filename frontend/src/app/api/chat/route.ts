@@ -30,9 +30,13 @@ export async function POST(request: Request) {
   }
 
   try {
+    const uiMessages = messages as Array<{
+      role: "user" | "assistant" | "system" | "tool";
+      content: string;
+    }>;
     const result = await streamText({
       model: openai(defaultModel),
-      messages: convertToCoreMessages(messages as any),
+      messages: convertToCoreMessages(uiMessages),
       temperature: 0.2,
     });
 
