@@ -110,7 +110,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
   const [streamingMessages, _setStreamingMessages] = useState<
     { id: string; content: string }[]
   >([]);
-  const [inputMessage, setInputMessage] = useState("Hello, how are you?");
+  const [inputMessage, setInputMessage] = useState("");
   const [forceThinking, setForceThinking] = useState(false);
   const isMac =
     typeof window !== "undefined" &&
