@@ -132,6 +132,13 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingMessages, forceThinking]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("lastChatId", chatId);
+    } catch {}
+  }, [chatId]);
+
   const serverStreaming = hasAssistantStreaming(messages);
   const isThinking = forceThinking || serverStreaming;
 
@@ -211,7 +218,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
             </p>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/chat">Chat History</Link>
+            <Link href="/chat/history">Chat History</Link>
           </Button>
         </div>
       </div>
