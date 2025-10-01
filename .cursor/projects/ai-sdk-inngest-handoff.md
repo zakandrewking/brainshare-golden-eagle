@@ -224,6 +224,12 @@ Steps:
 - Emit metrics for handoff rate, success rate, and average completion time.
 
 ## Rollout Plan (Phased)
+0. **Phase 0 – Minimal single tool handoff (scaffold)**
+   - Implement exactly one trivial tool (e.g., `get_time` returning server time) to validate the handoff path.
+   - Minimal code changes: wire detection of `tool_calls`, send Inngest event with idempotent `id`, insert placeholder assistant `message` with `status='queued'`.
+   - Inngest function resolves the single tool, streams a short result via Supabase, and finalizes the message.
+   - Keep existing UI; only ensure realtime updates render. No draft table yet; direct `message.content` updates with throttling.
+   - Add a feature flag (env or per-workspace) to gate the handoff path.
 1. **Phase 1 – Minimal viable handoff**
    - Detect `tool_calls`, send Inngest event, write placeholder message, finalize with a simple tool stub.
 2. **Phase 2 – Streaming refinements**
