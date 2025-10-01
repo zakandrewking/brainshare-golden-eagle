@@ -21,11 +21,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import useIsSSR from "@/hooks/use-is-ssr";
 import { useUser } from "@/utils/supabase/client";
+import { mutate as mutateSWR } from "swr";
+import type { Database } from "@/database.types";
 
 import { useChat as useAiChat } from "ai/react";
 import { saveAssistantMessage, saveUserMessage } from "./logic/save-message";
 import useChat from "./logic/use-chat";
 import useMessages from "./logic/use-messages";
+import { generateChatTitle } from "@/blocks/chat/actions/generate-chat-title";
+import updateChatTitle from "./logic/update-chat-title";
 
 interface ChatDetailProps {
   chatId: string;
@@ -146,6 +150,40 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       try {
         await saveAssistantMessage(chatId, message.content);
         await mutateMessages();
+				if (chat && chat.title === "New Chat") {
+					const lastUser = (aiMessages.filter((m) => m.role === "user").pop()?.content as string) || "";
+					try {
+						const newTitle = await generateChatTitle(lastUser, message.content);
+					await mutateSWR(
+						`/chat/${chatId}`,
+						(
+							prev:
+								| Database["public"]["Tables"]["chat"]["Row"]
+							| undefined
+						) => (prev ? { ...prev, title: newTitle } : prev),
+						false
+					);
+						await mutateSWR(
+						"/chats",
+						(
+							prev:
+								| Array<Database["public"]["Tables"]["chat"]["Row"]>
+							| undefined
+						) =>
+							Array.isArray(prev)
+								? prev.map((c) => (c.id === chatId ? { ...c, title: newTitle } : c))
+								: prev,
+							false
+						);
+						await updateChatTitle(chatId, newTitle);
+						await Promise.all([
+							mutateSWR(`/chat/${chatId}`),
+							mutateSWR("/chats"),
+						]);
+					} catch {
+						toast.error("Failed to update chat title");
+					}
+				}
       } catch {
         toast.error("Failed to save assistant message");
       }
