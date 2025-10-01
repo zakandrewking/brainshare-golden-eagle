@@ -1,12 +1,4 @@
-import { useState } from "react";
-
-import { toast } from "sonner";
 import useSWR from "swr";
-
-import { RealtimeChannel } from "@supabase/supabase-js";
-
-import { useAsyncEffect } from "@/hooks/use-async-effect";
-import { upsertReplace } from "@/utils/data";
 import { createClient } from "@/utils/supabase/client";
 
 /**
@@ -18,10 +10,13 @@ import { createClient } from "@/utils/supabase/client";
  * if (isLoading) return <DelayedLoadingSpinner />;
  * if (error || !data) return <SomethingWentWrong />;
  * return ...
+ *
+ * Realtime updates were previously handled via Supabase's realtime channels.
+ * If you need to re-enable that behavior, see
+ * `/frontend/docs/chat-realtime.md` for implementation notes.
  */
 export default function useMessages(chatId: string) {
   const supabase = createClient();
-  const [myChannel, setMyChannel] = useState<RealtimeChannel | null>(null);
 
   const { data, error, isLoading, mutate } = useSWR(
     chatId ? `/chat/${chatId}/messages` : null,
@@ -48,41 +43,6 @@ export default function useMessages(chatId: string) {
       // use if data changes consistently & not using realtime
       refreshInterval: 0,
     }
-  );
-
-  useAsyncEffect(
-    async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
-      await supabase.realtime.setAuth(session.access_token);
-      const myChannel = supabase.channel(`chat:${chatId}`, {
-        config: { private: true },
-      });
-      myChannel
-        .on("broadcast", { event: "UPDATE" }, (eventPayload) => {
-          const newRecord = eventPayload.payload.record;
-          mutate(
-            (data) => (data ? upsertReplace(data, newRecord) : [newRecord]),
-            false
-          );
-        })
-        .subscribe((_status, err) => {
-          if (err) {
-            console.error(err);
-            toast.error("Failed to subscribe to chat: " + err.message);
-          } else {
-            toast.success("Subscribed to chat");
-          }
-        });
-      setMyChannel(myChannel);
-    },
-    async () => {
-      myChannel?.unsubscribe();
-      setMyChannel(null);
-    },
-    [supabase]
   );
 
   return { data, error, isLoading, mutate };
