@@ -8,8 +8,20 @@ type MessageCreatedEvent = {
     userId: string;
   };
 };
+
+type ToolHandoffEvent = {
+  data: {
+    chatId: string;
+    rootMessageId: string;
+    supabaseAccessToken: string;
+    userId: string;
+    handoffEventId: string;
+  };
+};
+
 type Events = {
   "message.created": MessageCreatedEvent;
+  "chat/tool_handoff": ToolHandoffEvent;
 };
 
 export const inngest = new Inngest({

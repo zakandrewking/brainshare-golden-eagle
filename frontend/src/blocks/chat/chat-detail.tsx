@@ -150,13 +150,17 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     if (serverStreaming) setForceThinking(false);
   }, [serverStreaming]);
 
+  const handoffEnabled = process.env.NEXT_PUBLIC_HANDOFF_ENABLED === "true";
+
   const { append, isLoading: aiLoading, messages: aiMessages } = useAiChat({
     api: "/api/chat",
     id: chatId,
     async onFinish(message) {
       try {
-        await saveAssistantMessage(chatId, message.content);
-        await mutateMessages();
+        if (!handoffEnabled) {
+          await saveAssistantMessage(chatId, message.content);
+          await mutateMessages();
+        }
 				if (chat && chat.title === "New Chat") {
 					const lastUser = (aiMessages.filter((m) => m.role === "user").pop()?.content as string) || "";
 					try {

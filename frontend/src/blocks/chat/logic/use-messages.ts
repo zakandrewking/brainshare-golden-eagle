@@ -41,7 +41,7 @@ export default function useMessages(chatId: string) {
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
       // use if data changes consistently & not using realtime
-      refreshInterval: 0,
+      refreshInterval: process.env.NEXT_PUBLIC_HANDOFF_ENABLED === "true" ? 1000 : 0,
     }
   );
 

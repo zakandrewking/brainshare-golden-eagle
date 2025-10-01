@@ -21,12 +21,7 @@ export async function callChat(chatId: string, message: string) {
 
   const { error: messageError } = await supabase
     .from("message")
-    .insert({
-      chat_id: chatId,
-      role: "user",
-      content: message,
-      status: "complete",
-    })
+    .insert({ chat_id: chatId, role: "user", content: message, status: "complete" })
     .select()
     .single();
 
