@@ -3,54 +3,50 @@
  * We're not using it now, but it might be useful in the future.
  */
 
-import { NextRequest, NextResponse } from "next/server";
-
-import { ChatOpenAI } from "@langchain/openai";
+import { NextResponse } from "next/server";
+import { convertToCoreMessages, smoothStream, streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
 
 import { defaultModel } from "@/llm-config";
 import { getUser } from "@/utils/supabase/server";
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   const { user } = await getUser();
-
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { message } = await request.json();
-
-  const model = new ChatOpenAI({ model: defaultModel });
-
-  let aiStream;
+  let body: unknown;
   try {
-    aiStream = await model.stream(message);
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  const bodyRecord = body as Record<string, unknown>;
+  const messages = bodyRecord.messages as unknown[] | undefined;
+  if (!Array.isArray(messages)) {
+    return NextResponse.json({ error: "Missing messages" }, { status: 400 });
+  }
+
+  try {
+    const result = await streamText({
+      model: openai(defaultModel),
+      messages: convertToCoreMessages(messages as any),
+      temperature: 0.2,
+    });
+
+    return result.toDataStreamResponse({
+      stream: smoothStream(),
+      headers: {
+        "Cache-Control": "no-cache",
+      },
+    });
   } catch (err) {
-    console.error("Chat API error:", err);
+    console.error(err);
     return NextResponse.json(
       { error: "Failed to process chat request" },
       { status: 500 }
     );
   }
-
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      try {
-        for await (const chunk of aiStream) {
-          const text = String(chunk.content);
-          controller.enqueue(encoder.encode(text));
-        }
-        controller.close();
-      } catch (err) {
-        controller.error(err);
-      }
-    },
-  });
-
-  return new NextResponse(stream, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache",
-    },
-  });
 }
