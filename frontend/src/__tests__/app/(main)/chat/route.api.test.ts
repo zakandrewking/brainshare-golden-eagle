@@ -7,7 +7,7 @@ vi.mock("@/utils/supabase/server", () => {
   const insertMock = vi.fn().mockReturnValue({ select: selectMock });
   const fromMock = vi.fn().mockReturnValue({ insert: insertMock });
   const getSessionMock = vi.fn().mockResolvedValue({ data: { session: { access_token: "token" } } });
-  const supabase = { auth: { getSession: getSessionMock }, from: fromMock } as any;
+  const supabase = { auth: { getSession: getSessionMock }, from: fromMock };
   return {
     getUser: vi.fn().mockResolvedValue({ user: { id: "user-1" }, supabase, session: { access_token: "token" } }),
     createClient: vi.fn().mockResolvedValue(supabase),
@@ -21,8 +21,8 @@ vi.mock("@/inngest/client", () => ({ inngest: { send: vi.fn().mockResolvedValue(
 vi.mock("ai", () => {
   function makeTextStream(chunks: string[]) {
     return {
-      async *[Symbol.asyncIterator]() {
-        for (const c of chunks) yield c as any;
+      async *[Symbol.asyncIterator](): AsyncGenerator<string> {
+        for (const c of chunks) yield c as string;
       },
     } as AsyncIterable<string>;
   }
@@ -31,7 +31,7 @@ vi.mock("ai", () => {
       textStream: makeTextStream(["first-chunk"]),
       toDataStreamResponse: () => new Response("ok"),
     })),
-    convertToCoreMessages: (m: any) => m,
+    convertToCoreMessages: <T>(m: T) => m,
   };
 });
 
@@ -39,7 +39,6 @@ vi.mock("@ai-sdk/openai", () => ({ openai: (m: string) => m }));
 
 import { POST } from "@/app/api/chat/route";
 import { inngest } from "@/inngest/client";
-import { createClient } from "@/utils/supabase/server";
 
 describe("/api/chat handoff decision", () => {
   beforeEach(() => { vi.clearAllMocks(); });
@@ -53,8 +52,9 @@ describe("/api/chat handoff decision", () => {
     const res = await POST(req);
     expect(res).toBeInstanceOf(Response);
     await new Promise((r) => setTimeout(r, 0));
-    expect((createClient as any).mock.calls.length).toBeGreaterThan(0);
-    expect((inngest.send as any).mock.calls.length).toBe(1);
+    type MockFn = ReturnType<typeof vi.fn>;
+    const mockedInngest = (inngest as unknown as { send: MockFn });
+    expect(mockedInngest.send).toHaveBeenCalledTimes(1);
   });
 
   it("does not handoff for non time queries", async () => {
@@ -66,6 +66,8 @@ describe("/api/chat handoff decision", () => {
     const res = await POST(req);
     expect(res).toBeInstanceOf(Response);
     await new Promise((r) => setTimeout(r, 0));
-    expect((inngest.send as any).mock.calls.length).toBe(0);
+    type MockFn = ReturnType<typeof vi.fn>;
+    const mockedInngest = (inngest as unknown as { send: MockFn });
+    expect(mockedInngest.send).not.toHaveBeenCalled();
   });
 });
