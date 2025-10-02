@@ -40,8 +40,8 @@ export default function useMessages(chatId: string) {
       // use if data changes regularly
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
-      // use if data changes consistently & not using realtime
-      refreshInterval: process.env.NEXT_PUBLIC_HANDOFF_ENABLED === "true" ? 1000 : 0,
+      // Poll at 1s to surface server-side stream updates (stage0)
+      refreshInterval: 1000,
     }
   );
 

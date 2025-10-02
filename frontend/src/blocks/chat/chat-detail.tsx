@@ -25,7 +25,7 @@ import { mutate as mutateSWR } from "swr";
 import type { Database } from "@/database.types";
 
 import { useChat as useAiChat } from "ai/react";
-import { saveAssistantMessage, saveUserMessage } from "./logic/save-message";
+import { saveUserMessage } from "./logic/save-message";
 import useChat from "./logic/use-chat";
 import useMessages from "./logic/use-messages";
 import { generateChatTitle } from "@/blocks/chat/actions/generate-chat-title";
@@ -150,17 +150,12 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     if (serverStreaming) setForceThinking(false);
   }, [serverStreaming]);
 
-  const handoffEnabled = process.env.NEXT_PUBLIC_HANDOFF_ENABLED === "true";
-
   const { append, isLoading: aiLoading, messages: aiMessages } = useAiChat({
     api: "/api/chat",
     id: chatId,
     async onFinish(message) {
       try {
-        if (!handoffEnabled) {
-          await saveAssistantMessage(chatId, message.content);
-          await mutateMessages();
-        }
+        // Handoff is always enabled; final assistant message will be persisted server-side
 				if (chat && chat.title === "New Chat") {
 					const lastUser = (aiMessages.filter((m) => m.role === "user").pop()?.content as string) || "";
 					try {

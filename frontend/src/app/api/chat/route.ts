@@ -43,58 +43,63 @@ export async function POST(request: Request) {
         return null;
       })
       .filter((m): m is Omit<Message, "id"> => m !== null);
+
+    const systemToolingPrompt = [
+      "You can request background tools which the server executes after your first reply.",
+      "If the user asks for the current time or similar, start with a brief acknowledgement like:",
+      "'Let me check the current server time…'",
+      "Do not fabricate tool results. Keep the first reply short; the final result will be appended by the server shortly.",
+    ].join("\n");
+
     const result = await streamText({
       model: openai(defaultModel),
-      messages: convertToCoreMessages(uiMessages),
+      messages: convertToCoreMessages([
+        { role: "system", content: systemToolingPrompt },
+        ...uiMessages,
+      ]),
       temperature: 0.2,
     });
 
-    // Stage0: minimal handoff scaffold behind feature flag
-    const handoffEnabled = process.env.NEXT_PUBLIC_HANDOFF_ENABLED === "true";
-    if (handoffEnabled) {
-      // Minimal: when first assistant chunk arrives, create placeholder assistant row and trigger Inngest
-      const supabase = await createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      // fire-and-forget stream tapping
-      (async () => {
-        let handoffSent = false;
-        let assistantRowId: string | null = null;
-        for await (const _chunk of result.textStream) {
-          // forward is handled by AI SDK's toDataStreamResponse; we just inspect
-          if (!handoffSent) {
-            // For stage0, always handoff once on first chunk
-            handoffSent = true;
-            // Create placeholder message row
-            const { data: row, error } = await supabase
-              .from("message")
-              .insert({ chat_id: String(bodyRecord.chatId || bodyRecord.id || ""), role: "assistant", status: "streaming", content: "" })
-              .select()
-              .single();
-            if (error || !row) {
-              console.warn("Failed to insert assistant placeholder", error);
-              continue;
-            }
-            assistantRowId = row.id;
+    // Stage0: minimal handoff scaffold always on first assistant chunk
+    const supabase = await createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    // fire-and-forget stream tapping
+    (async () => {
+      let handoffSent = false;
+      let assistantRowId: string | null = null;
+      for await (const _chunk of result.textStream) {
+        if (!handoffSent) {
+          handoffSent = true;
+          const chatId = String(bodyRecord.chatId || bodyRecord.id || "");
+          const { data: row, error } = await supabase
+            .from("message")
+            .insert({ chat_id: chatId, role: "assistant", status: "streaming", content: "" })
+            .select()
+            .single();
+          if (error || !row) {
+            console.warn("Failed to insert assistant placeholder", error);
+            continue;
+          }
+          assistantRowId = row.id;
 
-            if (session) {
-              await inngest.send({
-                name: "chat/tool_handoff",
-                data: {
-                  chatId: String(bodyRecord.chatId || bodyRecord.id || ""),
-                  rootMessageId: assistantRowId,
-                  supabaseAccessToken: session.access_token,
-                  userId: user.id,
-                  handoffEventId: row.id,
-                },
-                id: row.id,
-              });
-            }
+          if (session) {
+            await inngest.send({
+              name: "chat/tool_handoff",
+              data: {
+                chatId,
+                rootMessageId: assistantRowId,
+                supabaseAccessToken: session.access_token,
+                userId: user.id,
+                handoffEventId: row.id,
+              },
+              id: row.id,
+            });
           }
         }
-      })().catch(() => {});
-    }
+      }
+    })().catch(() => {});
 
     return result.toDataStreamResponse({ headers: { "Cache-Control": "no-cache" } });
   } catch (err) {
