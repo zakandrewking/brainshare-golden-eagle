@@ -215,6 +215,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
       role: "user",
       content: messageToSend,
       created_at: new Date().toISOString(),
+      status: "complete",
     };
     setForceThinking(true);
     await mutateMessages(

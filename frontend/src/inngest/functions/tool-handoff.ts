@@ -35,7 +35,7 @@ export const toolHandoff = inngest.createFunction(
       }
     });
 
-    await step.sleep("250ms");
+    await step.sleep("wait-a-bit", 250);
 
     const now = new Date();
     const timeString = now.toLocaleString();

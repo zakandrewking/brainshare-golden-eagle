@@ -124,6 +124,7 @@ export type Database = {
           created_at: string
           id: string
           role: string
+          status: string
         }
         Insert: {
           chat_id: string
@@ -131,6 +132,7 @@ export type Database = {
           created_at?: string
           id?: string
           role: string
+          status: string
         }
         Update: {
           chat_id?: string
@@ -138,6 +140,7 @@ export type Database = {
           created_at?: string
           id?: string
           role?: string
+          status?: string
         }
         Relationships: [
           {

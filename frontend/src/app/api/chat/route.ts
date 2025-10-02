@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       (async () => {
         let handoffSent = false;
         let assistantRowId: string | null = null;
-        for await (const chunk of result.textStream) {
+        for await (const _chunk of result.textStream) {
           // forward is handled by AI SDK's toDataStreamResponse; we just inspect
           if (!handoffSent) {
             // For stage0, always handoff once on first chunk
