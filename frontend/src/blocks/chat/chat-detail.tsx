@@ -25,7 +25,7 @@ import { mutate as mutateSWR } from "swr";
 import type { Database } from "@/database.types";
 
 import { useChat as useAiChat } from "ai/react";
-import { saveUserMessage } from "./logic/save-message";
+import { saveAssistantMessage, saveUserMessage } from "./logic/save-message";
 import useChat from "./logic/use-chat";
 import useMessages from "./logic/use-messages";
 import { generateChatTitle } from "@/blocks/chat/actions/generate-chat-title";
@@ -169,9 +169,15 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     async onFinish(message) {
       try {
         // Handoff is always enabled; final assistant message will be persisted server-side
-        toast.info("AI stream finished (client)", {
-          description: "If still thinking, waiting on server tool handoff.",
-        });
+        if (serverStreaming) {
+          toast.info("AI stream finished (client)", {
+            description: "Server handoff in progress; waiting for finalization.",
+          });
+        } else {
+          toast.message("No server handoff detected. Saving assistant locally.");
+          await saveAssistantMessage(chatId, message.content);
+          await mutateMessages();
+        }
 				if (chat && chat.title === "New Chat") {
 					const lastUser = (aiMessages.filter((m) => m.role === "user").pop()?.content as string) || "";
 					try {

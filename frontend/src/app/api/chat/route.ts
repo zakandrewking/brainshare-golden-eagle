@@ -45,10 +45,10 @@ export async function POST(request: Request) {
       .filter((m): m is Omit<Message, "id"> => m !== null);
 
     const systemToolingPrompt = [
-      "You can request background tools which the server executes after your first reply.",
-      "If the user asks for the current time or similar, start with a brief acknowledgement like:",
-      "'Let me check the current server time…'",
-      "Do not fabricate tool results. Keep the first reply short; the final result will be appended by the server shortly.",
+      "You may request a background time-check tool ONLY when the user explicitly asks for the current time or time in a timezone.",
+      "Examples that should trigger: 'what time is it', 'current time', 'time in PST/UTC', 'whatimeisitnow'.",
+      "Examples that should NOT trigger: travel planning, 'a good time of year', or anything unrelated to time-of-day.",
+      "If you trigger it, keep your first reply brief like 'Let me check the current server time…' and do not fabricate the result. The server will append the final time.",
     ].join("\n");
 
     const result = await streamText({
@@ -60,46 +60,57 @@ export async function POST(request: Request) {
       temperature: 0.2,
     });
 
-    // Stage0: minimal handoff scaffold always on first assistant chunk
-    const supabase = await createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    // fire-and-forget stream tapping
-    (async () => {
-      let handoffSent = false;
-      let assistantRowId: string | null = null;
-      for await (const _chunk of result.textStream) {
-        if (!handoffSent) {
-          handoffSent = true;
-          const chatId = String(bodyRecord.chatId || bodyRecord.id || "");
-          const { data: row, error } = await supabase
-            .from("message")
-            .insert({ chat_id: chatId, role: "assistant", status: "streaming", content: "" })
-            .select()
-            .single();
-          if (error || !row) {
-            console.warn("Failed to insert assistant placeholder", error);
-            continue;
-          }
-          assistantRowId = row.id;
+    // Stage0: minimal handoff only for explicit time-related queries
+    const lastUser = [...uiMessages].reverse().find((m) => m.role === "user");
+    const userText = (lastUser?.content ?? "").toString().toLowerCase();
+    const shouldHandoff = (() => {
+      if (!userText) return false;
+      if (userText.includes("whatimeisitnow")) return true;
+      const tzRe = /\b(pst|pdt|utc|est|edt|cst|cdt|mst|mdt|gmt|bst|cet|cest|ist|jst|aest|aedt)\b/;
+      const timeNowRe = /(what('?s| is)?\s+the\s+time|what\s+time\s+is\s+it|current\s+time|time\s+(now|right now)|time\s+in\s+[a-z ]+)/;
+      return tzRe.test(userText) || timeNowRe.test(userText);
+    })();
 
-          if (session) {
-            await inngest.send({
-              name: "chat/tool_handoff",
-              data: {
-                chatId,
-                rootMessageId: assistantRowId,
-                supabaseAccessToken: session.access_token,
-                userId: user.id,
-                handoffEventId: row.id,
-              },
-              id: row.id,
-            });
+    if (shouldHandoff) {
+      const supabase = await createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      (async () => {
+        let handoffSent = false;
+        let assistantRowId: string | null = null;
+        for await (const _chunk of result.textStream) {
+          if (!handoffSent) {
+            handoffSent = true;
+            const chatId = String(bodyRecord.chatId || bodyRecord.id || "");
+            const { data: row, error } = await supabase
+              .from("message")
+              .insert({ chat_id: chatId, role: "assistant", status: "streaming", content: "" })
+              .select()
+              .single();
+            if (error || !row) {
+              console.warn("Failed to insert assistant placeholder", error);
+              continue;
+            }
+            assistantRowId = row.id;
+
+            if (session) {
+              await inngest.send({
+                name: "chat/tool_handoff",
+                data: {
+                  chatId,
+                  rootMessageId: assistantRowId,
+                  supabaseAccessToken: session.access_token,
+                  userId: user.id,
+                  handoffEventId: row.id,
+                },
+                id: row.id,
+              });
+            }
           }
         }
-      }
-    })().catch(() => {});
+      })().catch(() => {});
+    }
 
     return result.toDataStreamResponse({ headers: { "Cache-Control": "no-cache" } });
   } catch (err) {
