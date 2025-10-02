@@ -131,6 +131,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
   } = useMessages(chatId);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const notifiedHandoffRef = useRef(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -150,12 +151,27 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     if (serverStreaming) setForceThinking(false);
   }, [serverStreaming]);
 
+  useEffect(() => {
+    if (serverStreaming && !notifiedHandoffRef.current) {
+      toast.message("Handoff: server-side tool running…", {
+        description: "Waiting for Inngest to finalize the assistant message.",
+      });
+      notifiedHandoffRef.current = true;
+    } else if (!serverStreaming && notifiedHandoffRef.current) {
+      toast.success("Handoff: server-side tool finalized");
+      notifiedHandoffRef.current = false;
+    }
+  }, [serverStreaming]);
+
   const { append, isLoading: aiLoading, messages: aiMessages } = useAiChat({
     api: "/api/chat",
     id: chatId,
     async onFinish(message) {
       try {
         // Handoff is always enabled; final assistant message will be persisted server-side
+        toast.info("AI stream finished (client)", {
+          description: "If still thinking, waiting on server tool handoff.",
+        });
 				if (chat && chat.title === "New Chat") {
 					const lastUser = (aiMessages.filter((m) => m.role === "user").pop()?.content as string) || "";
 					try {
