@@ -322,7 +322,7 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
               <></>
             )}
 
-            {aiLoading && aiMessages && aiMessages.length > 0 && (
+            {aiLoading && aiMessages && aiMessages.length > 0 && !serverStreaming && (
               <div className="p-4 border rounded-md">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">

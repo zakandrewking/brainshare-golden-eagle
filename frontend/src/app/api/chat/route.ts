@@ -51,25 +51,24 @@ export async function POST(request: Request) {
       "If you trigger it, keep your first reply brief like 'Let me check the current server time…' and do not fabricate the result. The server will append the final time.",
     ].join("\n");
 
-    const result = await streamText({
-      model: openai(defaultModel),
-      messages: convertToCoreMessages([
-        { role: "system", content: systemToolingPrompt },
-        ...uiMessages,
-      ]),
-      temperature: 0.2,
-    });
-
-    // Stage0: minimal handoff only for explicit time-related queries
+    // If time-intent, prepend the system prompt; else pass through original messages
     const lastUser = [...uiMessages].reverse().find((m) => m.role === "user");
     const userText = (lastUser?.content ?? "").toString().toLowerCase();
-    const shouldHandoff = (() => {
-      if (!userText) return false;
-      if (userText.includes("whatimeisitnow")) return true;
-      const tzRe = /\b(pst|pdt|utc|est|edt|cst|cdt|mst|mdt|gmt|bst|cet|cest|ist|jst|aest|aedt)\b/;
-      const timeNowRe = /(what('?s| is)?\s+the\s+time|what\s+time\s+is\s+it|current\s+time|time\s+(now|right now)|time\s+in\s+[a-z ]+)/;
-      return tzRe.test(userText) || timeNowRe.test(userText);
-    })();
+    const tzRe = /\b(pst|pdt|utc|est|edt|cst|cdt|mst|mdt|gmt|bst|cet|cest|ist|jst|aest|aedt)\b/;
+    const timeNowRe = /(what('?s| is)?\s+the\s+time|what\s+time\s+is\s+it|current\s+time|time\s+(now|right now)|time\s+in\s+[a-z ]+)/;
+    const shouldHandoff = Boolean(
+      userText && (userText.includes("whatimeisitnow") || tzRe.test(userText) || timeNowRe.test(userText))
+    );
+
+    const result = await streamText({
+      model: openai(defaultModel),
+      messages: convertToCoreMessages(
+        shouldHandoff
+          ? [{ role: "system", content: systemToolingPrompt }, ...uiMessages]
+          : uiMessages
+      ),
+      temperature: 0.2,
+    });
 
     if (shouldHandoff) {
       const supabase = await createClient();
