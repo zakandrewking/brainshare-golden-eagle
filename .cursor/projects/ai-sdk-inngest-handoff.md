@@ -3,8 +3,8 @@
 ### Goals
 - **Adopt a single LangGraph agent** as the source of truth for both the quick path (Next.js route) and the long-running path (Inngest).
 - **Stream a fast first token** to the user from the Next.js route, then **handoff** long-running tool calls to the same agent resumed in Inngest.
-- **Persist artifacts and agent state** via Supabase; reuse existing realtime pattern for progress updates.
-- **Ensure correctness** with idempotency, retries, resumability via LangGraph checkpointers, and RLS-safe access for multi-tenant users.
+- **Persist only outputs** (messages, job metadata) in Supabase; **pass agent state in the Inngest event** and rely on Inngest function durability.
+- **Ensure correctness** with idempotency, retries, and resumability via event-carried state and Inngest steps, with RLS-safe access for multi-tenant users.
 
 ### Non-Goals
 - Replace existing short-lived server actions. Those remain for sub-3s RPCs.
@@ -13,14 +13,14 @@
 ## High-Level Architecture
 1. Client sends a user message to a Next.js route handler that runs the **LangGraph single agent** compiled with an in-memory checkpointer and `interrupt_before: ['tools']`.
 2. We stream the agent’s first assistant tokens immediately from the route.
-3. If the agent is about to call a tool, the interrupt fires. We persist a placeholder assistant message and publish an Inngest event with the agent’s checkpoint identifiers.
-4. Inngest resumes the same agent from the checkpoint using a durable checkpointer, performs tool calls and any long-running steps, and writes incremental updates to Supabase.
+3. If the agent is about to call a tool, the interrupt fires. We persist a placeholder assistant message and publish an Inngest event containing the agent’s state snapshot and execution cursor.
+4. Inngest resumes the same agent from the event-carried state, performs tool calls and any long-running steps, and writes incremental updates to Supabase (outputs only).
 5. The client continues to render the initial streamed text and then live updates from Supabase until completion.
 
 ### Sequence (happy path)
 - Client → API: POST `/api/chat/respond` with { chatId, userMessageId, content }
 - API → LangGraph agent (in-memory checkpointer, `interrupt_before: ['tools']`): stream first assistant tokens
-- On interrupt (tool boundary): API → Supabase: insert assistant placeholder (`status='queued'|'streaming'`), then API → Inngest: `send('chat/tool_handoff', { chatId, rootMessageId, checkpointId, threadId, modelConfig })`
+- On interrupt (tool boundary): API → Supabase: insert assistant placeholder (`status='queued'|'streaming'`), then API → Inngest: `send('chat/tool_handoff', { chatId, rootMessageId, agentState, nextNode, modelConfig })`
 - Client: keeps initial assistant text; subscribes to Supabase realtime updates
 - Inngest: resumes agent from `checkpointId` for `threadId`, executes tools, streams progress to Supabase
 - Client: receives updates and shows progress; final message is marked `completed`
@@ -28,7 +28,7 @@
 Note: If no tools are needed, the agent completes entirely in the Next.js route; no Inngest handoff occurs.
 
 ## Data Model & Schema
-We reuse existing `chat` and `message` tables. To support reliable handoff, resumability, and streaming, we add minimal, non-breaking columns and two small tables.
+We reuse existing `chat` and `message` tables. To support reliable handoff and streaming, we add minimal, non-breaking columns and a small `job_runs` table. We do not persist agent state in the database.
 
 ### Tables
 - `chat`
@@ -66,14 +66,7 @@ We reuse existing `chat` and `message` tables. To support reliable handoff, resu
   - `created_at` (timestamptz)
   - `updated_at` (timestamptz)
 
-- `agent_checkpoints`
-  - `id` (uuid, pk)
-  - `thread_id` (text) — stable per-conversation/thread (e.g., `chatId`)
-  - `checkpoint_id` (text, unique) — from LangGraph checkpointer
-  - `parent_checkpoint_id` (text, nullable) — last checkpoint before this one
-  - `state` (jsonb) — serialized LangGraph state snapshot
-  - `created_at` (timestamptz)
-  - `updated_at` (timestamptz)
+// No agent state tables; state is carried inside the Inngest event payload
 
 ### Schema definition and migrations (Drizzle)
 We define all schema changes using **Drizzle** schema definitions, and generate SQL/migrations from those definitions. The following SQL is illustrative of the desired state; the authoritative source will be the Drizzle schema files, and migrations will be produced via our standard Drizzle workflow.
@@ -108,22 +101,10 @@ CREATE TABLE IF NOT EXISTS message_draft (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Checkpoints for LangGraph resumability
-CREATE TABLE IF NOT EXISTS agent_checkpoints (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  thread_id text NOT NULL,
-  checkpoint_id text NOT NULL UNIQUE,
-  parent_checkpoint_id text,
-  state jsonb NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_message_chat_created ON message(chat_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_message_status ON message(status);
 CREATE INDEX IF NOT EXISTS idx_job_runs_chat ON job_runs(chat_id);
-CREATE INDEX IF NOT EXISTS idx_agent_checkpoints_thread ON agent_checkpoints(thread_id, created_at DESC);
 ```
 
 ### RLS Policies
@@ -163,17 +144,6 @@ CREATE POLICY "authenticated-user-can-read-job-runs" ON job_runs
         AND chat.user_id = (SELECT auth.uid())
     )
   );
-
--- Agent checkpoints are visible if the chat is visible (thread scope)
-CREATE POLICY "authenticated-user-can-read-agent-checkpoints" ON agent_checkpoints
-  FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM chat
-      WHERE chat.id::text = agent_checkpoints.thread_id
-        AND chat.user_id = (SELECT auth.uid())
-    )
-  );
 ```
 
 ## API & Client Flow
@@ -195,18 +165,13 @@ const compiled = graph.compile({
   interrupt_before: ['tool_node'],
 });
 
-const threadId = chatId; // 1:1 with conversation
-let checkpointId: string | null = null;
-
 for await (const evt of compiled.streamEvents(
-  { messages, threadId },
-  { version: 'v1', configurable: { thread_id: threadId } }
+  { messages },
+  { version: 'v1' }
 )) {
   if (evt.type === 'tokens') writeSSE(evt.token);
   if (evt.type === 'interrupt') {
-    // Persist placeholder assistant message
     const handoffEventId = crypto.randomUUID();
-    checkpointId = evt.checkpoint.checkpoint_id;
     await supabase.from('message').insert({
       id: assistantMessageId,
       chat_id: chatId,
@@ -215,21 +180,18 @@ for await (const evt of compiled.streamEvents(
       handoff_event_id: handoffEventId,
       metadata: { model, reason: 'tool_handoff' },
     });
-    // Persist checkpoint for resume
-    await supabase.from('agent_checkpoints').insert({
-      thread_id: threadId,
-      checkpoint_id: checkpointId,
-      parent_checkpoint_id: evt.checkpoint.parent_id,
-      state: evt.checkpoint.state,
-    });
-    // Fire Inngest to resume
+
+    // Extract minimal agent state to continue in Inngest
+    const agentState = evt.checkpoint?.state; // structure defined by LangGraph
+    const nextNode = evt.checkpoint?.next;   // where to resume (tool node)
+
     await inngest.send('chat/tool_handoff', {
       id: handoffEventId,
       data: {
         chatId,
         rootMessageId: assistantMessageId,
-        checkpointId,
-        threadId,
+        agentState,
+        nextNode,
         modelConfig: {/* temp, provider */},
       },
     });
@@ -248,8 +210,8 @@ Event: `chat/tool_handoff`
 Steps:
 1. Validate payload and enforce idempotency (upsert in `job_runs` with `idempotency_key`). If exists and status in {processing, completed}, short-circuit.
 2. Mark `job_runs.status = 'processing'`.
-3. Load the `agent_checkpoints` row (by `checkpointId`) and compile the agent with a durable checkpointer (Supabase-backed) configured for the same `threadId`.
-4. Resume the agent from the checkpoint and continue execution through tool nodes.
+3. Rebuild the agent and rehydrate from `event.data.agentState`; set the execution cursor to `event.data.nextNode`.
+4. Continue execution through tool nodes.
 5. Emit incremental updates to Supabase while running tools:
    - Option A: update `message_draft.draft_content` frequently; periodically copy to `message.content`.
    - Option B: write directly to `message.content` with throttling (3–5 updates/sec) to reduce DB load.
@@ -262,8 +224,8 @@ Event payload shape:
 type ToolHandoffEvent = {
   chatId: string;
   rootMessageId: string;
-  checkpointId: string;
-  threadId: string;
+  agentState: Record<string, unknown>; // minimal state snapshot at interrupt
+  nextNode?: string;                    // optional execution cursor
   modelConfig: Record<string, unknown>;
 };
 ```
@@ -275,11 +237,12 @@ Concurrency considerations:
 ### Performance & Reliability
 - **Idempotency**: Use `handoff_event_id` as the Inngest event `id`. Guard `job_runs` with a unique `idempotency_key`.
 - **Write throttling**: Coalesce drafts with a 150–300ms flush cadence or 1–2KB chunk size.
-- **Resumability**: Persist LangGraph checkpoints at every interrupt and at key tool boundaries; on retry, `resume` from the latest checkpoint.
+- **Resumability**: Carry minimal agent state inside the Inngest event; on retry, rehydrate from the event payload and resume at `nextNode`.
 - **Indexes**: Ensure `(chat_id, created_at)` and `status` indexes exist; use partial index on `status = 'streaming'` if needed.
 - **Retries**: Allow Inngest retries; detect already-finalized messages and noop on replay.
 - **Backpressure**: Limit concurrent jobs per user/chat; queue excess via Inngest rate limits.
 - **Large results**: Store bulky tool outputs in object storage; persist a reference in `metadata`.
+- **Event payload size**: Ensure `agentState` remains within Inngest event size limits; if needed, compress or include only the minimal fields necessary to resume.
 
 ### Security
 - **RLS**: All reads/writes scoped to the owning `chat.user_id` using the policies above.
@@ -293,18 +256,19 @@ Concurrency considerations:
 
 ### Risks
 - **Checkpoint drift**: Ensure the same agent graph/version runs in both contexts or include versioning in checkpoints.
-- **Duplicate resumes**: Strict idempotency on `job_runs` and `agent_checkpoints` to avoid double execution.
+- **Duplicate resumes**: Strict idempotency on `job_runs` to avoid double execution.
 - **Partial outputs**: Use draft buffers to avoid noisy DB writes; throttle appropriately.
 - **Tool reliability**: Timeouts, retries, and circuit breakers for flaky tools; surface user-friendly errors.
 - **Cost overruns**: Cap tool depth/iterations; track token and tool usage in `metadata`.
+- **Event size/PII**: Avoid embedding sensitive data in `agentState`; include only what is required to resume.
 
 ## Rollout Plan (Phased)
 0. **Phase 0 – Single agent scaffold**
    - Build `buildAgentGraph()` returning a LangGraph StateGraph with tool support and streaming.
    - Validate quick-path route with `interrupt_before: ['tools']` and in-memory checkpointer.
-1. **Phase 1 – Handoff with checkpoints**
-   - Persist checkpoints on interrupt; publish Inngest with `checkpointId` and `threadId`.
-   - Resume in Inngest with durable checkpointer and stream updates to Supabase.
+1. **Phase 1 – Handoff with event state**
+   - On interrupt, publish Inngest event with `agentState` and `nextNode`.
+   - Resume in Inngest by rehydrating from event payload and stream updates to Supabase.
 2. **Phase 2 – Streaming refinements**
    - Add draft buffering and write throttling; polish realtime UX.
 3. **Phase 3 – Idempotency & recovery**
@@ -383,6 +347,7 @@ describe('Agent graph', () => {
 describe('Route handoff logic', () => {
   it('persists placeholder and publishes inngest exactly once', async () => {/* ... */});
   it('does not handoff when no tools are needed', async () => {/* ... */});
+  it('packs minimal agent state into event payload', async () => {/* ... */});
   it('handles LLM error with graceful user message', async () => {/* ... */});
 });
 
@@ -390,6 +355,7 @@ describe('Inngest continuation', () => {
   it('noops on duplicate idempotency key', async () => {/* ... */});
   it('throttles writes to message content', async () => {/* ... */});
   it('finalizes message and clears draft on success', async () => {/* ... */});
+  it('rehydrates agent from event state and resumes at nextNode', async () => {/* ... */});
   it('records error status and logs details on failure', async () => {/* ... */});
 });
 ```
@@ -398,10 +364,10 @@ describe('Inngest continuation', () => {
 - Do we prefer `message_draft` or direct `message.content` updates with throttling? Default to draft for high QPS tools.
 - Should we store large tool outputs externally and link vs inline in `metadata`? Prefer external for >256KB.
 - Is there a need for per-user concurrency limits at the Inngest level? Likely yes (configurable).
-- Should we persist every checkpoint vs only interrupts/tool boundaries? Default to interrupts + major tool steps.
+- What is the minimal `agentState` needed to resume reliably while keeping event sizes small? Should we compress?
 
 ## Implementation Notes
 - Use Next.js API routes for the streaming response path.
 - Trigger Inngest via a server-side call with an idempotent `id`.
 - Keep server actions only for short-lived secret-bound RPCs; use Inngest for any >3s work.
-- Centralize agent construction in `buildAgentGraph({ tools, model })` so both contexts invoke the same compiled graph with different checkpointers.
+- Centralize agent construction in `buildAgentGraph({ tools, model })` so both contexts invoke the same compiled graph; pass `agentState` when resuming in Inngest.
