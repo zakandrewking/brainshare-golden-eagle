@@ -5,6 +5,7 @@
 
 import { z } from "zod";
 import { ChatOpenAI } from "@langchain/openai";
+import { isAIMessage } from "@langchain/core/messages";
 import { StateGraph, MessagesAnnotation, END, START } from "@langchain/langgraph";
 
 // Basic env validation
@@ -34,7 +35,7 @@ function buildGraph(modelName?: string) {
   const graph = new StateGraph(MessagesAnnotation)
     .addNode("llm", async (state) => {
       // Expect most recent user message at the end
-      const response = await llm.stream(state.messages);
+      const response = await llm.invoke(state.messages);
       return { messages: [response] };
     })
     .addEdge(START, "llm")
@@ -68,7 +69,7 @@ export async function* runAgent0(options: Agent0Options) {
     const messages = chunk?.messages ?? [];
     const last = messages[messages.length - 1];
 
-    if (last && last.role === "assistant") {
+    if (last && isAIMessage(last)) {
       // Preferred: yield the entire assistant message as it grows
       yield last;
     }
