@@ -75,7 +75,7 @@ export const toolHandoff = inngest.createFunction({ id: 'tool-handoff' }, { even
 - Secrets only in Inngest; RLS remains as implemented for `chat`/`message`.
 
 ### Rollout
-- Phase 0: Single agent scaffold in the route; validate streaming and interrupt.
+- Phase 0: Single agent scaffold in the route; validate streaming and interrupt. ✅ COMPLETE
 - Phase 1: Event-state handoff to Inngest; resume and finalize; minimal tool.
 - Phase 2: Streaming polish (draft buffering), metrics, limits, and alerts.
 
@@ -84,6 +84,11 @@ export const toolHandoff = inngest.createFunction({ id: 'tool-handoff' }, { even
 - Inngest: rehydrates from event; runs tool; writes updates; finalizes; safe on retry.
 - State/UX: render policy returns sensible output for each `status`.
 - RLS: ensure user isolation on `message`/`job_runs`.
+
+### Phase 0 Implementation Notes
+- Added `detectHandoffIntentFromText(text)` helper to detect interrupt intent in streamed output.
+- Updated `/api/chat` route to stream via `ai` SDK and log when interrupt intent is detected (scaffold only).
+- Updated client `ChatDetail` to also detect and log interrupt intent on finish.
 
 ### Implementation notes
 - One `buildAgentGraph({ tools, model })` used in both contexts.
