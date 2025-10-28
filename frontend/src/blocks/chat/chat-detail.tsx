@@ -26,6 +26,7 @@ import type { Database } from "@/database.types";
 
 import { useChat as useAiChat } from "ai/react";
 import { saveAssistantMessage, saveUserMessage } from "./logic/save-message";
+import { detectHandoffIntentFromText } from "./logic/interrupt";
 import useChat from "./logic/use-chat";
 import useMessages from "./logic/use-messages";
 import { generateChatTitle } from "@/blocks/chat/actions/generate-chat-title";
@@ -154,6 +155,12 @@ export default function ChatDetail({ chatId }: ChatDetailProps) {
     api: "/api/chat",
     id: chatId,
     async onFinish(message) {
+      try {
+        if (detectHandoffIntentFromText(message.content)) {
+          // Phase 0: client-side interrupt detection scaffold
+          console.log("[chat] interrupt intent detected – ready for handoff");
+        }
+      } catch {}
       try {
         await saveAssistantMessage(chatId, message.content);
         await mutateMessages();

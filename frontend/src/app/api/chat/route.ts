@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { convertToCoreMessages, streamText, type Message } from "ai";
+import { detectHandoffIntentFromText } from "@/blocks/chat/logic/interrupt";
 import { openai } from "@ai-sdk/openai";
 
 import { defaultModel } from "@/llm-config";
@@ -45,6 +46,18 @@ export async function POST(request: Request) {
       model: openai(defaultModel),
       messages: convertToCoreMessages(uiMessages),
       temperature: 0.2,
+      // Phase 0: basic interrupt scaffold – detect intent in final text
+      onFinish: async ({ text }) => {
+        try {
+          const finalText = typeof text === "string" ? text : String(text ?? "");
+          if (detectHandoffIntentFromText(finalText)) {
+            // Scaffold only – later phases will hand off to Inngest
+            console.log("[chat] interrupt intent detected – ready for handoff");
+          }
+        } catch (e) {
+          console.warn("[chat] interrupt detection failed", e);
+        }
+      },
     });
 
     return result.toDataStreamResponse({ headers: { "Cache-Control": "no-cache" } });
